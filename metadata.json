@@ -1,0 +1,5 @@
+{
+  "name": "AI-Powered Dashboard Builder",
+  "description": "A SaaS platform that allows users to create and customize their own data dashboards. Users can visualize key performance indicators (KPIs), track metrics, and generate AI-driven insights from their data in real time.",
+  "requestFramePermissions": []
+}
