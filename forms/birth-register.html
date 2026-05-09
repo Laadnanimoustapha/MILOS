@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="تسجيل التصريح بالولادة - نظام الحالة المدنية">
+  <title>تسجيل التصريح بالولادة</title>
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/header.css">
+  <link rel="stylesheet" href="css/forms.css">
+</head>
+<body>
+  <section class="app-shell">
+
+    <!-- ===== HEADER ===== -->
+    <header class="site-header">
+      <nav class="header__brand">
+        <img src="../LOGO.png" alt="شعار النظام" class="header__logo" aria-hidden="true">
+        <article class="header__title-block">
+          <h1 class="header__title">نظام تدبير سجلات الحالة المدنية</h1>
+          <p class="header__subtitle">المملكة المغربية - وزارة الداخلية</p>
+        </article>
+      </nav>
+      <nav class="header__actions">
+      </nav>
+    </header>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main class="main-content">
+
+      <a href="../index.html" class="back-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        العودة إلى القائمة الرئيسية
+      </a>
+
+      <!-- ===== STEPPER ===== -->
+      <nav class="stepper" aria-label="خطوات التسجيل">
+        <article class="stepper__step stepper__step--active" data-step="0">
+          <span class="stepper__indicator">
+            <span class="stepper__number">1</span>
+            <svg class="stepper__check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5 6.5-7"/></svg>
+          </span>
+          <span class="stepper__label">معلومات عامة</span>
+        </article>
+        <article class="stepper__step stepper__step--next" data-step="1">
+          <span class="stepper__indicator">
+            <span class="stepper__number">2</span>
+            <svg class="stepper__check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5 6.5-7"/></svg>
+          </span>
+          <span class="stepper__label">معلومات عن الأم</span>
+        </article>
+        <article class="stepper__step stepper__step--inactive" data-step="2">
+          <span class="stepper__indicator">
+            <span class="stepper__number">3</span>
+            <svg class="stepper__check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5 6.5-7"/></svg>
+          </span>
+          <span class="stepper__label">معلومات عن الأب</span>
+        </article>
+        <article class="stepper__step stepper__step--inactive" data-step="3">
+          <span class="stepper__indicator">
+            <span class="stepper__number">4</span>
+            <svg class="stepper__check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5 6.5-7"/></svg>
+          </span>
+          <span class="stepper__label">معلومات عن المولود(ة)</span>
+        </article>
+        <article class="stepper__step stepper__step--inactive" data-step="4">
+          <span class="stepper__indicator">
+            <span class="stepper__number">5</span>
+            <svg class="stepper__check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5 6.5-7"/></svg>
+          </span>
+          <span class="stepper__label">نسخ الوثائق المدعمة</span>
+        </article>
+        <article class="stepper__step stepper__step--inactive" data-step="5">
+          <span class="stepper__indicator">
+            <span class="stepper__number">6</span>
+            <svg class="stepper__check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5 6.5-7"/></svg>
+          </span>
+          <span class="stepper__label">خلاصة وتأكيد</span>
+        </article>
+      </nav>
+
+      <!-- ===== STEP 0: General Information ===== -->
+      <section class="form-step" data-step-content="0">
+
+        <fieldset class="form-panel">
+          <legend class="form-panel__legend">معلومات عن التصريح</legend>
+
+          <article class="form-row">
+            <label class="form-label" for="decl-type">نوع التصريح</label>
+            <article style="display: flex; gap: 24px;">
+              <label class="form-check">
+                <input type="radio" name="decl-type" value="direct" checked>
+                <span class="form-check__label">مباشر</span>
+              </label>
+              <label class="form-check">
+                <input type="radio" name="decl-type" value="court">
+                <span class="form-check__label">حكم من المحكمة</span>
+              </label>
+            </article>
+          </article>
+
+          <article class="form-row">
+            <label class="form-label" for="decl-date-day">تاريخ التصريح بالولادة</label>
+            <article class="date-group">
+              <span class="date-group__label">اليوم</span>
+              <select class="form-select" id="decl-date-day"><option>--</option></select>
+              <span class="date-group__label">الشهر</span>
+              <select class="form-select" id="decl-date-month"><option>--</option></select>
+              <span class="date-group__label">السنة</span>
+              <select class="form-select" id="decl-date-year"><option>--</option></select>
+            </article>
+          </article>
+
+          <article class="form-row">
+            <label class="form-label" for="decl-number">رقم التصريح</label>
+            <input type="text" class="form-input form-input--with-keyboard" id="decl-number" style="max-width: 300px;">
+          </article>
+        </fieldset>
+
+        <fieldset class="form-panel">
+          <legend class="form-panel__legend">معلومات حول المصرح</legend>
+
+          <article class="form-row">
+            <label class="form-label" for="declarant-name">اسم المصرح</label>
+            <input type="text" class="form-input form-input--with-keyboard" id="declarant-name" style="max-width: 400px;">
+            <span class="form-label--fr">Nom du declarant</span>
+          </article>
+
+          <article class="form-row">
+            <label class="form-label" for="declarant-cin">رقم بطاقة التعريف</label>
+            <input type="text" class="form-input" id="declarant-cin" style="max-width: 250px;">
+            <span class="form-label--fr">CIN</span>
+          </article>
+
+          <article class="form-row">
+            <label class="form-label" for="declarant-relation">صفة المصرح</label>
+            <select class="form-select" id="declarant-relation" style="max-width: 300px;">
+              <option value="">-- اختر --</option>
+              <option>الأب</option>
+              <option>الأم</option>
+              <option>الطبيب</option>
+              <option>القابلة</option>
+              <option>أخرى</option>
+            </select>
+          </article>
+        </fieldset>
+
+      </section>
+
+      <!-- ===== STEP 1: Mother Info ===== -->
+      <section class="form-step" data-step-content="1" hidden>
+
+        <fieldset class="form-panel">
+          <legend class="form-panel__legend">معلومات عن الأم</legend>
+
+          <article class="form-row">
+            <label class="form-label">الاسم الشخصي</label>
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 300px;">
+            <span class="form-label--fr">Prenom</span>
+          </article>
+
+          <article class="form-row">
+            <label class="form-label">الاسم العائلي</label>
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 300px;">
+            <span class="form-label--fr">Nom</span>
+          </article>
+
+          <article class="form-row">
+            <label class="form-label">تاريخ الازدياد</label>
+            <article class="date-group">
+              <span class="date-group__label">اليوم</span>
+              <select class="form-select"><option>--</option></select>
+              <span class="date-group__label">الشهر</span>
+              <select class="form-select"><option>--</option></select>
+              <span class="date-group__label">السنة</span>
+              <select class="form-select"><option>--</option></select>
+            </article>
+            <span class="form-label--fr">Date de naissance</span>
+          </article>
+
+          <article class="form-row">
+            <label class="form-label">رقم بطاقة التعريف</label>
+            <input type="text" class="form-input" style="max-width: 250px;">
+            <span class="form-label--fr">CIN</span>
+          </article>
+
+          <article class="form-row">
+            <label class="form-label">عنوان الإقامة</label>
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 400px;">
+            <span class="form-label--fr">Adresse</span>
+          </article>
+
+          <article class="archive-search">
+            <p class="archive-search__title">البحث في بيانات الأرشيف</p>
+            <article class="archive-search__row">
+              <article class="archive-search__field">
+                <label class="form-label">مكتب الحالة المدنية</label>
+                <select class="form-select"><option>-- اختر --</option></select>
+              </article>
+              <article class="archive-search__field">
+                <label class="form-label">سنة التسجيل</label>
+                <select class="form-select"><option>--</option></select>
+              </article>
+              <article class="archive-search__field">
+                <label class="form-label">رقم الرسم</label>
+                <input type="text" class="form-input">
+              </article>
+              <button class="btn btn--orange">+ إضافة</button>
+            </article>
+          </article>
+        </fieldset>
+
+      </section>
+
+      <!-- ===== STEP 2: Father Info ===== -->
+      <section class="form-step" data-step-content="2" hidden>
+
+        <fieldset class="form-panel">
+          <legend class="form-panel__legend">معلومات عن الأب</legend>
+
+          <article class="unknown-toggle">
+            <label class="form-check">
+              <input type="checkbox" id="unknown-father">
+              <span class="form-check__label">مجهول الأب</span>
+            </label>
+          </article>
+
+          <article class="form-row">
+            <label class="form-label">الاسم الشخصي</label>
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 300px;">
+            <span class="form-label--fr">Prenom</span>
+          </article>
+
+          <article class="form-row">
+            <label class="form-label">الاسم العائلي</label>
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 300px;">
+            <span class="form-label--fr">Nom</span>
+          </article>
+
+          <article class="form-row">
+            <label class="form-label">تاريخ الازدياد</label>
+            <article class="date-group">
+              <span class="date-group__label">اليوم</span>
+              <select class="form-select"><option>--</option></select>
+              <span class="date-group__label">الشهر</span>
+              <select class="form-select"><option>--</option></select>
+              <span class="date-group__label">السنة</span>
+              <select class="form-select"><option>--</option></select>
+            </article>
+            <span class="form-label--fr">Date de naissance</span>
+          </article>
+
+          <article class="form-row">
+            <label class="form-label">رقم بطاقة التعريف</label>
+            <input type="text" class="form-input" style="max-width: 250px;">
+            <span class="form-label--fr">CIN</span>
+          </article>
+
+          <article class="form-row">
+            <label class="form-label">المهنة</label>
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 300px;">
+            <span class="form-label--fr">Profession</span>
+          </article>
+
+          <article class="archive-search">
+            <p class="archive-search__title">البحث في بيانات الأرشيف</p>
+            <article class="archive-search__row">
+              <article class="archive-search__field">
+                <label class="form-label">مكتب الحالة المدنية</label>
+                <select class="form-select"><option>-- اختر --</option></select>
+              </article>
+              <article class="archive-search__field">
+                <label class="form-label">سنة التسجيل</label>
+                <select class="form-select"><option>--</option></select>
+              </article>
+              <article class="archive-search__field">
+                <label class="form-label">رقم الرسم</label>
+                <input type="text" class="form-input">
+              </article>
+              <button class="btn btn--orange">+ إضافة</button>
+            </article>
+          </article>
+        </fieldset>
+
+      </section>
+
+      <!-- ===== STEP 3: Newborn Info ===== -->
+      <section class="form-step" data-step-content="3" hidden>
+
+        <fieldset class="form-panel">
+          <legend class="form-panel__legend">معلومات عن المولود(ة)</legend>
+
+          <article class="form-row">
+            <label class="form-label">الاسم الشخصي</label>
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 300px;">
+            <span class="form-label--fr">Prenom</span>
+          </article>
+
+          <article class="form-row">
+            <label class="form-label">الجنس</label>
+            <article style="display: flex; gap: 24px;">
+              <label class="form-check">
+                <input type="radio" name="gender" value="male">
+                <span class="form-check__label">ذكر</span>
+              </label>
+              <label class="form-check">
+                <input type="radio" name="gender" value="female">
+                <span class="form-check__label">أنثى</span>
+              </label>
+            </article>
+          </article>
+
+          <article class="form-row">
+            <label class="form-label">تاريخ الولادة</label>
+            <article class="date-group">
+              <span class="date-group__label">اليوم</span>
+              <select class="form-select"><option>--</option></select>
+              <span class="date-group__label">الشهر</span>
+              <select class="form-select"><option>--</option></select>
+              <span class="date-group__label">السنة</span>
+              <select class="form-select"><option>--</option></select>
+            </article>
+          </article>
+
+          <article class="form-row">
+            <label class="form-label">الموافق ل (هجري)</label>
+            <article class="date-group">
+              <span class="date-group__label">اليوم</span>
+              <select class="form-select"><option>--</option></select>
+              <span class="date-group__label">الشهر</span>
+              <select class="form-select"><option>--</option></select>
+              <span class="date-group__label">السنة</span>
+              <select class="form-select"><option>--</option></select>
+            </article>
+          </article>
+
+          <article class="form-row">
+            <label class="form-check">
+              <input type="checkbox">
+              <span class="form-check__label">لا يتوفر على اليوم</span>
+            </label>
+          </article>
+
+          <article class="form-row">
+            <label class="form-label">مكان الولادة</label>
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 400px;">
+            <span class="form-label--fr">Lieu de naissance</span>
+          </article>
+
+          <article class="form-row">
+            <label class="form-label">عنوان مكان الولادة</label>
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 400px;">
+            <span class="form-label--fr">Adresse de naissance</span>
+          </article>
+
+          <article style="margin-top: var(--space-md);">
+            <button class="btn btn--orange">إضافة مولود توأم</button>
+          </article>
+        </fieldset>
+
+      </section>
+
+      <!-- ===== STEP 4: Documents ===== -->
+      <section class="form-step" data-step-content="4" hidden>
+
+        <fieldset class="form-panel">
+          <legend class="form-panel__legend">نسخ الوثائق المدعمة</legend>
+
+          <article class="upload-controls">
+            <article class="upload-controls__field">
+              <label class="form-label">نوع الوثيقة</label>
+              <select class="form-select" style="min-width: 220px;">
+                <option>-- اختر نوع الوثيقة --</option>
+                <option>شهادة طبية</option>
+                <option>بطاقة التعريف</option>
+                <option>عقد الزواج</option>
+              </select>
+            </article>
+            <article class="upload-controls__field">
+              <label class="form-label">تحميل صورة الوثيقة</label>
+              <input type="file" class="form-input" accept="image/*">
+            </article>
+            <button class="btn btn--primary">تحميل صورة الوثيقة</button>
+          </article>
+
+          <article class="doc-gallery">
+            <article class="doc-card">
+              <article class="doc-card__thumb">
+                <svg viewBox="0 0 64 64" width="64" fill="#CCC"><rect x="12" y="8" width="40" height="48" rx="2" stroke="#CCC" stroke-width="2" fill="none"/><line x1="20" y1="20" x2="44" y2="20" stroke="#DDD" stroke-width="2"/><line x1="20" y1="28" x2="44" y2="28" stroke="#DDD" stroke-width="2"/><line x1="20" y1="36" x2="36" y2="36" stroke="#DDD" stroke-width="2"/></svg>
+              </article>
+              <p class="doc-card__type">شهادة طبية</p>
+              <button class="doc-card__delete">حذف</button>
+            </article>
+            <article class="doc-card">
+              <article class="doc-card__thumb">
+                <svg viewBox="0 0 64 64" width="64" fill="#CCC"><rect x="12" y="8" width="40" height="48" rx="2" stroke="#CCC" stroke-width="2" fill="none"/><line x1="20" y1="20" x2="44" y2="20" stroke="#DDD" stroke-width="2"/><line x1="20" y1="28" x2="44" y2="28" stroke="#DDD" stroke-width="2"/><line x1="20" y1="36" x2="36" y2="36" stroke="#DDD" stroke-width="2"/></svg>
+              </article>
+              <p class="doc-card__type">بطاقة التعريف</p>
+              <button class="doc-card__delete">حذف</button>
+            </article>
+          </article>
+        </fieldset>
+
+      </section>
+
+      <!-- ===== STEP 5: Summary ===== -->
+      <section class="form-step" data-step-content="5" hidden>
+
+        <section class="review-accordion review-accordion--open">
+          <button class="review-accordion__header">
+            <span class="review-accordion__icon">-</span>
+            <span class="review-accordion__title">معلومات عن التصريح</span>
+          </button>
+          <article class="review-accordion__body">
+            <article class="review-row">
+              <span class="review-row__label-fr">Date de declaration</span>
+              <span class="review-row__value">19-01-2023</span>
+              <span class="review-row__label-ar">تاريخ التصريح بالولادة</span>
+            </article>
+            <article class="review-row">
+              <span class="review-row__label-fr">Type de declaration</span>
+              <span class="review-row__value">مباشر</span>
+              <span class="review-row__label-ar">نوع التصريح</span>
+            </article>
+            <article class="review-row">
+              <span class="review-row__label-fr">Nom du declarant</span>
+              <span class="review-row__value">---</span>
+              <span class="review-row__label-ar">اسم المصرح</span>
+            </article>
+          </article>
+        </section>
+
+        <section class="review-accordion">
+          <button class="review-accordion__header">
+            <span class="review-accordion__icon">+</span>
+            <span class="review-accordion__title">معلومات عن الأم</span>
+          </button>
+          <article class="review-accordion__body">
+            <article class="review-row">
+              <span class="review-row__label-fr">Prenom</span>
+              <span class="review-row__value">---</span>
+              <span class="review-row__label-ar">الاسم الشخصي</span>
+            </article>
+          </article>
+        </section>
+
+        <section class="review-accordion">
+          <button class="review-accordion__header">
+            <span class="review-accordion__icon">+</span>
+            <span class="review-accordion__title">معلومات عن الأب</span>
+          </button>
+          <article class="review-accordion__body">
+            <article class="review-row">
+              <span class="review-row__label-fr">Prenom</span>
+              <span class="review-row__value">---</span>
+              <span class="review-row__label-ar">الاسم الشخصي</span>
+            </article>
+          </article>
+        </section>
+
+        <section class="review-accordion">
+          <button class="review-accordion__header">
+            <span class="review-accordion__icon">+</span>
+            <span class="review-accordion__title">معلومات عن المولود(ة)</span>
+          </button>
+          <article class="review-accordion__body">
+            <article class="review-row">
+              <span class="review-row__label-fr">Prenom</span>
+              <span class="review-row__value">---</span>
+              <span class="review-row__label-ar">الاسم الشخصي</span>
+            </article>
+          </article>
+        </section>
+
+      </section>
+
+      <!-- ===== FORM NAVIGATION ===== -->
+      <nav class="form-nav">
+        <button class="btn btn--outline" id="btn-prev" disabled>السابق</button>
+        <button class="btn btn--primary" id="btn-next">التالي</button>
+      </nav>
+
+    </main>
+  </section>
+
+  <script src="../js/stepper.js"></script>
+</body>
+</html>

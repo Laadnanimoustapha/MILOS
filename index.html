@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="نظام تدبير سجلات الحالة المدنية - المملكة المغربية">
+  <title>نظام تدبير سجلات الحالة المدنية</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ============================================
+       DESIGN TOKENS
+       ============================================ */
+    :root {
+      /* --- Moroccan Institutional Palette --- */
+      --clr-emerald: #0A4D3C;
+      --clr-emerald-deep: #083D30;
+      --clr-emerald-hover: #0C5A46;
+      --clr-gold: #D4AF37;
+      --clr-gold-muted: rgba(212, 175, 55, 0.18);
+      --clr-gold-border: rgba(212, 175, 55, 0.35);
+      --clr-cream: #FAF8F2;
+      --clr-cream-warm: #F5F0E6;
+
+      /* --- Neutral Scale --- */
+      --clr-surface: #FFFFFF;
+      --clr-border: #E2DDD3;
+      --clr-border-light: #EDE9E0;
+      --clr-text: #1A1A1A;
+      --clr-text-secondary: #6B6355;
+      --clr-text-inverse: #FFFFFF;
+
+      /* --- Layout --- */
+      --header-height: 80px;
+      --container-max: 960px;
+      --radius-card: 4px;
+
+      /* --- Shadows --- */
+      --shadow-card: 0 2px 8px rgba(10, 77, 60, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+      --shadow-card-hover: 0 6px 20px rgba(10, 77, 60, 0.1), 0 2px 6px rgba(0, 0, 0, 0.06);
+
+      /* --- Motion --- */
+      --transition-fast: 200ms ease-in-out;
+      --transition-base: 280ms ease-in-out;
+    }
+
+    /* ============================================
+       RESET & BASE
+       ============================================ */
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      direction: rtl;
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      scrollbar-width: none; /* Firefox */
+    }
+
+    /* Chrome, Edge, and Safari */
+    ::-webkit-scrollbar {
+      width: 0px;
+      background: transparent;
+    }
+
+    body {
+      min-height: 100vh;
+      color: var(--clr-text);
+      background-color: var(--clr-cream);
+      background-image: url("BACKGROUND%20IMAGE.png");
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      font-family: 'Cairo', 'Tajawal', 'Segoe UI', system-ui, sans-serif;
+      font-weight: 400;
+      line-height: 1.5;
+    }
+
+
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button {
+      border: 0;
+      background: none;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    ul { list-style: none; }
+    svg { display: block; }
+
+    :focus-visible {
+      outline: 2px solid var(--clr-emerald);
+      outline-offset: 2px;
+    }
+
+    /* ============================================
+       APP SHELL
+       ============================================ */
+
+    .app-shell {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 100vh;
+    }
+
+    /* ============================================
+       HEADER
+       ============================================ */
+
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      min-height: var(--header-height);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 14px 32px;
+      background: transparent;
+      border-bottom: none;
+      transition: background-color var(--transition-fast), backdrop-filter var(--transition-fast), border-bottom var(--transition-fast);
+    }
+
+    .site-header.is-scrolled {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border-bottom: 1px solid var(--clr-border-light);
+    }
+
+    .header__brand {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .header__emblem {
+      width: 48px;
+      height: 48px;
+      flex: 0 0 48px;
+    }
+
+    .header__title-block {
+      min-width: 0;
+    }
+
+    .header__title {
+      color: var(--clr-emerald);
+      font-size: 17px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .header__subtitle {
+      margin-top: 1px;
+      color: var(--clr-text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .header__actions {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .header__action-btn {
+      width: 44px;
+      height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--clr-text-secondary);
+      border-radius: var(--radius-card);
+      transition: background-color var(--transition-fast), color var(--transition-fast);
+    }
+
+    .header__action-btn:hover {
+      color: var(--clr-emerald);
+      background: var(--clr-gold-muted);
+    }
+
+    .header__action-btn svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    /* ============================================
+       MAIN CONTENT
+       ============================================ */
+
+    .main-content {
+      width: 100%;
+      max-width: var(--container-max);
+      margin-inline: auto;
+      padding: 48px 24px 64px;
+    }
+
+    /* --- Welcome Section --- */
+
+    .dashboard-welcome {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .dashboard-welcome__title {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--clr-emerald);
+      margin-bottom: 6px;
+    }
+
+    .dashboard-welcome__desc {
+      font-size: 14px;
+      color: var(--clr-text-secondary);
+      font-weight: 500;
+    }
+
+    /* --- Gold divider --- */
+    .dashboard-welcome__divider {
+      width: 80px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--clr-gold), transparent);
+      margin: 20px auto 0;
+      border: none;
+    }
+
+    /* ============================================
+       DASHBOARD CARDS
+       ============================================ */
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    .dashboard-card {
+      background: var(--clr-surface);
+      border: 1px solid var(--clr-border);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+      transition: box-shadow var(--transition-base), border-color var(--transition-base);
+    }
+
+    .dashboard-card:hover {
+      box-shadow: var(--shadow-card-hover);
+      border-color: var(--clr-gold-border);
+    }
+
+    /* --- Card Top Accent --- */
+    .dashboard-card::before {
+      content: "";
+      display: block;
+      height: 3px;
+      background: linear-gradient(90deg, var(--clr-emerald), var(--clr-gold));
+    }
+
+    /* --- Card Header (clickable) --- */
+
+    .card__header {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      padding: 24px 28px;
+      text-align: right;
+      transition: background-color var(--transition-fast);
+    }
+
+    .card__header:hover {
+      background: var(--clr-cream);
+    }
+
+    .card__icon-wrap {
+      width: 56px;
+      height: 56px;
+      flex: 0 0 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--clr-emerald);
+      border-radius: 50%;
+      color: var(--clr-text-inverse);
+      transition: background-color var(--transition-fast);
+    }
+
+    .card__header:hover .card__icon-wrap {
+      background: var(--clr-emerald-hover);
+    }
+
+    .card__icon-wrap svg {
+      width: 26px;
+      height: 26px;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+
+    .card__title-group {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .card__title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--clr-emerald);
+      line-height: 1.35;
+    }
+
+    .card__desc {
+      margin-top: 3px;
+      font-size: 12px;
+      color: var(--clr-text-secondary);
+      font-weight: 500;
+    }
+
+    .card__chevron {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+      color: var(--clr-text-secondary);
+      transition: transform var(--transition-fast), color var(--transition-fast);
+    }
+
+    .card__header[aria-expanded="true"] .card__chevron {
+      transform: rotate(-90deg);
+      color: var(--clr-emerald);
+    }
+
+    /* --- Card Panel (submenu) --- */
+
+    .card__panel {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows var(--transition-base);
+    }
+
+    .card__panel[aria-hidden="false"] {
+      grid-template-rows: 1fr;
+    }
+
+    .card__panel-inner {
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    /* --- Submenu Links --- */
+
+    .submenu__link {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 12px 28px;
+      color: var(--clr-text);
+      background: var(--clr-surface);
+      border-top: 1px solid var(--clr-border-light);
+      font-size: 15px;
+      font-weight: 500;
+      line-height: 1.4;
+      text-align: right;
+      cursor: pointer;
+      transition: background-color var(--transition-fast), padding-right var(--transition-fast);
+    }
+
+    .submenu__link::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--clr-gold);
+      flex-shrink: 0;
+      opacity: 0;
+      transition: opacity var(--transition-fast);
+    }
+
+    .submenu__link:hover {
+      background: var(--clr-cream);
+    }
+
+    .submenu__link:hover::before,
+    .submenu__link--active::before {
+      opacity: 1;
+    }
+
+    .submenu__link--active {
+      background: var(--clr-cream-warm);
+      font-weight: 600;
+      color: var(--clr-emerald);
+    }
+
+    /* --- Gold Bottom Accent on Card --- */
+    .card__panel[aria-hidden="false"] .card__panel-inner::after {
+      content: "";
+      display: block;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--clr-gold-border), transparent);
+    }
+
+    /* ============================================
+       RESPONSIVE
+       ============================================ */
+
+    @media (max-width: 720px) {
+      .site-header {
+        gap: 12px;
+        padding: 12px 16px;
+      }
+
+      .header__emblem {
+        width: 42px;
+        height: 42px;
+        flex-basis: 42px;
+      }
+
+      .header__title {
+        font-size: 15px;
+      }
+
+      .main-content {
+        padding: 28px 14px 40px;
+      }
+
+      .dashboard-welcome {
+        margin-bottom: 32px;
+      }
+
+      .dashboard-welcome__title {
+        font-size: 20px;
+      }
+
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+
+      .card__header {
+        padding: 20px 20px;
+        gap: 14px;
+      }
+
+      .card__icon-wrap {
+        width: 48px;
+        height: 48px;
+        flex-basis: 48px;
+      }
+
+      .card__icon-wrap svg {
+        width: 22px;
+        height: 22px;
+      }
+
+      .card__title {
+        font-size: 16px;
+      }
+
+      .submenu__link {
+        padding-right: 20px;
+        padding-left: 20px;
+        font-size: 14px;
+      }
+    }
+
+    @media (max-width: 430px) {
+      .site-header {
+        padding-inline: 10px;
+      }
+
+      .header__title {
+        font-size: 14px;
+      }
+
+      .header__subtitle {
+        display: none;
+      }
+
+      .dashboard-welcome__title {
+        font-size: 18px;
+      }
+
+      .dashboard-welcome__desc {
+        font-size: 13px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <section class="app-shell">
+    <header class="site-header">
+      <nav class="header__brand" aria-label="هوية النظام">
+        <!-- Moroccan Emblem: Logo -->
+        <img src="LOGO.png" alt="شعار النظام" class="header__emblem" aria-hidden="true">
+        <article class="header__title-block">
+          <h1 class="header__title">نظام تدبير سجلات الحالة المدنية</h1>
+          <p class="header__subtitle">المملكة المغربية - وزارة الداخلية</p>
+        </article>
+      </nav>
+
+      <nav class="header__actions" aria-label="إجراءات النظام">
+        <button class="header__action-btn" type="button" title="تسجيل الخروج" aria-label="تسجيل الخروج">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <path d="M16 17l5-5-5-5"/>
+            <path d="M21 12H9"/>
+          </svg>
+        </button>
+      </nav>
+    </header>
+
+    <main class="main-content">
+
+      <!-- Welcome / Page Title -->
+      <section class="dashboard-welcome">
+        <h2 class="dashboard-welcome__title">القائمة الرئيسية</h2>
+        <p class="dashboard-welcome__desc">اختر الخدمة المطلوبة من الخيارات أسفله</p>
+        <hr class="dashboard-welcome__divider">
+      </section>
+
+      <!-- Dashboard Cards -->
+      <nav class="dashboard-grid" role="navigation" aria-label="الخدمات الرئيسية">
+
+        <!-- Card 1: Birth Declarations -->
+        <section class="dashboard-card">
+          <button class="card__header" type="button" aria-expanded="false" aria-controls="panel-birth" id="card-birth">
+            <span class="card__icon-wrap" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="8" r="3.5"/>
+                <path d="M6.5 20v-1.5a5.5 5.5 0 0 1 11 0V20"/>
+                <path d="M15.5 8a2.5 2.5 0 0 1 2.5 2.5"/>
+                <path d="M18 14.5a4 4 0 0 1 2 3.5v2"/>
+              </svg>
+            </span>
+            <article class="card__title-group">
+              <h3 class="card__title">تدبير تصاريح الولادة</h3>
+              <p class="card__desc">تسجيل ومراقبة ومصادقة تصاريح الولادة</p>
+            </article>
+            <svg class="card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M15 18l-6-6 6-6"/>
+            </svg>
+          </button>
+          <article class="card__panel" id="panel-birth" role="region" aria-labelledby="card-birth" aria-hidden="true">
+            <div class="card__panel-inner">
+              <ul>
+                <li><a class="submenu__link" href="forms/birth-register.html">تسجيل التصريح بالولادة</a></li>
+                <li><a class="submenu__link" href="#">تصفح تصاريح الولادة</a></li>
+                <li><a class="submenu__link" href="#">المراقبة و المصادقة على التصاريح</a></li>
+                <li><a class="submenu__link" href="#">تصفح لائحة الإشعارات</a></li>
+              </ul>
+            </div>
+          </article>
+        </section>
+
+        <!-- Card 2: Death Declarations -->
+        <section class="dashboard-card">
+          <button class="card__header" type="button" aria-expanded="false" aria-controls="panel-death" id="card-death">
+            <span class="card__icon-wrap" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M8 21V9a4 4 0 0 1 8 0v12"/>
+                <path d="M5.5 21h13"/>
+                <path d="M10 10h4"/>
+                <path d="M12 8v4"/>
+                <path d="M8 17h8"/>
+              </svg>
+            </span>
+            <article class="card__title-group">
+              <h3 class="card__title">تدبير تصاريح الوفيات</h3>
+              <p class="card__desc">تسجيل ومراقبة ومصادقة تصاريح الوفيات</p>
+            </article>
+            <svg class="card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M15 18l-6-6 6-6"/>
+            </svg>
+          </button>
+          <article class="card__panel" id="panel-death" role="region" aria-labelledby="card-death" aria-hidden="true">
+            <div class="card__panel-inner">
+              <ul>
+                <li><a class="submenu__link" href="forms/death-register.html">تسجيل التصريح بالوفاة</a></li>
+                <li><a class="submenu__link" href="#">بحث و إطلاع للوفيات</a></li>
+                <li><a class="submenu__link" href="#">المراقبة و المصادقة على التصاريح</a></li>
+                <li><a class="submenu__link" href="#">مقابلة معلومات التصريح</a></li>
+                <li><a class="submenu__link" href="#">تصفح لائحة الإشعارات</a></li>
+              </ul>
+            </div>
+          </article>
+        </section>
+
+      </nav>
+    </main>
+  </section>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const siteHeader = document.querySelector(".site-header");
+      window.addEventListener("scroll", () => {
+        if (window.scrollY > 10) {
+          siteHeader.classList.add("is-scrolled");
+        } else {
+          siteHeader.classList.remove("is-scrolled");
+        }
+      });
+
+      const headers = document.querySelectorAll(".card__header");
+      const links = document.querySelectorAll(".submenu__link");
+
+      headers.forEach(header => {
+        header.addEventListener("click", function () {
+          const isCurrentlyExpanded = this.getAttribute("aria-expanded") === "true";
+
+          // 1. Close all panels (Exclusive Accordion state)
+          // This ensures it is impossible for both sub-lists to be expanded simultaneously.
+          headers.forEach(otherHeader => {
+            otherHeader.setAttribute("aria-expanded", "false");
+            const otherPanel = document.getElementById(otherHeader.getAttribute("aria-controls"));
+            if (otherPanel) {
+              otherPanel.setAttribute("aria-hidden", "true");
+            }
+          });
+
+          // 2. Open the clicked panel ONLY if it wasn't already expanded
+          // This transitions the new panel while others are closing.
+          if (!isCurrentlyExpanded) {
+            this.setAttribute("aria-expanded", "true");
+            const panelToOpen = document.getElementById(this.getAttribute("aria-controls"));
+            if (panelToOpen) {
+              panelToOpen.setAttribute("aria-hidden", "false");
+            }
+          }
+        });
+      });
+
+      // Submenu link active state handling
+      links.forEach(link => {
+        link.addEventListener("click", function (event) {
+          if (this.getAttribute("href") === "#") {
+            event.preventDefault();
+          }
+          links.forEach(l => l.classList.remove("submenu__link--active"));
+          this.classList.add("submenu__link--active");
+        });
+      });
+    });
+  </script>
+</body>
+</html>

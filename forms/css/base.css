@@ -1,0 +1,109 @@
+/* ============================================
+   BASE STYLES & RESET
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700&display=swap');
+
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  direction: rtl;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scrollbar-width: none; /* Firefox */
+}
+
+/* Chrome, Edge, Safari */
+::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
+}
+
+body {
+  font-family: var(--ff-primary);
+  font-weight: var(--fw-regular);
+  color: var(--clr-text-primary);
+  background-color: var(--clr-surface-alt); /* Cream fallback */
+  background-image: url("../../BACKGROUND%20IMAGE.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  line-height: 1.6;
+  min-height: 100vh;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 253, 248, 0.72) 0%,
+      rgba(250, 248, 242, 0.64) 45%,
+      rgba(250, 248, 242, 0.76) 100%
+    );
+  pointer-events: none;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+ul, ol {
+  list-style: none;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+fieldset {
+  border: none;
+}
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: var(--fs-small);
+}
+
+/* --- Focus States --- */
+:focus-visible {
+  outline: 2px solid var(--clr-primary);
+  outline-offset: 2px;
+}
+
+/* --- App Shell --- */
+.app-shell {
+  display: grid;
+  grid-template-rows: var(--header-height) 1fr;
+  grid-template-columns: 1fr;
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+}
+
+.main-content {
+  padding: var(--space-lg) var(--space-md);
+  max-width: var(--container-max);
+  width: 100%;
+  margin-inline: auto;
+}
