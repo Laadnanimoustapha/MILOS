@@ -140,12 +140,12 @@
 
           <article class="form-row">
             <label class="form-label">تاريخ التصريح</label>
-            <input type="date" class="form-input" style="max-width: 300px;">
+            <input type="date" class="form-input" style="max-width: 300px;" required>
           </article>
 
           <article class="form-row">
             <label class="form-label">رقم شهادة الوفاة</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width:300px">
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width:300px" required>
           </article>
         </fieldset>
       </section>
@@ -160,17 +160,17 @@
           </article>
           <article class="form-row">
             <label class="form-label">الاسم الشخصي</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width:300px">
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width:300px" required>
             <span class="form-label--fr">Prenom</span>
           </article>
           <article class="form-row">
             <label class="form-label">الاسم العائلي</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width:300px">
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width:300px" required>
             <span class="form-label--fr">Nom</span>
           </article>
           <article class="form-row">
             <label class="form-label">الجنس</label>
-            <article style="display:flex;gap:24px">
+            <article style="display:flex;gap:24px" data-radio-required="dgender">
               <label class="form-check"><input type="radio" name="dgender" value="m"><span
                   class="form-check__label">ذكر</span></label>
               <label class="form-check"><input type="radio" name="dgender" value="f"><span
@@ -179,11 +179,11 @@
           </article>
           <article class="form-row">
             <label class="form-label">تاريخ الوفاة</label>
-            <input type="date" class="form-input" style="max-width: 300px;">
+            <input type="date" class="form-input" style="max-width: 300px;" required>
           </article>
           <article class="form-row">
             <label class="form-label">مكان الوفاة</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width:400px">
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width:400px" required>
             <span class="form-label--fr">Lieu de deces</span>
           </article>
         </fieldset>
@@ -199,12 +199,12 @@
           </article>
           <article class="form-row">
             <label class="form-label">الاسم الشخصي</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width:300px">
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width:300px" required>
             <span class="form-label--fr">Prenom</span>
           </article>
           <article class="form-row">
             <label class="form-label">الاسم العائلي</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width:300px">
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width:300px" required>
             <span class="form-label--fr">Nom</span>
           </article>
           <article class="archive-search">
@@ -246,12 +246,12 @@
           <legend class="form-panel__legend">بيانات الأم</legend>
           <article class="form-row">
             <label class="form-label">الاسم الشخصي</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width:300px">
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width:300px" required>
             <span class="form-label--fr">Prenom</span>
           </article>
           <article class="form-row">
             <label class="form-label">الاسم العائلي</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width:300px">
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width:300px" required>
             <span class="form-label--fr">Nom</span>
           </article>
         </fieldset>
@@ -263,17 +263,43 @@
           <legend class="form-panel__legend">معلومات عامة</legend>
           <article class="form-row">
             <label class="form-label">سبب الوفاة</label>
-            <select class="form-select" style="max-width:300px">
-              <option>-- اختر --</option>
+            <select class="form-select" style="max-width:300px" required>
+              <option value="">-- اختر --</option>
+              <option value="سكتة قلبية">سكتة قلبية</option>
+              <option value="جلطة دماغية">جلطة دماغية</option>
+              <option value="قصور القلب">قصور القلب</option>
+              <option value="سرطان">سرطان</option>
+              <option value="فشل كلوي">فشل كلوي</option>
+              <option value="أمراض تنفسية مزمنة">أمراض تنفسية مزمنة</option>
+              <option value="حادث سير">حادث سير</option>
+              <option value="غرق">غرق</option>
+              <option value="حروق بالغة">حروق بالغة</option>
+              <option value="أزمة ربو حادة">أزمة ربو حادة</option>
+              <option value="مضاعفات مرض السكري">مضاعفات مرض السكري</option>
+              <option value="نزيف داخلي">نزيف داخلي</option>
+              <option value="تسمم">تسمم</option>
+              <option value="أمراض الكبد">أمراض الكبد</option>
+              <option value="انسداد رئوي">انسداد رئوي</option>
+              <option value="أسباب طبيعية (شيخوخة)">أسباب طبيعية (شيخوخة)</option>
+              <option value="توقف التنفس">توقف التنفس</option>
+              <option value="جلطة قلبية">جلطة قلبية</option>
+              <option value="أمراض معدية">أمراض معدية</option>
+              <option value="نقص المناعة المكتسبة">نقص المناعة المكتسبة</option>
+              <option value="التهاب رئوي حاد">التهاب رئوي حاد</option>
+              <option value="صدمة إنتانية">صدمة إنتانية</option>
+              <option value="نزيف حاد">نزيف حاد</option>
+              <option value="إصابة عمل">إصابة عمل</option>
+              <option value="سقوط من مكان مرتفع">سقوط من مكان مرتفع</option>
+              <option value="غير محدد">غير محدد</option>
             </select>
           </article>
           <article class="form-row">
             <label class="form-label">اسم المصرح</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width:400px">
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width:400px" required>
           </article>
           <article class="form-row">
             <label class="form-label">رقم بطاقة التعريف</label>
-            <input type="text" class="form-input" style="max-width:250px">
+            <input type="text" class="form-input" style="max-width:250px" required>
           </article>
         </fieldset>
       </section>

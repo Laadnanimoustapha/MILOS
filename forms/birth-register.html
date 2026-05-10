@@ -133,12 +133,12 @@
 
           <article class="form-row">
             <label class="form-label" for="decl-date-day">تاريخ التصريح بالولادة</label>
-            <input type="date" class="form-input" id="decl-date" style="max-width: 300px;">
+            <input type="date" class="form-input" id="decl-date" style="max-width: 300px;" required>
           </article>
 
           <article class="form-row">
             <label class="form-label" for="decl-number">رقم التصريح</label>
-            <input type="text" class="form-input form-input--with-keyboard" id="decl-number" style="max-width: 300px;">
+            <input type="text" class="form-input form-input--with-keyboard" id="decl-number" style="max-width: 300px;" required>
           </article>
         </fieldset>
 
@@ -148,19 +148,19 @@
           <article class="form-row">
             <label class="form-label" for="declarant-name">اسم المصرح</label>
             <input type="text" class="form-input form-input--with-keyboard" id="declarant-name"
-              style="max-width: 400px;">
+              style="max-width: 400px;" required>
             <span class="form-label--fr">Nom du declarant</span>
           </article>
 
           <article class="form-row">
             <label class="form-label" for="declarant-cin">رقم بطاقة التعريف</label>
-            <input type="text" class="form-input" id="declarant-cin" style="max-width: 250px;">
+            <input type="text" class="form-input" id="declarant-cin" style="max-width: 250px;" required>
             <span class="form-label--fr">CIN</span>
           </article>
 
           <article class="form-row">
             <label class="form-label" for="declarant-relation">صفة المصرح</label>
-            <select class="form-select" id="declarant-relation" style="max-width: 300px;">
+            <select class="form-select" id="declarant-relation" style="max-width: 300px;" required>
               <option value="">-- اختر --</option>
               <option>الأب</option>
               <option>الأم</option>
@@ -181,19 +181,19 @@
 
           <article class="form-row">
             <label class="form-label">الاسم الشخصي</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 300px;">
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 300px;" required>
             <span class="form-label--fr">Prenom</span>
           </article>
 
           <article class="form-row">
             <label class="form-label">الاسم العائلي</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 300px;">
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 300px;" required>
             <span class="form-label--fr">Nom</span>
           </article>
 
           <article class="form-row">
             <label class="form-label">تاريخ الازدياد</label>
-            <input type="date" class="form-input" style="max-width: 300px;">
+            <input type="date" class="form-input" style="max-width: 300px;" required>
             <span class="form-label--fr">Date de naissance</span>
           </article>
 
@@ -260,19 +260,19 @@
 
           <article class="form-row">
             <label class="form-label">الاسم الشخصي</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 300px;">
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 300px;" required>
             <span class="form-label--fr">Prenom</span>
           </article>
 
           <article class="form-row">
             <label class="form-label">الاسم العائلي</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 300px;">
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 300px;" required>
             <span class="form-label--fr">Nom</span>
           </article>
 
           <article class="form-row">
             <label class="form-label">تاريخ الازدياد</label>
-            <input type="date" class="form-input" style="max-width: 300px;">
+            <input type="date" class="form-input" style="max-width: 300px;" required>
             <span class="form-label--fr">Date de naissance</span>
           </article>
 
@@ -332,13 +332,13 @@
 
           <article class="form-row">
             <label class="form-label">الاسم الشخصي</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 300px;">
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 300px;" required>
             <span class="form-label--fr">Prenom</span>
           </article>
 
           <article class="form-row">
             <label class="form-label">الجنس</label>
-            <article style="display: flex; gap: 24px;">
+            <article style="display: flex; gap: 24px;" data-radio-required="gender">
               <label class="form-check">
                 <input type="radio" name="gender" value="male">
                 <span class="form-check__label">ذكر</span>
@@ -352,7 +352,7 @@
 
           <article class="form-row">
             <label class="form-label">تاريخ الولادة</label>
-            <input type="date" class="form-input" style="max-width: 300px;">
+            <input type="date" class="form-input" style="max-width: 300px;" required>
           </article>
 
           <article class="form-row">
@@ -369,7 +369,7 @@
 
           <article class="form-row">
             <label class="form-label">مكان الولادة</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 400px;">
+            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 400px;" required>
             <span class="form-label--fr">Lieu de naissance</span>
           </article>
 

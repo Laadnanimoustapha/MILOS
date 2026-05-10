@@ -599,11 +599,9 @@
         <section class="dashboard-card">
           <button class="card__header" type="button" aria-expanded="false" aria-controls="panel-death" id="card-death">
             <span class="card__icon-wrap" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M8 21V9a4 4 0 0 1 8 0v12" />
                 <path d="M5.5 21h13" />
-                <path d="M10 10h4" />
-                <path d="M12 8v4" />
                 <path d="M8 17h8" />
               </svg>
             </span>
@@ -632,6 +630,7 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", () => {
+      // ---- Header scroll effect ----
       const siteHeader = document.querySelector(".site-header");
       window.addEventListener("scroll", () => {
         if (window.scrollY > 10) {
@@ -641,6 +640,51 @@
         }
       });
 
+      // ---- Toast notification system ----
+      let toastEl = null;
+      let toastTimer = null;
+
+      function showToast(message) {
+        if (toastEl) toastEl.remove();
+        clearTimeout(toastTimer);
+
+        toastEl = document.createElement("aside");
+        toastEl.setAttribute("role", "status");
+        toastEl.setAttribute("aria-live", "polite");
+        Object.assign(toastEl.style, {
+          position: "fixed",
+          bottom: "32px",
+          left: "50%",
+          transform: "translateX(-50%) translateY(20px)",
+          backgroundColor: "#1B365D",
+          color: "#fff",
+          padding: "12px 28px",
+          fontSize: "14px",
+          fontWeight: "500",
+          fontFamily: "'Cairo', sans-serif",
+          borderRadius: "2px",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+          zIndex: "9999",
+          opacity: "0",
+          pointerEvents: "none",
+          transition: "opacity 200ms ease-in-out, transform 200ms ease-in-out"
+        });
+        toastEl.textContent = message;
+        document.body.appendChild(toastEl);
+
+        void toastEl.offsetWidth;
+        toastEl.style.opacity = "1";
+        toastEl.style.transform = "translateX(-50%) translateY(0)";
+        toastEl.style.pointerEvents = "auto";
+
+        toastTimer = setTimeout(() => {
+          toastEl.style.opacity = "0";
+          toastEl.style.transform = "translateX(-50%) translateY(20px)";
+          setTimeout(() => { if (toastEl) { toastEl.remove(); toastEl = null; } }, 250);
+        }, 3000);
+      }
+
+      // ---- Exclusive accordion ----
       const headers = document.querySelectorAll(".card__header");
       const links = document.querySelectorAll(".submenu__link");
 
@@ -648,8 +692,6 @@
         header.addEventListener("click", function () {
           const isCurrentlyExpanded = this.getAttribute("aria-expanded") === "true";
 
-          // 1. Close all panels (Exclusive Accordion state)
-          // This ensures it is impossible for both sub-lists to be expanded simultaneously.
           headers.forEach(otherHeader => {
             otherHeader.setAttribute("aria-expanded", "false");
             const otherPanel = document.getElementById(otherHeader.getAttribute("aria-controls"));
@@ -658,8 +700,6 @@
             }
           });
 
-          // 2. Open the clicked panel ONLY if it wasn't already expanded
-          // This transitions the new panel while others are closing.
           if (!isCurrentlyExpanded) {
             this.setAttribute("aria-expanded", "true");
             const panelToOpen = document.getElementById(this.getAttribute("aria-controls"));
@@ -670,16 +710,28 @@
         });
       });
 
-      // Submenu link active state handling
+      // ---- Submenu link active state + placeholder handling ----
       links.forEach(link => {
         link.addEventListener("click", function (event) {
           if (this.getAttribute("href") === "#") {
             event.preventDefault();
+            showToast("هذه الخدمة قيد التطوير حاليا");
           }
           links.forEach(l => l.classList.remove("submenu__link--active"));
           this.classList.add("submenu__link--active");
         });
       });
+
+      // ---- Logout button ----
+      const logoutBtn = document.querySelector('.header__action-btn[title="تسجيل الخروج"]');
+      if (logoutBtn) {
+        logoutBtn.addEventListener("click", function () {
+          const confirmed = confirm("هل تريد تسجيل الخروج من النظام؟");
+          if (confirmed) {
+            window.location.href = "index.html";
+          }
+        });
+      }
     });
   </script>
 </body>
