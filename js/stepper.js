@@ -118,5 +118,63 @@
     });
   });
 
+  // Document Upload Functionality
+  var uploadBtn = document.getElementById('upload-doc-btn');
+  var uploadType = document.getElementById('upload-doc-type');
+  var uploadFile = document.getElementById('upload-doc-file');
+  var galleryContainer = document.getElementById('doc-gallery-container');
+
+  if (uploadBtn && uploadType && uploadFile && galleryContainer) {
+    uploadBtn.addEventListener('click', function () {
+      var docType = uploadType.value;
+      var file = uploadFile.files[0];
+
+      if (!docType) {
+        alert('يرجى اختيار نوع الوثيقة');
+        return;
+      }
+      if (!file) {
+        alert('يرجى اختيار ملف لتحميله');
+        return;
+      }
+
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        var fileData = e.target.result;
+        var thumbHtml = '';
+
+        if (file.type.startsWith('image/')) {
+          thumbHtml = '<img src="' + fileData + '" alt="' + docType + '" style="width:100%;height:100%;object-fit:cover;border-radius:2px;">';
+        } else {
+          thumbHtml = '<svg viewBox="0 0 64 64" width="64" fill="#CCC"><rect x="12" y="8" width="40" height="48" rx="2" stroke="#CCC" stroke-width="2" fill="none"/><line x1="20" y1="20" x2="44" y2="20" stroke="#DDD" stroke-width="2"/><line x1="20" y1="28" x2="44" y2="28" stroke="#DDD" stroke-width="2"/><line x1="20" y1="36" x2="36" y2="36" stroke="#DDD" stroke-width="2"/></svg>';
+        }
+
+        var card = document.createElement('article');
+        card.className = 'doc-card';
+        card.innerHTML = 
+          '<article class="doc-card__thumb">' + thumbHtml + '</article>' +
+          '<p class="doc-card__type">' + docType + '</p>' +
+          '<button type="button" class="doc-card__delete">حذف</button>';
+
+        galleryContainer.appendChild(card);
+
+        // Reset inputs
+        uploadType.value = '';
+        uploadFile.value = '';
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Delete delegation
+    galleryContainer.addEventListener('click', function(e) {
+      if (e.target.classList.contains('doc-card__delete')) {
+        var card = e.target.closest('.doc-card');
+        if (card) {
+          card.remove();
+        }
+      }
+    });
+  }
+
   updateView();
 })();

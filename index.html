@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="نظام تدبير سجلات الحالة المدنية - المملكة المغربية">
   <title>نظام تدبير سجلات الحالة المدنية</title>
-  <link rel="icon" type="image/x-icon" href="LOGO.ico">
+  <link rel="icon" type="image/x-icon" href="assets/LOGO.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -63,7 +64,8 @@
       font-size: 16px;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
-      scrollbar-width: none; /* Firefox */
+      scrollbar-width: none;
+      /* Firefox */
     }
 
     /* Chrome, Edge, and Safari */
@@ -101,8 +103,13 @@
       cursor: pointer;
     }
 
-    ul { list-style: none; }
-    svg { display: block; }
+    ul {
+      list-style: none;
+    }
+
+    svg {
+      display: block;
+    }
 
     :focus-visible {
       outline: 2px solid var(--clr-emerald);
@@ -509,6 +516,7 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
+
       *,
       *::before,
       *::after {
@@ -520,12 +528,13 @@
     }
   </style>
 </head>
+
 <body>
   <section class="app-shell">
     <header class="site-header">
       <nav class="header__brand" aria-label="هوية النظام">
         <!-- Moroccan Emblem: Logo -->
-        <img src="LOGO.png" alt="شعار النظام" class="header__emblem" aria-hidden="true">
+        <img src="assets/LOGO.png" alt="شعار النظام" class="header__emblem" aria-hidden="true">
         <article class="header__title-block">
           <h1 class="header__title">نظام تدبير سجلات الحالة المدنية</h1>
           <p class="header__subtitle">المملكة المغربية - وزارة الداخلية</p>
@@ -534,10 +543,11 @@
 
       <nav class="header__actions" aria-label="إجراءات النظام">
         <button class="header__action-btn" type="button" title="تسجيل الخروج" aria-label="تسجيل الخروج">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-            <path d="M16 17l5-5-5-5"/>
-            <path d="M21 12H9"/>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <path d="M16 17l5-5-5-5" />
+            <path d="M21 12H9" />
           </svg>
         </button>
       </nav>
@@ -560,18 +570,19 @@
           <button class="card__header" type="button" aria-expanded="false" aria-controls="panel-birth" id="card-birth">
             <span class="card__icon-wrap" aria-hidden="true">
               <svg viewBox="0 0 24 24">
-                <circle cx="12" cy="8" r="3.5"/>
-                <path d="M6.5 20v-1.5a5.5 5.5 0 0 1 11 0V20"/>
-                <path d="M15.5 8a2.5 2.5 0 0 1 2.5 2.5"/>
-                <path d="M18 14.5a4 4 0 0 1 2 3.5v2"/>
+                <circle cx="12" cy="8" r="3.5" />
+                <path d="M6.5 20v-1.5a5.5 5.5 0 0 1 11 0V20" />
+                <path d="M15.5 8a2.5 2.5 0 0 1 2.5 2.5" />
+                <path d="M18 14.5a4 4 0 0 1 2 3.5v2" />
               </svg>
             </span>
             <article class="card__title-group">
               <h3 class="card__title">تدبير تصاريح الولادة</h3>
               <p class="card__desc">تسجيل ومراقبة ومصادقة تصاريح الولادة</p>
             </article>
-            <svg class="card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M15 18l-6-6 6-6"/>
+            <svg class="card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M15 18l-6-6 6-6" />
             </svg>
           </button>
           <article class="card__panel" id="panel-birth" role="region" aria-labelledby="card-birth" aria-hidden="true">
@@ -589,19 +600,20 @@
           <button class="card__header" type="button" aria-expanded="false" aria-controls="panel-death" id="card-death">
             <span class="card__icon-wrap" aria-hidden="true">
               <svg viewBox="0 0 24 24">
-                <path d="M8 21V9a4 4 0 0 1 8 0v12"/>
-                <path d="M5.5 21h13"/>
-                <path d="M10 10h4"/>
-                <path d="M12 8v4"/>
-                <path d="M8 17h8"/>
+                <path d="M8 21V9a4 4 0 0 1 8 0v12" />
+                <path d="M5.5 21h13" />
+                <path d="M10 10h4" />
+                <path d="M12 8v4" />
+                <path d="M8 17h8" />
               </svg>
             </span>
             <article class="card__title-group">
               <h3 class="card__title">تدبير تصاريح الوفيات</h3>
               <p class="card__desc">تسجيل ومراقبة ومصادقة تصاريح الوفيات</p>
             </article>
-            <svg class="card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M15 18l-6-6 6-6"/>
+            <svg class="card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M15 18l-6-6 6-6" />
             </svg>
           </button>
           <article class="card__panel" id="panel-death" role="region" aria-labelledby="card-death" aria-hidden="true">
@@ -671,4 +683,5 @@
     });
   </script>
 </body>
+
 </html>
