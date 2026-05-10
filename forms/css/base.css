@@ -29,7 +29,7 @@ body {
   font-weight: var(--fw-regular);
   color: var(--clr-text-primary);
   background-color: var(--clr-surface-alt); /* Cream fallback */
-  background-image: url("../../BACKGROUND%20IMAGE.png");
+  background-image: url("../../assets/BACKGROUND\ IMAGE.png");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
