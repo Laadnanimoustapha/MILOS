@@ -78,8 +78,6 @@ These are the **ONLY** lists that should be generated in the final code.
 * **Sub-items:**
   1. تسجيل التصريح بالولادة (Registering birth declaration)
   2. تصفح تصاريح الولادة (Browsing birth declarations)
-  3. المراقبة و المصادقة على التصاريح (Monitoring and validating declarations)
-  4. تصفح لائحة الإشعارات (Browsing list of notifications)
 
 **2. تدبير البيانات الهامشية للولادة (Managing marginal birth data)**
 * **Icon:** Document
@@ -92,9 +90,6 @@ These are the **ONLY** lists that should be generated in the final code.
 * **Sub-items:**
   1. تسجيل التصريح بالوفاة (Registering death declaration)
   2. بحث و إطلاع للوفيات (Search and browsing for deaths)
-  3. المراقبة و المصادقة على التصاريح (Monitoring and validating declarations)
-  4. مقابلة معلومات التصريح (Matching declaration information)
-  5. تصفح لائحة الإشعارات (Browsing list of notifications)
 
 **4. تدبير البيانات الهامشية للوفاة (Managing marginal death data)**
 * **Icon:** Document

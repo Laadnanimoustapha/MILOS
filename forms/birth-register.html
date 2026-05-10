@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="تسجيل التصريح بالولادة - نظام الحالة المدنية">
   <title>تسجيل التصريح بالولادة</title>
+  <link rel="icon" type="image/x-icon" href="../LOGO.ico">
   <link rel="stylesheet" href="css/variables.css">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/header.css">
@@ -22,7 +23,14 @@
           <p class="header__subtitle">المملكة المغربية - وزارة الداخلية</p>
         </article>
       </nav>
-      <nav class="header__actions">
+      <nav class="header__actions" aria-label="إجراءات النظام">
+        <button class="header__action-btn" type="button" title="تسجيل الخروج" aria-label="تسجيل الخروج">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <path d="M16 17l5-5-5-5"/>
+            <path d="M21 12H9"/>
+          </svg>
+        </button>
       </nav>
     </header>
 
@@ -102,14 +110,7 @@
 
           <article class="form-row">
             <label class="form-label" for="decl-date-day">تاريخ التصريح بالولادة</label>
-            <article class="date-group">
-              <span class="date-group__label">اليوم</span>
-              <select class="form-select" id="decl-date-day"><option>--</option></select>
-              <span class="date-group__label">الشهر</span>
-              <select class="form-select" id="decl-date-month"><option>--</option></select>
-              <span class="date-group__label">السنة</span>
-              <select class="form-select" id="decl-date-year"><option>--</option></select>
-            </article>
+            <input type="date" class="form-input" id="decl-date" style="max-width: 300px;">
           </article>
 
           <article class="form-row">
@@ -168,14 +169,7 @@
 
           <article class="form-row">
             <label class="form-label">تاريخ الازدياد</label>
-            <article class="date-group">
-              <span class="date-group__label">اليوم</span>
-              <select class="form-select"><option>--</option></select>
-              <span class="date-group__label">الشهر</span>
-              <select class="form-select"><option>--</option></select>
-              <span class="date-group__label">السنة</span>
-              <select class="form-select"><option>--</option></select>
-            </article>
+            <input type="date" class="form-input" style="max-width: 300px;">
             <span class="form-label--fr">Date de naissance</span>
           </article>
 
@@ -240,14 +234,7 @@
 
           <article class="form-row">
             <label class="form-label">تاريخ الازدياد</label>
-            <article class="date-group">
-              <span class="date-group__label">اليوم</span>
-              <select class="form-select"><option>--</option></select>
-              <span class="date-group__label">الشهر</span>
-              <select class="form-select"><option>--</option></select>
-              <span class="date-group__label">السنة</span>
-              <select class="form-select"><option>--</option></select>
-            </article>
+            <input type="date" class="form-input" style="max-width: 300px;">
             <span class="form-label--fr">Date de naissance</span>
           </article>
 
@@ -313,26 +300,12 @@
 
           <article class="form-row">
             <label class="form-label">تاريخ الولادة</label>
-            <article class="date-group">
-              <span class="date-group__label">اليوم</span>
-              <select class="form-select"><option>--</option></select>
-              <span class="date-group__label">الشهر</span>
-              <select class="form-select"><option>--</option></select>
-              <span class="date-group__label">السنة</span>
-              <select class="form-select"><option>--</option></select>
-            </article>
+            <input type="date" class="form-input" style="max-width: 300px;">
           </article>
 
           <article class="form-row">
             <label class="form-label">الموافق ل (هجري)</label>
-            <article class="date-group">
-              <span class="date-group__label">اليوم</span>
-              <select class="form-select"><option>--</option></select>
-              <span class="date-group__label">الشهر</span>
-              <select class="form-select"><option>--</option></select>
-              <span class="date-group__label">السنة</span>
-              <select class="form-select"><option>--</option></select>
-            </article>
+            <input type="date" class="form-input" style="max-width: 300px;">
           </article>
 
           <article class="form-row">
