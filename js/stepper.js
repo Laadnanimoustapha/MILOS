@@ -1,7 +1,8 @@
 /**
  * Multi-Step Form Controller
  * Handles stepper navigation, step visibility, validation,
- * review accordion toggling, document upload, and archive search.
+ * review accordion toggling, document upload, archive search,
+ * summary population, form submission to localStorage, and twin addition.
  */
 (function () {
   'use strict';
@@ -70,12 +71,11 @@
   // LOGOUT BUTTON
   // ============================================
 
-  var logoutBtns = document.querySelectorAll('.header__action-btn[title="تسجيل الخروج"]');
+  var logoutBtns = document.querySelectorAll('.header__action-btn[title="\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062e\u0631\u0648\u062c"]');
   logoutBtns.forEach(function (btn) {
     btn.addEventListener('click', function () {
-      var confirmed = confirm('هل تريد تسجيل الخروج من النظام؟');
+      var confirmed = confirm('\u0647\u0644 \u062a\u0631\u064a\u062f \u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062e\u0631\u0648\u062c \u0645\u0646 \u0627\u0644\u0646\u0638\u0627\u0645\u061f');
       if (confirmed) {
-        // Navigate to the main page (acts as session end for a static site)
         var isInForms = window.location.pathname.indexOf('/forms/') !== -1;
         window.location.href = isInForms ? '../index.html' : 'index.html';
       }
@@ -89,7 +89,6 @@
   /**
    * Validates all required inputs/selects within the current step panel.
    * Returns true if all pass, false otherwise.
-   * Adds visual error indicators to invalid fields.
    */
   function validateCurrentStep() {
     var currentPanel = panels[currentStep];
@@ -114,7 +113,7 @@
 
       var isEmpty = !field.value || field.value.trim() === '';
       var isDefaultSelect =
-        field.tagName === 'SELECT' && (field.value === '' || field.value === '-- اختر --');
+        field.tagName === 'SELECT' && (field.value === '' || field.value === '-- \u0627\u062e\u062a\u0631 --');
 
       // Skip disabled fields (e.g. when "unknown" checkbox is active)
       if (field.disabled) return;
@@ -149,7 +148,7 @@
     });
 
     if (!isValid) {
-      showToast('يرجى ملء جميع الحقول المطلوبة قبل المتابعة', 'warning');
+      showToast('\u064a\u0631\u062c\u0649 \u0645\u0644\u0621 \u062c\u0645\u064a\u0639 \u0627\u0644\u062d\u0642\u0648\u0644 \u0627\u0644\u0645\u0637\u0644\u0648\u0628\u0629 \u0642\u0628\u0644 \u0627\u0644\u0645\u062a\u0627\u0628\u0639\u0629', 'warning');
       if (firstInvalid) {
         firstInvalid.focus();
       }
@@ -172,13 +171,58 @@
     if (e.target.classList.contains('form-input--error')) {
       e.target.classList.remove('form-input--error');
     }
-    // Clear radio group outline
     var radioGroup = e.target.closest('[data-radio-required]');
     if (radioGroup) {
       radioGroup.style.outline = '';
       radioGroup.style.outlineOffset = '';
     }
   });
+
+  // ============================================
+  // SUMMARY POPULATION
+  // ============================================
+
+  /** Radio value labels for display */
+  var radioLabels = {
+    'direct': '\u0645\u0628\u0627\u0634\u0631',
+    'court': '\u062d\u0643\u0645 \u0645\u0646 \u0627\u0644\u0645\u062d\u0643\u0645\u0629',
+    'male': '\u0630\u0643\u0631',
+    'female': '\u0623\u0646\u062b\u0649',
+    'm': '\u0630\u0643\u0631',
+    'f': '\u0623\u0646\u062b\u0649'
+  };
+
+  /**
+   * Populates all review-row values from form fields.
+   * Uses data-review-field attribute to map review cells to form inputs.
+   */
+  function populateSummary() {
+    var reviewFields = document.querySelectorAll('[data-review-field]');
+    reviewFields.forEach(function (cell) {
+      var fieldId = cell.getAttribute('data-review-field');
+      var value = '---';
+
+      // Check if it is a radio group name (no element with that ID, but radio inputs exist)
+      var inputById = document.getElementById(fieldId);
+      if (inputById) {
+        // Standard input or select
+        if (inputById.tagName === 'SELECT') {
+          var selectedOpt = inputById.options[inputById.selectedIndex];
+          value = (selectedOpt && selectedOpt.value) ? selectedOpt.text : '---';
+        } else {
+          value = inputById.value.trim() || '---';
+        }
+      } else {
+        // Try as a radio group name
+        var checkedRadio = document.querySelector('input[name="' + fieldId + '"]:checked');
+        if (checkedRadio) {
+          value = radioLabels[checkedRadio.value] || checkedRadio.value;
+        }
+      }
+
+      cell.textContent = value;
+    });
+  }
 
   // ============================================
   // STEP VIEW UPDATE
@@ -206,11 +250,7 @@
 
     // Show/hide form panels
     panels.forEach(function (panel, i) {
-      if (i === currentStep) {
-        panel.hidden = false;
-      } else {
-        panel.hidden = true;
-      }
+      panel.hidden = (i !== currentStep);
     });
 
     // Update buttons
@@ -219,7 +259,84 @@
     }
     if (btnNext) {
       btnNext.textContent =
-        currentStep === totalSteps - 1 ? 'تأكيد وإرسال' : 'التالي';
+        currentStep === totalSteps - 1 ? '\u062a\u0623\u0643\u064a\u062f \u0648\u0625\u0631\u0633\u0627\u0644' : '\u0627\u0644\u062a\u0627\u0644\u064a';
+    }
+
+    // Populate summary when reaching the last step
+    if (currentStep === totalSteps - 1) {
+      populateSummary();
+    }
+  }
+
+  // ============================================
+  // FORM DATA COLLECTION & SUBMISSION
+  // ============================================
+
+  /**
+   * Collects all form field values into an object for localStorage persistence.
+   */
+  function collectFormData() {
+    var data = {};
+    var allInputs = document.querySelectorAll('.form-input[id], .form-select[id]');
+    allInputs.forEach(function (field) {
+      if (!field.disabled) {
+        if (field.tagName === 'SELECT') {
+          var opt = field.options[field.selectedIndex];
+          data[field.id] = (opt && opt.value) ? opt.text : '';
+        } else if (field.type !== 'file') {
+          data[field.id] = field.value.trim();
+        }
+      }
+    });
+
+    // Collect radio groups
+    var radioGroups = document.querySelectorAll('[data-radio-required]');
+    radioGroups.forEach(function (group) {
+      var name = group.getAttribute('data-radio-required');
+      var checked = document.querySelector('input[name="' + name + '"]:checked');
+      if (checked) {
+        data[name] = radioLabels[checked.value] || checked.value;
+      }
+    });
+
+    // Also collect declaration type radios
+    var declTypeRadios = ['decl-type', 'dtype'];
+    declTypeRadios.forEach(function (name) {
+      var checked = document.querySelector('input[name="' + name + '"]:checked');
+      if (checked) {
+        data[name] = radioLabels[checked.value] || checked.value;
+      }
+    });
+
+    return data;
+  }
+
+  /**
+   * Handles final form submission: saves to localStorage and shows confirmation.
+   */
+  function submitForm() {
+    var data = collectFormData();
+    var formType = document.querySelector('input[name="decl-type"]') ? 'birth' : 'death';
+    var timestamp = new Date().toISOString();
+    var key = 'dilona_' + formType + '_' + Date.now();
+
+    var record = {
+      type: formType,
+      timestamp: timestamp,
+      data: data
+    };
+
+    try {
+      localStorage.setItem(key, JSON.stringify(record));
+      showToast('\u062a\u0645 \u062d\u0641\u0638 \u0627\u0644\u062a\u0635\u0631\u064a\u062d \u0628\u0646\u062c\u0627\u062d \u0628\u0631\u0642\u0645: ' + key.slice(-8), '');
+
+      // Disable the submit button to prevent double submission
+      if (btnNext) {
+        btnNext.disabled = true;
+        btnNext.textContent = '\u062a\u0645 \u0627\u0644\u062d\u0641\u0638';
+      }
+    } catch (e) {
+      showToast('\u062e\u0637\u0623 \u0641\u064a \u062d\u0641\u0638 \u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a', 'warning');
     }
   }
 
@@ -230,8 +347,8 @@
   if (btnNext) {
     btnNext.addEventListener('click', function () {
       if (currentStep === totalSteps - 1) {
-        // Final step: confirm submission
-        showToast('تم حفظ التصريح بنجاح', '');
+        // Final step: submit form data
+        submitForm();
         return;
       }
       // Validate before advancing
@@ -281,9 +398,7 @@
   unknownToggles.forEach(function (toggle) {
     toggle.addEventListener('change', function () {
       var panel = this.closest('.form-panel');
-      var inputs = panel.querySelectorAll(
-        '.form-input, .form-select'
-      );
+      var inputs = panel.querySelectorAll('.form-input, .form-select');
       inputs.forEach(function (input) {
         input.disabled = toggle.checked;
         if (toggle.checked) {
@@ -311,11 +426,11 @@
       var file = uploadFile.files[0];
 
       if (!docType) {
-        showToast('يرجى اختيار نوع الوثيقة', 'warning');
+        showToast('\u064a\u0631\u062c\u0649 \u0627\u062e\u062a\u064a\u0627\u0631 \u0646\u0648\u0639 \u0627\u0644\u0648\u062b\u064a\u0642\u0629', 'warning');
         return;
       }
       if (!file) {
-        showToast('يرجى اختيار ملف لتحميله', 'warning');
+        showToast('\u064a\u0631\u062c\u0649 \u0627\u062e\u062a\u064a\u0627\u0631 \u0645\u0644\u0641 \u0644\u062a\u062d\u0645\u064a\u0644\u0647', 'warning');
         return;
       }
 
@@ -335,10 +450,10 @@
         card.innerHTML =
           '<article class="doc-card__thumb">' + thumbHtml + '</article>' +
           '<p class="doc-card__type">' + docType + '</p>' +
-          '<button type="button" class="doc-card__delete">حذف</button>';
+          '<button type="button" class="doc-card__delete">\u062d\u0630\u0641</button>';
 
         galleryContainer.appendChild(card);
-        showToast('تم تحميل الوثيقة بنجاح', '');
+        showToast('\u062a\u0645 \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0648\u062b\u064a\u0642\u0629 \u0628\u0646\u062c\u0627\u062d', '');
 
         // Reset inputs
         uploadType.value = '';
@@ -353,7 +468,7 @@
         var card = e.target.closest('.doc-card');
         if (card) {
           card.remove();
-          showToast('تم حذف الوثيقة', '');
+          showToast('\u062a\u0645 \u062d\u0630\u0641 \u0627\u0644\u0648\u062b\u064a\u0642\u0629', '');
         }
       }
     });
@@ -375,21 +490,19 @@
       var year = yearSelect ? yearSelect.value : '';
       var record = recordInput ? recordInput.value.trim() : '';
 
-      // Validate all three fields
-      if (!office || office === '-- اختر --') {
-        showToast('يرجى اختيار مكتب الحالة المدنية', 'warning');
+      if (!office || office === '-- \u0627\u062e\u062a\u0631 --') {
+        showToast('\u064a\u0631\u062c\u0649 \u0627\u062e\u062a\u064a\u0627\u0631 \u0645\u0643\u062a\u0628 \u0627\u0644\u062d\u0627\u0644\u0629 \u0627\u0644\u0645\u062f\u0646\u064a\u0629', 'warning');
         return;
       }
       if (!year || year === '--') {
-        showToast('يرجى اختيار سنة التسجيل', 'warning');
+        showToast('\u064a\u0631\u062c\u0649 \u0627\u062e\u062a\u064a\u0627\u0631 \u0633\u0646\u0629 \u0627\u0644\u062a\u0633\u062c\u064a\u0644', 'warning');
         return;
       }
       if (!record) {
-        showToast('يرجى إدخال رقم الرسم', 'warning');
+        showToast('\u064a\u0631\u062c\u0649 \u0625\u062f\u062e\u0627\u0644 \u0631\u0642\u0645 \u0627\u0644\u0631\u0633\u0645', 'warning');
         return;
       }
 
-      // Create or find results container
       var resultsContainer = searchBlock.querySelector('.archive-results');
       if (!resultsContainer) {
         resultsContainer = document.createElement('article');
@@ -397,19 +510,17 @@
         searchBlock.appendChild(resultsContainer);
       }
 
-      // Build display text from the selected option text (not value)
       var officeText = officeSelect.options[officeSelect.selectedIndex].text;
 
       var tag = document.createElement('span');
       tag.className = 'archive-tag';
       tag.innerHTML =
-        officeText + ' / ' + year + ' / رسم رقم ' + record +
-        '<button type="button" class="archive-tag__remove" title="حذف">&times;</button>';
+        officeText + ' / ' + year + ' / \u0631\u0633\u0645 \u0631\u0642\u0645 ' + record +
+        '<button type="button" class="archive-tag__remove" title="\u062d\u0630\u0641">&times;</button>';
 
       resultsContainer.appendChild(tag);
-      showToast('تمت إضافة مرجع الأرشيف', '');
+      showToast('\u062a\u0645\u062a \u0625\u0636\u0627\u0641\u0629 \u0645\u0631\u062c\u0639 \u0627\u0644\u0623\u0631\u0634\u064a\u0641', '');
 
-      // Reset fields
       officeSelect.selectedIndex = 0;
       yearSelect.selectedIndex = 0;
       if (recordInput) recordInput.value = '';
@@ -422,6 +533,79 @@
       var tag = e.target.closest('.archive-tag');
       if (tag) {
         tag.remove();
+      }
+    }
+  });
+
+  // ============================================
+  // ADD TWIN BUTTON (Birth Form Only)
+  // ============================================
+
+  var twinCount = 0;
+  var MAX_TWINS = 3;
+
+  var addTwinBtns = document.querySelectorAll('.form-step[data-step-content="3"] .btn--orange');
+  addTwinBtns.forEach(function (btn) {
+    // Only target the "Add Twin" button (not archive search buttons)
+    if (btn.textContent.indexOf('\u0625\u0636\u0627\u0641\u0629 \u0645\u0648\u0644\u0648\u062f') === -1) return;
+
+    btn.addEventListener('click', function () {
+      twinCount++;
+      if (twinCount >= MAX_TWINS) {
+        showToast('\u0627\u0644\u062d\u062f \u0627\u0644\u0623\u0642\u0635\u0649 \u0644\u0644\u062a\u0648\u0627\u0626\u0645 \u0647\u0648 ' + MAX_TWINS, 'warning');
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        return;
+      }
+
+      var panel = btn.closest('.form-panel');
+      var suffix = '_twin' + twinCount;
+
+      var twinFieldset = document.createElement('fieldset');
+      twinFieldset.className = 'form-panel';
+      twinFieldset.style.marginTop = 'var(--space-md)';
+      twinFieldset.setAttribute('data-twin', twinCount);
+
+      twinFieldset.innerHTML =
+        '<legend class="form-panel__legend">\u0645\u0639\u0644\u0648\u0645\u0627\u062a \u0639\u0646 \u0627\u0644\u062a\u0648\u0623\u0645 ' + twinCount + '</legend>' +
+        '<article class="form-row">' +
+          '<label class="form-label" for="twin-fname' + suffix + '">\u0627\u0644\u0627\u0633\u0645 \u0627\u0644\u0634\u062e\u0635\u064a</label>' +
+          '<input type="text" class="form-input form-input--with-keyboard" id="twin-fname' + suffix + '" style="max-width: 300px;" required>' +
+          '<span class="form-label--fr">Prenom</span>' +
+        '</article>' +
+        '<article class="form-row">' +
+          '<label class="form-label">\u0627\u0644\u062c\u0646\u0633</label>' +
+          '<article style="display: flex; gap: 24px;" data-radio-required="twin-gender' + suffix + '">' +
+            '<label class="form-check"><input type="radio" name="twin-gender' + suffix + '" value="male"><span class="form-check__label">\u0630\u0643\u0631</span></label>' +
+            '<label class="form-check"><input type="radio" name="twin-gender' + suffix + '" value="female"><span class="form-check__label">\u0623\u0646\u062b\u0649</span></label>' +
+          '</article>' +
+        '</article>' +
+        '<article class="form-row">' +
+          '<label class="form-label" for="twin-birthplace' + suffix + '">\u0645\u0643\u0627\u0646 \u0627\u0644\u0648\u0644\u0627\u062f\u0629</label>' +
+          '<input type="text" class="form-input form-input--with-keyboard" id="twin-birthplace' + suffix + '" style="max-width: 400px;">' +
+          '<span class="form-label--fr">Lieu de naissance</span>' +
+        '</article>' +
+        '<button type="button" class="btn btn--danger twin-remove" style="margin-top: var(--space-sm);">\u062d\u0630\u0641 \u0627\u0644\u062a\u0648\u0623\u0645</button>';
+
+      panel.parentNode.insertBefore(twinFieldset, panel.nextSibling);
+      showToast('\u062a\u0645\u062a \u0625\u0636\u0627\u0641\u0629 \u062a\u0648\u0623\u0645 \u062c\u062f\u064a\u062f', '');
+    });
+  });
+
+  // Delegation for removing twin fieldsets
+  document.addEventListener('click', function (e) {
+    if (e.target.classList.contains('twin-remove')) {
+      var fieldset = e.target.closest('.form-panel[data-twin]');
+      if (fieldset) {
+        fieldset.remove();
+        twinCount--;
+        // Re-enable the add twin button
+        var addBtn = document.querySelector('.form-step[data-step-content="3"] .btn--orange');
+        if (addBtn && addBtn.textContent.indexOf('\u0625\u0636\u0627\u0641\u0629 \u0645\u0648\u0644\u0648\u062f') !== -1) {
+          addBtn.disabled = false;
+          addBtn.style.opacity = '1';
+        }
+        showToast('\u062a\u0645 \u062d\u0630\u0641 \u0627\u0644\u062a\u0648\u0623\u0645', '');
       }
     }
   });
