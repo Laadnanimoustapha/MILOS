@@ -728,7 +728,13 @@
         logoutBtn.addEventListener("click", function () {
           const confirmed = confirm("هل تريد تسجيل الخروج من النظام؟");
           if (confirmed) {
-            window.location.href = "index.html";
+            // Clear any stored session/draft data
+            Object.keys(localStorage).forEach(function(key) {
+              if (key.startsWith('dilona_')) {
+                localStorage.removeItem(key);
+              }
+            });
+            showToast("تم تسجيل الخروج بنجاح");
           }
         });
       }
