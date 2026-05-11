@@ -125,7 +125,7 @@
           <legend class="form-panel__legend">بيانات شهادة الوفاة</legend>
 
           <article class="alert-box alert-box--danger">
-            تنبيه: يرجى إدخال رقم الشهادة من اليمين إلى اليسار وفقا للنظام المعتمد.
+            تنبيه: يرجى التأكد من إدخال رقم شهادة الوفاة بالصيغة الصحيحة وفقا للنظام المعتمد.
           </article>
 
           <article class="form-row">
@@ -139,13 +139,13 @@
           </article>
 
           <article class="form-row">
-            <label class="form-label">تاريخ التصريح</label>
-            <input type="date" class="form-input" style="max-width: 300px;" required>
+            <label class="form-label" for="d-decl-date">تاريخ التصريح</label>
+            <input type="date" class="form-input" id="d-decl-date" style="max-width: 300px;" required>
           </article>
 
           <article class="form-row">
-            <label class="form-label">رقم شهادة الوفاة</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width:300px" required>
+            <label class="form-label" for="d-cert-number">رقم شهادة الوفاة</label>
+            <input type="text" class="form-input form-input--with-keyboard" id="d-cert-number" style="max-width:300px" required>
           </article>
         </fieldset>
       </section>
@@ -159,13 +159,13 @@
                 الهوية</span></label>
           </article>
           <article class="form-row">
-            <label class="form-label">الاسم الشخصي</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width:300px" required>
+            <label class="form-label" for="d-deceased-fname">الاسم الشخصي</label>
+            <input type="text" class="form-input form-input--with-keyboard" id="d-deceased-fname" style="max-width:300px" required>
             <span class="form-label--fr">Prenom</span>
           </article>
           <article class="form-row">
-            <label class="form-label">الاسم العائلي</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width:300px" required>
+            <label class="form-label" for="d-deceased-lname">الاسم العائلي</label>
+            <input type="text" class="form-input form-input--with-keyboard" id="d-deceased-lname" style="max-width:300px" required>
             <span class="form-label--fr">Nom</span>
           </article>
           <article class="form-row">
@@ -178,12 +178,12 @@
             </article>
           </article>
           <article class="form-row">
-            <label class="form-label">تاريخ الوفاة</label>
-            <input type="date" class="form-input" style="max-width: 300px;" required>
+            <label class="form-label" for="d-death-date">تاريخ الوفاة</label>
+            <input type="date" class="form-input" id="d-death-date" style="max-width: 300px;" required>
           </article>
           <article class="form-row">
-            <label class="form-label">مكان الوفاة</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width:400px" required>
+            <label class="form-label" for="d-death-place">مكان الوفاة</label>
+            <input type="text" class="form-input form-input--with-keyboard" id="d-death-place" style="max-width:400px" required>
             <span class="form-label--fr">Lieu de deces</span>
           </article>
         </fieldset>
@@ -198,13 +198,13 @@
                 الأب</span></label>
           </article>
           <article class="form-row">
-            <label class="form-label">الاسم الشخصي</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width:300px" required>
+            <label class="form-label" for="d-father-fname">الاسم الشخصي</label>
+            <input type="text" class="form-input form-input--with-keyboard" id="d-father-fname" style="max-width:300px" required>
             <span class="form-label--fr">Prenom</span>
           </article>
           <article class="form-row">
-            <label class="form-label">الاسم العائلي</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width:300px" required>
+            <label class="form-label" for="d-father-lname">الاسم العائلي</label>
+            <input type="text" class="form-input form-input--with-keyboard" id="d-father-lname" style="max-width:300px" required>
             <span class="form-label--fr">Nom</span>
           </article>
           <article class="archive-search">
@@ -245,14 +245,47 @@
         <fieldset class="form-panel">
           <legend class="form-panel__legend">بيانات الأم</legend>
           <article class="form-row">
-            <label class="form-label">الاسم الشخصي</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width:300px" required>
+            <label class="form-label" for="d-mother-fname">الاسم الشخصي</label>
+            <input type="text" class="form-input form-input--with-keyboard" id="d-mother-fname" style="max-width:300px" required>
             <span class="form-label--fr">Prenom</span>
           </article>
           <article class="form-row">
-            <label class="form-label">الاسم العائلي</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width:300px" required>
+            <label class="form-label" for="d-mother-lname">الاسم العائلي</label>
+            <input type="text" class="form-input form-input--with-keyboard" id="d-mother-lname" style="max-width:300px" required>
             <span class="form-label--fr">Nom</span>
+          </article>
+
+          <article class="archive-search">
+            <p class="archive-search__title">البحث في بيانات الأرشيف</p>
+            <article class="archive-search__row">
+              <article class="archive-search__field">
+                <label class="form-label">مكتب الحالة المدنية</label>
+                <select class="form-select">
+                  <option>-- اختر --</option>
+                  <option value="rabat">الرباط</option>
+                  <option value="casablanca">الدار البيضاء</option>
+                  <option value="fes">فاس</option>
+                  <option value="marrakech">مراكش</option>
+                  <option value="tangier">طنجة</option>
+                </select>
+              </article>
+              <article class="archive-search__field">
+                <label class="form-label">سنة التسجيل</label>
+                <select class="form-select">
+                  <option>--</option>
+                  <option value="2024">2024</option>
+                  <option value="2023">2023</option>
+                  <option value="2022">2022</option>
+                  <option value="2021">2021</option>
+                  <option value="2020">2020</option>
+                </select>
+              </article>
+              <article class="archive-search__field">
+                <label class="form-label">رقم الرسم</label>
+                <input type="text" class="form-input">
+              </article>
+              <button type="button" class="btn btn--orange">+ إضافة</button>
+            </article>
           </article>
         </fieldset>
       </section>
@@ -262,8 +295,8 @@
         <fieldset class="form-panel">
           <legend class="form-panel__legend">معلومات عامة</legend>
           <article class="form-row">
-            <label class="form-label">سبب الوفاة</label>
-            <select class="form-select" style="max-width:300px" required>
+            <label class="form-label" for="d-cause-death">سبب الوفاة</label>
+            <select class="form-select" id="d-cause-death" style="max-width:300px" required>
               <option value="">-- اختر --</option>
               <option value="سكتة قلبية">سكتة قلبية</option>
               <option value="جلطة دماغية">جلطة دماغية</option>
@@ -294,12 +327,12 @@
             </select>
           </article>
           <article class="form-row">
-            <label class="form-label">اسم المصرح</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width:400px" required>
+            <label class="form-label" for="d-declarant-name">اسم المصرح</label>
+            <input type="text" class="form-input form-input--with-keyboard" id="d-declarant-name" style="max-width:400px" required>
           </article>
           <article class="form-row">
-            <label class="form-label">رقم بطاقة التعريف</label>
-            <input type="text" class="form-input" style="max-width:250px" required>
+            <label class="form-label" for="d-declarant-cin">رقم بطاقة التعريف</label>
+            <input type="text" class="form-input" id="d-declarant-cin" style="max-width:250px" required>
           </article>
         </fieldset>
       </section>
@@ -331,9 +364,11 @@
               class="review-accordion__title">بيانات شهادة الوفاة</span></button>
           <article class="review-accordion__body">
             <article class="review-row"><span class="review-row__label-fr">Date de declaration</span><span
-                class="review-row__value">---</span><span class="review-row__label-ar">تاريخ التصريح</span></article>
+                class="review-row__value" data-review-field="d-decl-date">---</span><span class="review-row__label-ar">تاريخ التصريح</span></article>
             <article class="review-row"><span class="review-row__label-fr">Type</span><span
-                class="review-row__value">مباشر</span><span class="review-row__label-ar">نوع التصريح</span></article>
+                class="review-row__value" data-review-field="dtype">---</span><span class="review-row__label-ar">نوع التصريح</span></article>
+            <article class="review-row"><span class="review-row__label-fr">N de certificat</span><span
+                class="review-row__value" data-review-field="d-cert-number">---</span><span class="review-row__label-ar">رقم شهادة الوفاة</span></article>
           </article>
         </section>
         <section class="review-accordion">
@@ -341,7 +376,15 @@
               class="review-accordion__title">بيانات المتوفى</span></button>
           <article class="review-accordion__body">
             <article class="review-row"><span class="review-row__label-fr">Prenom</span><span
-                class="review-row__value">---</span><span class="review-row__label-ar">الاسم الشخصي</span></article>
+                class="review-row__value" data-review-field="d-deceased-fname">---</span><span class="review-row__label-ar">الاسم الشخصي</span></article>
+            <article class="review-row"><span class="review-row__label-fr">Nom</span><span
+                class="review-row__value" data-review-field="d-deceased-lname">---</span><span class="review-row__label-ar">الاسم العائلي</span></article>
+            <article class="review-row"><span class="review-row__label-fr">Sexe</span><span
+                class="review-row__value" data-review-field="dgender">---</span><span class="review-row__label-ar">الجنس</span></article>
+            <article class="review-row"><span class="review-row__label-fr">Date de deces</span><span
+                class="review-row__value" data-review-field="d-death-date">---</span><span class="review-row__label-ar">تاريخ الوفاة</span></article>
+            <article class="review-row"><span class="review-row__label-fr">Lieu de deces</span><span
+                class="review-row__value" data-review-field="d-death-place">---</span><span class="review-row__label-ar">مكان الوفاة</span></article>
           </article>
         </section>
         <section class="review-accordion">
@@ -349,7 +392,9 @@
               class="review-accordion__title">بيانات الأب</span></button>
           <article class="review-accordion__body">
             <article class="review-row"><span class="review-row__label-fr">Prenom</span><span
-                class="review-row__value">---</span><span class="review-row__label-ar">الاسم الشخصي</span></article>
+                class="review-row__value" data-review-field="d-father-fname">---</span><span class="review-row__label-ar">الاسم الشخصي</span></article>
+            <article class="review-row"><span class="review-row__label-fr">Nom</span><span
+                class="review-row__value" data-review-field="d-father-lname">---</span><span class="review-row__label-ar">الاسم العائلي</span></article>
           </article>
         </section>
         <section class="review-accordion">
@@ -357,7 +402,21 @@
               class="review-accordion__title">بيانات الأم</span></button>
           <article class="review-accordion__body">
             <article class="review-row"><span class="review-row__label-fr">Prenom</span><span
-                class="review-row__value">---</span><span class="review-row__label-ar">الاسم الشخصي</span></article>
+                class="review-row__value" data-review-field="d-mother-fname">---</span><span class="review-row__label-ar">الاسم الشخصي</span></article>
+            <article class="review-row"><span class="review-row__label-fr">Nom</span><span
+                class="review-row__value" data-review-field="d-mother-lname">---</span><span class="review-row__label-ar">الاسم العائلي</span></article>
+          </article>
+        </section>
+        <section class="review-accordion">
+          <button class="review-accordion__header"><span class="review-accordion__icon">+</span><span
+              class="review-accordion__title">معلومات عامة</span></button>
+          <article class="review-accordion__body">
+            <article class="review-row"><span class="review-row__label-fr">Cause de deces</span><span
+                class="review-row__value" data-review-field="d-cause-death">---</span><span class="review-row__label-ar">سبب الوفاة</span></article>
+            <article class="review-row"><span class="review-row__label-fr">Declarant</span><span
+                class="review-row__value" data-review-field="d-declarant-name">---</span><span class="review-row__label-ar">اسم المصرح</span></article>
+            <article class="review-row"><span class="review-row__label-fr">CIN</span><span
+                class="review-row__value" data-review-field="d-declarant-cin">---</span><span class="review-row__label-ar">رقم بطاقة التعريف</span></article>
           </article>
         </section>
       </section>

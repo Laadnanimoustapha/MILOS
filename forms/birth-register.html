@@ -180,26 +180,26 @@
           <legend class="form-panel__legend">معلومات عن الأم</legend>
 
           <article class="form-row">
-            <label class="form-label">الاسم الشخصي</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 300px;" required>
+            <label class="form-label" for="mother-fname">الاسم الشخصي</label>
+            <input type="text" class="form-input form-input--with-keyboard" id="mother-fname" style="max-width: 300px;" required>
             <span class="form-label--fr">Prenom</span>
           </article>
 
           <article class="form-row">
-            <label class="form-label">الاسم العائلي</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 300px;" required>
+            <label class="form-label" for="mother-lname">الاسم العائلي</label>
+            <input type="text" class="form-input form-input--with-keyboard" id="mother-lname" style="max-width: 300px;" required>
             <span class="form-label--fr">Nom</span>
           </article>
 
           <article class="form-row">
-            <label class="form-label">تاريخ الازدياد</label>
-            <input type="date" class="form-input" style="max-width: 300px;" required>
+            <label class="form-label" for="mother-dob">تاريخ الازدياد</label>
+            <input type="date" class="form-input" id="mother-dob" style="max-width: 300px;" required>
             <span class="form-label--fr">Date de naissance</span>
           </article>
 
           <article class="form-row">
-            <label class="form-label">رقم بطاقة التعريف</label>
-            <input type="text" class="form-input" style="max-width: 250px;">
+            <label class="form-label" for="mother-cin">رقم بطاقة التعريف</label>
+            <input type="text" class="form-input" id="mother-cin" style="max-width: 250px;">
             <span class="form-label--fr">CIN</span>
           </article>
 
@@ -259,26 +259,26 @@
           </article>
 
           <article class="form-row">
-            <label class="form-label">الاسم الشخصي</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 300px;" required>
+            <label class="form-label" for="father-fname">الاسم الشخصي</label>
+            <input type="text" class="form-input form-input--with-keyboard" id="father-fname" style="max-width: 300px;" required>
             <span class="form-label--fr">Prenom</span>
           </article>
 
           <article class="form-row">
-            <label class="form-label">الاسم العائلي</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 300px;" required>
+            <label class="form-label" for="father-lname">الاسم العائلي</label>
+            <input type="text" class="form-input form-input--with-keyboard" id="father-lname" style="max-width: 300px;" required>
             <span class="form-label--fr">Nom</span>
           </article>
 
           <article class="form-row">
-            <label class="form-label">تاريخ الازدياد</label>
-            <input type="date" class="form-input" style="max-width: 300px;" required>
+            <label class="form-label" for="father-dob">تاريخ الازدياد</label>
+            <input type="date" class="form-input" id="father-dob" style="max-width: 300px;" required>
             <span class="form-label--fr">Date de naissance</span>
           </article>
 
           <article class="form-row">
-            <label class="form-label">رقم بطاقة التعريف</label>
-            <input type="text" class="form-input" style="max-width: 250px;">
+            <label class="form-label" for="father-cin">رقم بطاقة التعريف</label>
+            <input type="text" class="form-input" id="father-cin" style="max-width: 250px;">
             <span class="form-label--fr">CIN</span>
           </article>
 
@@ -331,8 +331,8 @@
           <legend class="form-panel__legend">معلومات عن المولود(ة)</legend>
 
           <article class="form-row">
-            <label class="form-label">الاسم الشخصي</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 300px;" required>
+            <label class="form-label" for="newborn-fname">الاسم الشخصي</label>
+            <input type="text" class="form-input form-input--with-keyboard" id="newborn-fname" style="max-width: 300px;" required>
             <span class="form-label--fr">Prenom</span>
           </article>
 
@@ -351,8 +351,8 @@
           </article>
 
           <article class="form-row">
-            <label class="form-label">تاريخ الولادة</label>
-            <input type="date" class="form-input" style="max-width: 300px;" required>
+            <label class="form-label" for="newborn-dob">تاريخ الولادة</label>
+            <input type="date" class="form-input" id="newborn-dob" style="max-width: 300px;" required>
           </article>
 
           <article class="form-row">
@@ -368,8 +368,8 @@
           </article>
 
           <article class="form-row">
-            <label class="form-label">مكان الولادة</label>
-            <input type="text" class="form-input form-input--with-keyboard" style="max-width: 400px;" required>
+            <label class="form-label" for="newborn-birthplace">مكان الولادة</label>
+            <input type="text" class="form-input form-input--with-keyboard" id="newborn-birthplace" style="max-width: 400px;" required>
             <span class="form-label--fr">Lieu de naissance</span>
           </article>
 
@@ -426,18 +426,33 @@
           <article class="review-accordion__body">
             <article class="review-row">
               <span class="review-row__label-fr">Date de declaration</span>
-              <span class="review-row__value">19-01-2023</span>
+              <span class="review-row__value" data-review-field="decl-date">---</span>
               <span class="review-row__label-ar">تاريخ التصريح بالولادة</span>
             </article>
             <article class="review-row">
               <span class="review-row__label-fr">Type de declaration</span>
-              <span class="review-row__value">مباشر</span>
+              <span class="review-row__value" data-review-field="decl-type">---</span>
               <span class="review-row__label-ar">نوع التصريح</span>
             </article>
             <article class="review-row">
+              <span class="review-row__label-fr">N de declaration</span>
+              <span class="review-row__value" data-review-field="decl-number">---</span>
+              <span class="review-row__label-ar">رقم التصريح</span>
+            </article>
+            <article class="review-row">
               <span class="review-row__label-fr">Nom du declarant</span>
-              <span class="review-row__value">---</span>
+              <span class="review-row__value" data-review-field="declarant-name">---</span>
               <span class="review-row__label-ar">اسم المصرح</span>
+            </article>
+            <article class="review-row">
+              <span class="review-row__label-fr">CIN</span>
+              <span class="review-row__value" data-review-field="declarant-cin">---</span>
+              <span class="review-row__label-ar">رقم بطاقة التعريف</span>
+            </article>
+            <article class="review-row">
+              <span class="review-row__label-fr">Qualite</span>
+              <span class="review-row__value" data-review-field="declarant-relation">---</span>
+              <span class="review-row__label-ar">صفة المصرح</span>
             </article>
           </article>
         </section>
@@ -450,8 +465,23 @@
           <article class="review-accordion__body">
             <article class="review-row">
               <span class="review-row__label-fr">Prenom</span>
-              <span class="review-row__value">---</span>
+              <span class="review-row__value" data-review-field="mother-fname">---</span>
               <span class="review-row__label-ar">الاسم الشخصي</span>
+            </article>
+            <article class="review-row">
+              <span class="review-row__label-fr">Nom</span>
+              <span class="review-row__value" data-review-field="mother-lname">---</span>
+              <span class="review-row__label-ar">الاسم العائلي</span>
+            </article>
+            <article class="review-row">
+              <span class="review-row__label-fr">Date de naissance</span>
+              <span class="review-row__value" data-review-field="mother-dob">---</span>
+              <span class="review-row__label-ar">تاريخ الازدياد</span>
+            </article>
+            <article class="review-row">
+              <span class="review-row__label-fr">CIN</span>
+              <span class="review-row__value" data-review-field="mother-cin">---</span>
+              <span class="review-row__label-ar">رقم بطاقة التعريف</span>
             </article>
           </article>
         </section>
@@ -464,8 +494,23 @@
           <article class="review-accordion__body">
             <article class="review-row">
               <span class="review-row__label-fr">Prenom</span>
-              <span class="review-row__value">---</span>
+              <span class="review-row__value" data-review-field="father-fname">---</span>
               <span class="review-row__label-ar">الاسم الشخصي</span>
+            </article>
+            <article class="review-row">
+              <span class="review-row__label-fr">Nom</span>
+              <span class="review-row__value" data-review-field="father-lname">---</span>
+              <span class="review-row__label-ar">الاسم العائلي</span>
+            </article>
+            <article class="review-row">
+              <span class="review-row__label-fr">Date de naissance</span>
+              <span class="review-row__value" data-review-field="father-dob">---</span>
+              <span class="review-row__label-ar">تاريخ الازدياد</span>
+            </article>
+            <article class="review-row">
+              <span class="review-row__label-fr">CIN</span>
+              <span class="review-row__value" data-review-field="father-cin">---</span>
+              <span class="review-row__label-ar">رقم بطاقة التعريف</span>
             </article>
           </article>
         </section>
@@ -478,8 +523,23 @@
           <article class="review-accordion__body">
             <article class="review-row">
               <span class="review-row__label-fr">Prenom</span>
-              <span class="review-row__value">---</span>
+              <span class="review-row__value" data-review-field="newborn-fname">---</span>
               <span class="review-row__label-ar">الاسم الشخصي</span>
+            </article>
+            <article class="review-row">
+              <span class="review-row__label-fr">Sexe</span>
+              <span class="review-row__value" data-review-field="gender">---</span>
+              <span class="review-row__label-ar">الجنس</span>
+            </article>
+            <article class="review-row">
+              <span class="review-row__label-fr">Date de naissance</span>
+              <span class="review-row__value" data-review-field="newborn-dob">---</span>
+              <span class="review-row__label-ar">تاريخ الولادة</span>
+            </article>
+            <article class="review-row">
+              <span class="review-row__label-fr">Lieu de naissance</span>
+              <span class="review-row__value" data-review-field="newborn-birthplace">---</span>
+              <span class="review-row__label-ar">مكان الولادة</span>
             </article>
           </article>
         </section>
