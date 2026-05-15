@@ -100,19 +100,7 @@ body {
   position: relative;
 }
 
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 253, 248, 0.72) 0%,
-    rgba(250, 248, 242, 0.64) 45%,
-    rgba(250, 248, 242, 0.76) 100%
-  );
-  pointer-events: none;
-}
+
 
 a {
   text-decoration: none;
