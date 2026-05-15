@@ -3,18 +3,19 @@ import SiteHeader from "@/components/SiteHeader";
 
 export default function HomePage() {
   return (
-    <section className="app-shell">
+    <section className="app-shell" dir="rtl">
       <SiteHeader />
       <main className="main-content">
         <section className="search-page-title">
-          <h2 className="search-page-title__heading">البحث في السجلات</h2>
+          <h2 className="search-page-title__heading">القائمة الرئيسية</h2>
           <p className="search-page-title__desc">
-            اختر نوع السجل للبحث والإطلاع
+            اختر الإجراء المطلوب
           </p>
           <hr className="search-page-title__divider" />
         </section>
 
-        <nav className="home-nav">
+        <nav className="home-nav" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
+          {/* SEARCH CARDS */}
           <Link href="/birth-search" className="home-nav__card">
             <article className="home-nav__icon-wrap">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={28} height={28}>
@@ -25,8 +26,8 @@ export default function HomePage() {
               </svg>
             </article>
             <article className="home-nav__text">
-              <h3 className="home-nav__title">تصفح تصاريح الولادة</h3>
-              <p className="home-nav__desc">البحث في سجلات الولادة</p>
+              <h3 className="home-nav__title">البحث في تصاريح الولادة</h3>
+              <p className="home-nav__desc">البحث والإطلاع على السجلات</p>
             </article>
             <svg className="home-nav__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width={20} height={20}>
               <path d="M15 18l-6-6 6-6" />
@@ -42,8 +43,41 @@ export default function HomePage() {
               </svg>
             </article>
             <article className="home-nav__text">
-              <h3 className="home-nav__title">بحث و إطلاع للوفيات</h3>
-              <p className="home-nav__desc">البحث في سجلات الوفيات</p>
+              <h3 className="home-nav__title">البحث في تصاريح الوفاة</h3>
+              <p className="home-nav__desc">البحث والإطلاع على السجلات</p>
+            </article>
+            <svg className="home-nav__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width={20} height={20}>
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </Link>
+
+          {/* REGISTER CARDS */}
+          <Link href="/birth-register" className="home-nav__card">
+            <article className="home-nav__icon-wrap" style={{ color: 'var(--clr-accent-orange)' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={28} height={28}>
+                <path d="M12 5v14" />
+                <path d="M5 12h14" />
+              </svg>
+            </article>
+            <article className="home-nav__text">
+              <h3 className="home-nav__title">تسجيل تصريح بولادة</h3>
+              <p className="home-nav__desc">إضافة تصريح ولادة جديد</p>
+            </article>
+            <svg className="home-nav__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width={20} height={20}>
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </Link>
+
+          <Link href="/death-register" className="home-nav__card">
+            <article className="home-nav__icon-wrap" style={{ color: 'var(--clr-accent-orange)' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width={28} height={28}>
+                <path d="M12 5v14" />
+                <path d="M5 12h14" />
+              </svg>
+            </article>
+            <article className="home-nav__text">
+              <h3 className="home-nav__title">تسجيل تصريح بوفاة</h3>
+              <p className="home-nav__desc">إضافة تصريح وفاة جديد</p>
             </article>
             <svg className="home-nav__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width={20} height={20}>
               <path d="M15 18l-6-6 6-6" />
