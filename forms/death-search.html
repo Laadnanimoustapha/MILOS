@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="تصفح والبحث في سجلات الوفيات - نظام الحالة المدنية">
+  <title>بحث و إطلاع للوفيات</title>
+  <link rel="icon" type="image/x-icon" href="../assets/LOGO.ico">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/header.css">
+  <link rel="stylesheet" href="css/forms.css">
+  <link rel="stylesheet" href="css/search.css">
+</head>
+
+<body>
+  <section class="app-shell">
+
+    <!-- ===== HEADER ===== -->
+    <header class="site-header">
+      <nav class="header__brand">
+        <img src="../assets/LOGO.png" alt="شعار النظام" class="header__logo" aria-hidden="true">
+        <article class="header__title-block">
+          <h1 class="header__title">نظام تدبير سجلات الحالة المدنية</h1>
+          <p class="header__subtitle">المملكة المغربية - وزارة الداخلية</p>
+        </article>
+      </nav>
+      <nav class="header__actions" aria-label="إجراءات النظام">
+        <button class="header__action-btn" type="button" title="تسجيل الخروج" aria-label="تسجيل الخروج">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <path d="M16 17l5-5-5-5" />
+            <path d="M21 12H9" />
+          </svg>
+        </button>
+      </nav>
+    </header>
+
+    <!-- ===== MAIN ===== -->
+    <main class="main-content">
+
+      <a href="../index.html" class="back-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 18l6-6-6-6" />
+        </svg>
+        العودة إلى القائمة الرئيسية
+      </a>
+
+      <!-- Page Title -->
+      <section class="search-page-title">
+        <h2 class="search-page-title__heading">بحث و إطلاع للوفيات</h2>
+        <p class="search-page-title__desc">البحث في سجلات الوفيات حسب الاسم أو الجنس أو اسم الأب أو الأم</p>
+        <hr class="search-page-title__divider">
+      </section>
+
+      <!-- Search Bar -->
+      <fieldset class="search-bar">
+        <legend class="form-panel__legend">البحث في السجلات</legend>
+        <article class="search-bar__row">
+          <article class="search-bar__field">
+            <label class="form-label" for="search-name">اسم المتوفى(ة)</label>
+            <input type="text" class="form-input" id="search-name" placeholder="ابحث بالاسم الشخصي أو العائلي...">
+          </article>
+          <article class="search-bar__field search-bar__field--fixed">
+            <label class="form-label" for="search-year">سنة الوفاة</label>
+            <select class="form-select" id="search-year">
+              <option value="">الكل</option>
+              <option value="2026">2026</option>
+              <option value="2025">2025</option>
+              <option value="2024">2024</option>
+              <option value="2023">2023</option>
+              <option value="2022">2022</option>
+              <option value="2021">2021</option>
+              <option value="2020">2020</option>
+            </select>
+          </article>
+          <button type="button" class="btn btn--primary" id="btn-search" style="align-self: flex-end;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" width="18" height="18" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" />
+              <path d="M21 21l-4.35-4.35" />
+            </svg>
+            بحث
+          </button>
+        </article>
+      </fieldset>
+
+      <!-- Filter Panel -->
+      <aside class="filter-panel" aria-expanded="false" id="filter-panel">
+        <article class="filter-panel__header" role="button" tabindex="0" aria-controls="filter-body"
+          id="filter-toggle">
+          <span class="filter-panel__title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" aria-hidden="true">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+            </svg>
+            تصفية متقدمة
+          </span>
+          <svg class="filter-panel__toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </article>
+        <article class="filter-panel__body" id="filter-body">
+          <article class="filter-panel__body-inner">
+            <article class="filter-panel__controls">
+
+              <article class="filter-panel__group">
+                <label class="form-label" for="filter-sex">الجنس</label>
+                <select class="form-select" id="filter-sex">
+                  <option value="">الكل</option>
+                  <option value="male">ذكر</option>
+                  <option value="female">أنثى</option>
+                </select>
+              </article>
+
+              <article class="filter-panel__group">
+                <label class="form-label" for="filter-father">اسم الأب</label>
+                <input type="text" class="form-input" id="filter-father" placeholder="اسم الأب...">
+              </article>
+
+              <article class="filter-panel__group">
+                <label class="form-label" for="filter-mother">اسم الأم</label>
+                <input type="text" class="form-input" id="filter-mother" placeholder="اسم الأم...">
+              </article>
+
+              <article class="filter-panel__group">
+                <label class="form-label" for="filter-office">مكتب الحالة المدنية</label>
+                <select class="form-select" id="filter-office">
+                  <option value="">الكل</option>
+                  <option value="rabat">الرباط</option>
+                  <option value="casablanca">الدار البيضاء</option>
+                  <option value="fes">فاس</option>
+                  <option value="marrakech">مراكش</option>
+                  <option value="tangier">طنجة</option>
+                </select>
+              </article>
+
+            </article>
+
+            <!-- Active Filter Tags -->
+            <article class="active-filters" id="active-filters"></article>
+
+          </article>
+        </article>
+      </aside>
+
+      <!-- Results Summary -->
+      <article class="results-summary" id="results-summary">
+        <span>عدد النتائج: <strong class="results-summary__count" id="result-count">10</strong></span>
+      </article>
+
+      <!-- Results Table -->
+      <article class="results-table-wrap">
+        <table class="results-table" id="results-table">
+          <thead>
+            <tr>
+              <th>رقم الرسم</th>
+              <th>اسم المتوفى(ة)</th>
+              <th>الاسم العائلي</th>
+              <th>الجنس</th>
+              <th>تاريخ الوفاة</th>
+              <th>اسم الأب</th>
+              <th>اسم الأم</th>
+              <th>المكتب</th>
+              <th>إجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="results-body">
+            <!-- Populated by JS -->
+          </tbody>
+        </table>
+      </article>
+
+      <!-- Empty State (hidden by default) -->
+      <article class="empty-state" id="empty-state" hidden>
+        <svg class="empty-state__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8" />
+          <path d="M21 21l-4.35-4.35" />
+          <path d="M8 11h6" />
+        </svg>
+        <p class="empty-state__title">لا توجد نتائج</p>
+        <p class="empty-state__desc">حاول تعديل معايير البحث أو تغيير التصفية</p>
+      </article>
+
+      <!-- Pagination -->
+      <nav class="pagination" id="pagination" aria-label="التنقل بين الصفحات">
+        <button class="pagination__btn" id="page-prev" disabled aria-label="الصفحة السابقة">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+        </button>
+        <button class="pagination__btn pagination__btn--active" data-page="1">1</button>
+        <button class="pagination__btn" data-page="2">2</button>
+        <button class="pagination__btn" id="page-next" aria-label="الصفحة التالية">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+      </nav>
+
+    </main>
+  </section>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+      // ---- Header scroll effect ----
+      var siteHeader = document.querySelector(".site-header");
+      window.addEventListener("scroll", function () {
+        if (window.scrollY > 10) {
+          siteHeader.classList.add("is-scrolled");
+        } else {
+          siteHeader.classList.remove("is-scrolled");
+        }
+      });
+
+      // ---- Filter panel toggle ----
+      var filterPanel = document.getElementById("filter-panel");
+      var filterToggle = document.getElementById("filter-toggle");
+
+      filterToggle.addEventListener("click", function () {
+        var isExpanded = filterPanel.getAttribute("aria-expanded") === "true";
+        filterPanel.setAttribute("aria-expanded", String(!isExpanded));
+      });
+
+      filterToggle.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          filterToggle.click();
+        }
+      });
+
+      // ---- Sample death data ----
+      var deathData = [
+        { id: "و2024/0081", fname: "عبد الكريم", lname: "بنموسى", sex: "male", dod: "2024-04-02", father: "الحسين", mother: "رحمة", office: "الرباط" },
+        { id: "و2024/0082", fname: "فاطمة", lname: "الشرقاوي", sex: "female", dod: "2024-03-28", father: "عمر", mother: "عائشة", office: "الدار البيضاء" },
+        { id: "و2024/0083", fname: "محمد", lname: "الغزواني", sex: "male", dod: "2024-03-15", father: "يوسف", mother: "مليكة", office: "فاس" },
+        { id: "و2024/0084", fname: "خديجة", lname: "الناصري", sex: "female", dod: "2024-02-20", father: "أحمد", mother: "حنان", office: "مراكش" },
+        { id: "و2023/0612", fname: "حسن", lname: "الوافي", sex: "male", dod: "2023-12-10", father: "إبراهيم", mother: "نجاة", office: "طنجة" },
+        { id: "و2023/0613", fname: "زهرة", lname: "البوعناني", sex: "female", dod: "2023-11-25", father: "سعيد", mother: "فتيحة", office: "الرباط" },
+        { id: "و2023/0614", fname: "عبد الرحمن", lname: "الزياني", sex: "male", dod: "2023-10-08", father: "خالد", mother: "سعدية", office: "الدار البيضاء" },
+        { id: "و2023/0615", fname: "آمنة", lname: "المراكشي", sex: "female", dod: "2023-09-14", father: "رشيد", mother: "نادية", office: "فاس" },
+        { id: "و2022/0401", fname: "مصطفى", lname: "الفهري", sex: "male", dod: "2022-07-22", father: "عمر", mother: "بشرى", office: "مراكش" },
+        { id: "و2022/0402", fname: "حليمة", lname: "السوسي", sex: "female", dod: "2022-06-30", father: "حسن", mother: "لطيفة", office: "طنجة" }
+      ];
+
+      var searchInput = document.getElementById("search-name");
+      var yearSelect = document.getElementById("search-year");
+      var filterSex = document.getElementById("filter-sex");
+      var filterFather = document.getElementById("filter-father");
+      var filterMother = document.getElementById("filter-mother");
+      var filterOffice = document.getElementById("filter-office");
+      var btnSearch = document.getElementById("btn-search");
+      var resultsBody = document.getElementById("results-body");
+      var resultCount = document.getElementById("result-count");
+      var emptyState = document.getElementById("empty-state");
+      var tableWrap = document.querySelector(".results-table-wrap");
+      var paginationEl = document.getElementById("pagination");
+      var activeFiltersEl = document.getElementById("active-filters");
+
+      function getGenderLabel(sex) {
+        return sex === "male" ? "ذكر" : "أنثى";
+      }
+
+      function getGenderClass(sex) {
+        return sex === "male" ? "badge--male" : "badge--female";
+      }
+
+      function filterData() {
+        var query = searchInput.value.trim().toLowerCase();
+        var year = yearSelect.value;
+        var sex = filterSex.value;
+        var father = filterFather.value.trim().toLowerCase();
+        var mother = filterMother.value.trim().toLowerCase();
+        var office = filterOffice.value;
+
+        var officeLabels = {
+          rabat: "الرباط",
+          casablanca: "الدار البيضاء",
+          fes: "فاس",
+          marrakech: "مراكش",
+          tangier: "طنجة"
+        };
+
+        return deathData.filter(function (item) {
+          var matchesQuery = !query || item.fname.toLowerCase().includes(query) || item.lname.toLowerCase().includes(query);
+          var matchesYear = !year || item.dod.startsWith(year);
+          var matchesSex = !sex || item.sex === sex;
+          var matchesFather = !father || item.father.toLowerCase().includes(father);
+          var matchesMother = !mother || item.mother.toLowerCase().includes(mother);
+          var matchesOffice = !office || item.office === officeLabels[office];
+          return matchesQuery && matchesYear && matchesSex && matchesFather && matchesMother && matchesOffice;
+        });
+      }
+
+      function renderResults(data) {
+        resultsBody.innerHTML = "";
+
+        if (data.length === 0) {
+          emptyState.hidden = false;
+          tableWrap.hidden = true;
+          paginationEl.hidden = true;
+          resultCount.textContent = "0";
+          return;
+        }
+
+        emptyState.hidden = true;
+        tableWrap.hidden = false;
+        paginationEl.hidden = false;
+        resultCount.textContent = data.length;
+
+        data.forEach(function (item) {
+          var tr = document.createElement("tr");
+          tr.innerHTML =
+            '<td>' + item.id + '</td>' +
+            '<td>' + item.fname + '</td>' +
+            '<td>' + item.lname + '</td>' +
+            '<td><span class="badge ' + getGenderClass(item.sex) + '">' + getGenderLabel(item.sex) + '</span></td>' +
+            '<td>' + item.dod + '</td>' +
+            '<td>' + item.father + '</td>' +
+            '<td>' + item.mother + '</td>' +
+            '<td>' + item.office + '</td>' +
+            '<td>' +
+            '<button class="table-action" type="button" title="عرض التفاصيل" aria-label="عرض التفاصيل">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>' +
+            '</button>' +
+            '</td>';
+          resultsBody.appendChild(tr);
+        });
+      }
+
+      function updateActiveFilters() {
+        activeFiltersEl.innerHTML = "";
+
+        var sexVal = filterSex.value;
+        var fatherVal = filterFather.value.trim();
+        var motherVal = filterMother.value.trim();
+        var officeVal = filterOffice.value;
+
+        var officeLabels = {
+          rabat: "الرباط",
+          casablanca: "الدار البيضاء",
+          fes: "فاس",
+          marrakech: "مراكش",
+          tangier: "طنجة"
+        };
+
+        if (sexVal) {
+          addFilterTag("الجنس: " + (sexVal === "male" ? "ذكر" : "أنثى"), function () {
+            filterSex.value = "";
+            runSearch();
+          });
+        }
+        if (fatherVal) {
+          addFilterTag("الأب: " + fatherVal, function () {
+            filterFather.value = "";
+            runSearch();
+          });
+        }
+        if (motherVal) {
+          addFilterTag("الأم: " + motherVal, function () {
+            filterMother.value = "";
+            runSearch();
+          });
+        }
+        if (officeVal) {
+          addFilterTag("المكتب: " + officeLabels[officeVal], function () {
+            filterOffice.value = "";
+            runSearch();
+          });
+        }
+      }
+
+      function addFilterTag(label, onRemove) {
+        var tag = document.createElement("span");
+        tag.className = "filter-tag";
+        tag.innerHTML = label + ' <button class="filter-tag__remove" type="button" aria-label="إزالة">&times;</button>';
+        tag.querySelector(".filter-tag__remove").addEventListener("click", onRemove);
+        activeFiltersEl.appendChild(tag);
+      }
+
+      function runSearch() {
+        var results = filterData();
+        renderResults(results);
+        updateActiveFilters();
+      }
+
+      // Event bindings
+      btnSearch.addEventListener("click", runSearch);
+
+      searchInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") runSearch();
+      });
+
+      [filterSex, filterOffice].forEach(function (el) {
+        el.addEventListener("change", runSearch);
+      });
+
+      [filterFather, filterMother].forEach(function (el) {
+        el.addEventListener("keydown", function (e) {
+          if (e.key === "Enter") runSearch();
+        });
+      });
+
+      yearSelect.addEventListener("change", runSearch);
+
+      // Initial render
+      renderResults(deathData);
+    });
+  </script>
+</body>
+
+</html>
