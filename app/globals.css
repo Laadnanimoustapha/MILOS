@@ -280,6 +280,184 @@ input, select, textarea {
 }
 
 /* ============================================
+   DASHBOARD CARDS
+   ============================================ */
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.dashboard-card {
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-surface-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-subtle);
+  overflow: hidden;
+  transition: box-shadow var(--transition-base), border-color var(--transition-base);
+}
+
+.dashboard-card:hover {
+  box-shadow: var(--shadow-panel);
+  border-color: var(--clr-accent-gold-muted);
+}
+
+/* --- Card Top Accent --- */
+.dashboard-card::before {
+  content: "";
+  display: block;
+  height: 3px;
+  background: linear-gradient(90deg, var(--clr-primary), var(--clr-accent-gold));
+}
+
+/* --- Card Header (clickable) --- */
+
+.card__header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 24px 28px;
+  text-align: right;
+  transition: background-color var(--transition-fast);
+}
+
+.card__header:hover {
+  background: var(--clr-surface-hover);
+}
+
+.card__icon-wrap {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--clr-primary);
+  border-radius: 50%;
+  color: var(--clr-text-inverse);
+  transition: background-color var(--transition-fast);
+}
+
+.card__header:hover .card__icon-wrap {
+  background: var(--clr-primary-hover);
+}
+
+.card__icon-wrap svg {
+  width: 26px;
+  height: 26px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.card__title-group {
+  min-width: 0;
+  flex: 1;
+}
+
+.card__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--clr-primary);
+  line-height: 1.35;
+}
+
+.card__desc {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--clr-text-secondary);
+  font-weight: 500;
+}
+
+.card__chevron {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--clr-text-secondary);
+  transition: transform var(--transition-fast), color var(--transition-fast);
+}
+
+.card__header[aria-expanded="true"] .card__chevron {
+  transform: rotate(-90deg);
+  color: var(--clr-primary);
+}
+
+/* --- Card Panel (submenu) --- */
+
+.card__panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--transition-base);
+}
+
+.card__panel[aria-hidden="false"] {
+  grid-template-rows: 1fr;
+}
+
+.card__panel-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* --- Submenu Links --- */
+
+.submenu__link {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 28px;
+  color: var(--clr-text-primary);
+  background: var(--clr-surface);
+  border-top: 1px solid var(--clr-surface-border);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: right;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), padding-right var(--transition-fast);
+}
+
+.submenu__link::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--clr-accent-gold);
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.submenu__link:hover {
+  background: var(--clr-surface-hover);
+}
+
+.submenu__link:hover::before,
+.submenu__link--active::before {
+  opacity: 1;
+}
+
+.submenu__link--active {
+  background: var(--clr-surface-alt);
+  font-weight: 600;
+  color: var(--clr-primary);
+}
+
+/* --- Gold Bottom Accent on Card --- */
+.card__panel[aria-hidden="false"] .card__panel-inner::after {
+  content: "";
+  display: block;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--clr-accent-gold-muted), transparent);
+}
+/* ============================================
    PAGE TITLE
    ============================================ */
 
