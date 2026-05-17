@@ -5,6 +5,9 @@ const connectionString = process.env.AIVEN_DATABASE || "";
 let pool: mysql.Pool | null = null;
 
 export function getPool(): mysql.Pool {
+  if (!connectionString) {
+    throw new Error("AIVEN_DATABASE environment variable is not defined. Please add it to your Vercel Environment Variables or local .env file.");
+  }
   if (!pool) {
     pool = mysql.createPool({
       uri: connectionString,
