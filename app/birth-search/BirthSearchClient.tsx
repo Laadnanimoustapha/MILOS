@@ -9,13 +9,14 @@ import ResultsTable from "@/components/ResultsTable";
 import type { SearchFilters } from "@/lib/types";
 
 const HEADERS = [
-  "رقم",
+  "رقم الرسم",
   "الاسم الشخصي",
   "الاسم العائلي",
   "الجنس",
   "تاريخ الولادة",
   "اسم الأب",
   "اسم الأم",
+  "المكتب",
 ];
 
 const DEFAULT_FILTERS: SearchFilters = {
@@ -29,7 +30,7 @@ const DEFAULT_FILTERS: SearchFilters = {
 
 export default function BirthSearchClient() {
   const [filters, setFilters] = useState<SearchFilters>(DEFAULT_FILTERS);
-  const [rows, setRows] = useState<Record<string, unknown>[]>([]);
+  const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -47,7 +48,19 @@ export default function BirthSearchClient() {
       const res = await fetch(`/api/birth-search?${params.toString()}`);
       const json = await res.json();
       if (json.success) {
-        setRows(json.data);
+        // Map everything to strings to satisfy Record<string, string>
+        const mapped = (json.data || []).map((r: any) => ({
+          id: String(r.id || ""),
+          fname: String(r.fname || ""),
+          lname: String(r.lname || ""),
+          sex: String(r.sex || ""),
+          dob: String(r.dob || ""),
+          father: String(r.father || ""),
+          mother: String(r.mother || ""),
+          office: String(r.office || ""),
+          pdf_url: String(r.pdf_url || ""),
+        }));
+        setRows(mapped);
       } else {
         setError(json.error || "حدث خطأ أثناء البحث");
       }
