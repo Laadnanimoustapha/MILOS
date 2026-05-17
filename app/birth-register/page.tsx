@@ -6,7 +6,7 @@ import SiteHeader from '@/components/SiteHeader';
 
 export default function BirthRegisterPage() {
   const [currentStep, setCurrentStep] = useState(0);
-  const totalSteps = 6;
+  const totalSteps = 5;
 
   const [formData, setFormData] = useState({
     declType: 'direct',
@@ -58,9 +58,8 @@ export default function BirthRegisterPage() {
   };
 
   const steps = [
-    "معلومات عامة",
-    "معلومات عن الأم",
     "معلومات عن الأب",
+    "معلومات عن الأم",
     "معلومات عن المولود(ة)",
     "نسخ الوثائق المدعمة",
     "خلاصة وتأكيد"
@@ -100,61 +99,40 @@ export default function BirthRegisterPage() {
           })}
         </nav>
 
-        {/* STEP 0: General Information */}
+        {/* STEP 0: Father Info */}
         <section className="form-step" hidden={currentStep !== 0}>
           <fieldset className="form-panel">
-            <legend className="form-panel__legend">معلومات عن التصريح</legend>
+            <legend className="form-panel__legend">معلومات عن الأب</legend>
 
-            <article className="form-row">
-              <label className="form-label">نوع التصريح</label>
-              <article style={{ display: 'flex', gap: '24px' }}>
-                <label className="form-check">
-                  <input type="radio" name="declType" value="direct" checked={formData.declType === 'direct'} onChange={handleInputChange} />
-                  <span className="form-check__label">مباشر</span>
-                </label>
-                <label className="form-check">
-                  <input type="radio" name="declType" value="court" checked={formData.declType === 'court'} onChange={handleInputChange} />
-                  <span className="form-check__label">حكم من المحكمة</span>
-                </label>
-              </article>
+            <article className="unknown-toggle">
+              <label className="form-check">
+                <input type="checkbox" id="unknown-father" />
+                <span className="form-check__label">مجهول الأب</span>
+              </label>
             </article>
 
             <article className="form-row">
-              <label className="form-label" htmlFor="declDate">تاريخ التصريح بالولادة</label>
-              <input type="date" className="form-input" name="declDate" id="declDate" style={{ maxWidth: '300px' }} value={formData.declDate} onChange={handleInputChange} required />
+              <label className="form-label" htmlFor="fatherFname">الاسم الشخصي</label>
+              <input type="text" className="form-input form-input--with-keyboard" name="fatherFname" id="fatherFname" style={{ maxWidth: '300px' }} value={formData.fatherFname} onChange={handleInputChange} required />
+              <span className="form-label--fr">Prenom</span>
             </article>
 
             <article className="form-row">
-              <label className="form-label" htmlFor="declNumber">رقم التصريح</label>
-              <input type="text" className="form-input form-input--with-keyboard" name="declNumber" id="declNumber" style={{ maxWidth: '300px' }} value={formData.declNumber} onChange={handleInputChange} required />
-            </article>
-          </fieldset>
-
-          <fieldset className="form-panel">
-            <legend className="form-panel__legend">معلومات حول المصرح</legend>
-
-            <article className="form-row">
-              <label className="form-label" htmlFor="declarantName">اسم المصرح</label>
-              <input type="text" className="form-input form-input--with-keyboard" name="declarantName" id="declarantName" style={{ maxWidth: '400px' }} value={formData.declarantName} onChange={handleInputChange} required />
-              <span className="form-label--fr">Nom du declarant</span>
+              <label className="form-label" htmlFor="fatherLname">الاسم العائلي</label>
+              <input type="text" className="form-input form-input--with-keyboard" name="fatherLname" id="fatherLname" style={{ maxWidth: '300px' }} value={formData.fatherLname} onChange={handleInputChange} required />
+              <span className="form-label--fr">Nom</span>
             </article>
 
             <article className="form-row">
-              <label className="form-label" htmlFor="declarantCin">رقم بطاقة التعريف</label>
-              <input type="text" className="form-input" name="declarantCin" id="declarantCin" style={{ maxWidth: '250px' }} value={formData.declarantCin} onChange={handleInputChange} required />
+              <label className="form-label" htmlFor="fatherDob">تاريخ الازدياد</label>
+              <input type="date" className="form-input" name="fatherDob" id="fatherDob" style={{ maxWidth: '300px' }} value={formData.fatherDob} onChange={handleInputChange} required />
+              <span className="form-label--fr">Date de naissance</span>
+            </article>
+
+            <article className="form-row">
+              <label className="form-label" htmlFor="fatherCin">رقم بطاقة التعريف</label>
+              <input type="text" className="form-input" name="fatherCin" id="fatherCin" style={{ maxWidth: '250px' }} value={formData.fatherCin} onChange={handleInputChange} />
               <span className="form-label--fr">CIN</span>
-            </article>
-
-            <article className="form-row">
-              <label className="form-label" htmlFor="declarantRelation">صفة المصرح</label>
-              <select className="form-select" name="declarantRelation" id="declarantRelation" style={{ maxWidth: '300px' }} value={formData.declarantRelation} onChange={handleInputChange} required>
-                <option value="">-- اختر --</option>
-                <option value="الأب">الأب</option>
-                <option value="الأم">الأم</option>
-                <option value="الطبيب">الطبيب</option>
-                <option value="القابلة">القابلة</option>
-                <option value="أخرى">أخرى</option>
-              </select>
             </article>
           </fieldset>
         </section>
@@ -196,46 +174,8 @@ export default function BirthRegisterPage() {
           </fieldset>
         </section>
 
-        {/* STEP 2: Father Info */}
+        {/* STEP 2: Newborn Info */}
         <section className="form-step" hidden={currentStep !== 2}>
-          <fieldset className="form-panel">
-            <legend className="form-panel__legend">معلومات عن الأب</legend>
-
-            <article className="unknown-toggle">
-              <label className="form-check">
-                <input type="checkbox" id="unknown-father" />
-                <span className="form-check__label">مجهول الأب</span>
-              </label>
-            </article>
-
-            <article className="form-row">
-              <label className="form-label" htmlFor="fatherFname">الاسم الشخصي</label>
-              <input type="text" className="form-input form-input--with-keyboard" name="fatherFname" id="fatherFname" style={{ maxWidth: '300px' }} value={formData.fatherFname} onChange={handleInputChange} required />
-              <span className="form-label--fr">Prenom</span>
-            </article>
-
-            <article className="form-row">
-              <label className="form-label" htmlFor="fatherLname">الاسم العائلي</label>
-              <input type="text" className="form-input form-input--with-keyboard" name="fatherLname" id="fatherLname" style={{ maxWidth: '300px' }} value={formData.fatherLname} onChange={handleInputChange} required />
-              <span className="form-label--fr">Nom</span>
-            </article>
-
-            <article className="form-row">
-              <label className="form-label" htmlFor="fatherDob">تاريخ الازدياد</label>
-              <input type="date" className="form-input" name="fatherDob" id="fatherDob" style={{ maxWidth: '300px' }} value={formData.fatherDob} onChange={handleInputChange} required />
-              <span className="form-label--fr">Date de naissance</span>
-            </article>
-
-            <article className="form-row">
-              <label className="form-label" htmlFor="fatherCin">رقم بطاقة التعريف</label>
-              <input type="text" className="form-input" name="fatherCin" id="fatherCin" style={{ maxWidth: '250px' }} value={formData.fatherCin} onChange={handleInputChange} />
-              <span className="form-label--fr">CIN</span>
-            </article>
-          </fieldset>
-        </section>
-
-        {/* STEP 3: Newborn Info */}
-        <section className="form-step" hidden={currentStep !== 3}>
           <fieldset className="form-panel">
             <legend className="form-panel__legend">معلومات عن المولود(ة)</legend>
 
@@ -272,8 +212,8 @@ export default function BirthRegisterPage() {
           </fieldset>
         </section>
 
-        {/* STEP 4: Documents */}
-        <section className="form-step" hidden={currentStep !== 4}>
+        {/* STEP 3: Documents */}
+        <section className="form-step" hidden={currentStep !== 3}>
           <fieldset className="form-panel">
             <legend className="form-panel__legend">نسخ الوثائق المدعمة</legend>
             <article className="upload-controls">
@@ -296,37 +236,8 @@ export default function BirthRegisterPage() {
           </fieldset>
         </section>
 
-        {/* STEP 5: Summary */}
-        <section className="form-step" hidden={currentStep !== 5}>
-          <section className="review-accordion review-accordion--open">
-            <button className="review-accordion__header">
-              <span className="review-accordion__icon">-</span>
-              <span className="review-accordion__title">معلومات عن التصريح</span>
-            </button>
-            <article className="review-accordion__body" style={{ display: 'block' }}>
-              <article className="review-row">
-                <span className="review-row__label-fr">Date de declaration</span>
-                <span className="review-row__value">{formData.declDate || '---'}</span>
-                <span className="review-row__label-ar">تاريخ التصريح بالولادة</span>
-              </article>
-              <article className="review-row">
-                <span className="review-row__label-fr">Type de declaration</span>
-                <span className="review-row__value">{formData.declType === 'direct' ? 'مباشر' : 'حكم من المحكمة'}</span>
-                <span className="review-row__label-ar">نوع التصريح</span>
-              </article>
-              <article className="review-row">
-                <span className="review-row__label-fr">N de declaration</span>
-                <span className="review-row__value">{formData.declNumber || '---'}</span>
-                <span className="review-row__label-ar">رقم التصريح</span>
-              </article>
-              <article className="review-row">
-                <span className="review-row__label-fr">Nom du declarant</span>
-                <span className="review-row__value">{formData.declarantName || '---'}</span>
-                <span className="review-row__label-ar">اسم المصرح</span>
-              </article>
-            </article>
-          </section>
-
+        {/* STEP 4: Summary */}
+        <section className="form-step" hidden={currentStep !== 4}>
           <section className="review-accordion review-accordion--open">
             <button className="review-accordion__header">
               <span className="review-accordion__icon">-</span>
