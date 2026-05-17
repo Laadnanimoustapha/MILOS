@@ -33,6 +33,8 @@ jobs:
           
           # Initialize git and commit files
           git init
+          git lfs install
+          git lfs track "*.ttf"
           git checkout -b main
           git add .
           git commit -m "Sync DILONA backend to Hugging Face Spaces"
