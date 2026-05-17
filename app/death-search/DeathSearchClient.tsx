@@ -1,24 +1,21 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SearchBar from "@/components/SearchBar";
 import FilterPanel from "@/components/FilterPanel";
 import ResultsTable from "@/components/ResultsTable";
-import { DEATH_DATA } from "@/lib/data";
-import { OFFICE_MAP } from "@/lib/types";
 import type { SearchFilters } from "@/lib/types";
 
 const HEADERS = [
-  "رقم الرسم",
+  "رقم",
   "اسم المتوفى(ة)",
   "الاسم العائلي",
   "الجنس",
   "تاريخ الوفاة",
   "اسم الأب",
   "اسم الأم",
-  "المكتب",
 ];
 
 const DEFAULT_FILTERS: SearchFilters = {
@@ -32,42 +29,39 @@ const DEFAULT_FILTERS: SearchFilters = {
 
 export default function DeathSearchClient() {
   const [filters, setFilters] = useState<SearchFilters>(DEFAULT_FILTERS);
+  const [rows, setRows] = useState<Record<string, unknown>[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSearch = useCallback(() => {
-    // Triggers re-render via state -- filtering is derived
+  const fetchData = useCallback(async (f: SearchFilters) => {
+    setLoading(true);
+    setError("");
+    try {
+      const params = new URLSearchParams();
+      if (f.query)  params.set("query",  f.query);
+      if (f.year)   params.set("year",   f.year);
+      if (f.sex)    params.set("sex",    f.sex);
+      if (f.father) params.set("father", f.father);
+      if (f.mother) params.set("mother", f.mother);
+
+      const res = await fetch(`/api/death-search?${params.toString()}`);
+      const json = await res.json();
+      if (json.success) {
+        setRows(json.data);
+      } else {
+        setError(json.error || "حدث خطأ أثناء البحث");
+      }
+    } catch {
+      setError("تعذر الاتصال بالخادم");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const filteredRows = useMemo(() => {
-    return DEATH_DATA.filter((item) => {
-      const q = filters.query.trim().toLowerCase();
-      const matchesQuery =
-        !q || item.fname.toLowerCase().includes(q) || item.lname.toLowerCase().includes(q);
-      const matchesYear = !filters.year || item.dod.startsWith(filters.year);
-      const matchesSex = !filters.sex || item.sex === filters.sex;
-      const matchesFather =
-        !filters.father || item.father.toLowerCase().includes(filters.father.toLowerCase());
-      const matchesMother =
-        !filters.mother || item.mother.toLowerCase().includes(filters.mother.toLowerCase());
-      const matchesOffice =
-        !filters.office || item.office === OFFICE_MAP[filters.office];
-      return matchesQuery && matchesYear && matchesSex && matchesFather && matchesMother && matchesOffice;
-    });
-  }, [filters]);
+  // Load all records on mount
+  useEffect(() => { fetchData(DEFAULT_FILTERS); }, [fetchData]);
 
-  const rows = useMemo(
-    () =>
-      filteredRows.map((r) => ({
-        id: r.id,
-        fname: r.fname,
-        lname: r.lname,
-        sex: r.sex,
-        dod: r.dod,
-        father: r.father,
-        mother: r.mother,
-        office: r.office,
-      })),
-    [filteredRows]
-  );
+  const handleSearch = useCallback(() => { fetchData(filters); }, [filters, fetchData]);
 
   return (
     <section className="app-shell">
@@ -100,7 +94,10 @@ export default function DeathSearchClient() {
 
         <FilterPanel filters={filters} onFilterChange={setFilters} />
 
-        <ResultsTable headers={HEADERS} rows={rows} dateKey="dod" />
+        {loading && <p style={{ textAlign: "center", padding: "1rem" }}>جارٍ البحث...</p>}
+        {error   && <p style={{ textAlign: "center", color: "var(--color-error, red)", padding: "1rem" }}>{error}</p>}
+
+        {!loading && !error && <ResultsTable headers={HEADERS} rows={rows} dateKey="dod" />}
       </main>
     </section>
   );
