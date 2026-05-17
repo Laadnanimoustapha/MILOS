@@ -7,6 +7,8 @@ import SiteHeader from '@/components/SiteHeader';
 export default function DeathRegisterPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const totalSteps = 7;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitResult, setSubmitResult] = useState<{ success: boolean; pdf_url?: string; error?: string } | null>(null);
 
   const [formData, setFormData] = useState({
     dtype: 'direct',
@@ -38,12 +40,30 @@ export default function DeathRegisterPage() {
     }
   };
 
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    setSubmitResult(null);
+    try {
+      const response = await fetch('/api/death-register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      const data = await response.json();
+      setSubmitResult(data);
+    } catch {
+      setSubmitResult({ success: false, error: 'فشل الاتصال بالخادم' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleNext = () => {
     if (currentStep < totalSteps - 1) {
       setCurrentStep((prev) => prev + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      alert("تم حفظ التصريح بنجاح!");
+      handleSubmit();
     }
   };
 
@@ -326,10 +346,32 @@ export default function DeathRegisterPage() {
           </section>
         </section>
 
+        {/* SUBMISSION RESULT */}
+        {submitResult && (
+          <section className="form-panel" style={{ marginTop: '16px' }}>
+            {submitResult.success ? (
+              <article className="alert-box alert-box--success" style={{ background: 'var(--color-surface)', border: '1px solid #2d6a4f', padding: '20px', borderRadius: '8px' }}>
+                <p style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '8px' }}>تم حفظ التصريح بنجاح</p>
+                {submitResult.pdf_url && (
+                  <a href={submitResult.pdf_url} target="_blank" rel="noopener noreferrer" className="btn btn--primary" style={{ display: 'inline-block', marginTop: '8px' }}>
+                    تحميل الوثيقة PDF
+                  </a>
+                )}
+              </article>
+            ) : (
+              <article className="alert-box alert-box--danger" style={{ padding: '16px', borderRadius: '8px' }}>
+                <p>{submitResult.error || 'حدث خطأ غير متوقع'}</p>
+              </article>
+            )}
+          </section>
+        )}
+
         {/* FORM NAVIGATION */}
         <nav className="form-nav">
-          <button className="btn btn--outline" onClick={handlePrev} disabled={currentStep === 0}>السابق</button>
-          <button className="btn btn--primary" onClick={handleNext}>{currentStep === totalSteps - 1 ? 'تأكيد وإرسال' : 'التالي'}</button>
+          <button className="btn btn--outline" onClick={handlePrev} disabled={currentStep === 0 || isSubmitting}>السابق</button>
+          <button className="btn btn--primary" onClick={handleNext} disabled={isSubmitting}>
+            {isSubmitting ? 'جاري الإرسال...' : (currentStep === totalSteps - 1 ? 'تأكيد وإرسال' : 'التالي')}
+          </button>
         </nav>
       </main>
     </div>
