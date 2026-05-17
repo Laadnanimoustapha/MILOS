@@ -1,16 +1,23 @@
 import mysql from "mysql2/promise";
 
-const connectionString = process.env.AIVEN_DATABASE || "";
+// Strip the unsupported `ssl-mode=REQUIRED` param that mysql2 can't parse,
+// then enable SSL explicitly in the pool config.
+const rawUri = process.env.AIVEN_DATABASE || "";
+const connectionString = rawUri.replace(/[?&]ssl-mode=[^&]*/i, "");
 
 let pool: mysql.Pool | null = null;
 
 export function getPool(): mysql.Pool {
   if (!connectionString) {
-    throw new Error("AIVEN_DATABASE environment variable is not defined. Please add it to your Vercel Environment Variables or local .env file.");
+    throw new Error(
+      "AIVEN_DATABASE environment variable is not defined. " +
+      "Add it to your Vercel Environment Variables."
+    );
   }
   if (!pool) {
     pool = mysql.createPool({
       uri: connectionString,
+      ssl: { rejectUnauthorized: true },
       waitForConnections: true,
       connectionLimit: 5,
       queueLimit: 0,
