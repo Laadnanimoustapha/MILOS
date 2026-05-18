@@ -22,7 +22,7 @@ from supabase import create_client
 # ---------------------------------------------------------------------------
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
-SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "documents")
+SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "DP")
 
 app = FastAPI(title="DILONA PDF Service", version="1.0.0")
 
