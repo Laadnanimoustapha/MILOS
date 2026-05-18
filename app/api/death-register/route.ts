@@ -99,6 +99,8 @@ export async function POST(request: Request) {
               cause_death:    body.causeDeath || "",
               declarant_name: body.declarantName || "",
               declarant_cin:  body.declarantCin || "",
+              supabase_url:   process.env.SUPABASE_URL || "",
+              supabase_key:   process.env.SUPABASE_API_KEY || "",
             }),
           });
 

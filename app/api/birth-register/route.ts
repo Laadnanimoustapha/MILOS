@@ -94,6 +94,8 @@ export async function POST(request: Request) {
               gender:             body.gender || "",
               newborn_dob:        body.newbornDob || "",
               newborn_birthplace: body.newbornBirthplace || "",
+              supabase_url:       process.env.SUPABASE_URL || "",
+              supabase_key:       process.env.SUPABASE_API_KEY || "",
             }),
           });
 

@@ -52,6 +52,8 @@ class BirthPDFRequest(BaseModel):
     gender: str = ""
     newborn_dob: str = ""
     newborn_birthplace: str = ""
+    supabase_url: Optional[str] = None
+    supabase_key: Optional[str] = None
 
 
 class DeathPDFRequest(BaseModel):
@@ -70,6 +72,8 @@ class DeathPDFRequest(BaseModel):
     cause_death: str = ""
     declarant_name: str = ""
     declarant_cin: str = ""
+    supabase_url: Optional[str] = None
+    supabase_key: Optional[str] = None
 
 
 class PDFResponse(BaseModel):
@@ -174,15 +178,18 @@ class ArabicPDF(FPDF):
 # ---------------------------------------------------------------------------
 # Supabase upload helper
 # ---------------------------------------------------------------------------
-def upload_to_supabase(pdf_bytes: bytes, filename: str) -> str:
+def upload_to_supabase(pdf_bytes: bytes, filename: str, url: str = "", key: str = "") -> str:
     """Upload PDF bytes to Supabase Storage and return the public URL."""
-    if not SUPABASE_URL or not SUPABASE_KEY:
+    active_url = url or SUPABASE_URL
+    active_key = key or SUPABASE_KEY
+
+    if not active_url or not active_key:
         raise HTTPException(
             status_code=500,
             detail="Supabase credentials not configured.",
         )
 
-    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    supabase = create_client(active_url, active_key)
     file_path = f"pdf/{filename}"
 
     supabase.storage.from_(SUPABASE_BUCKET).upload(
@@ -303,7 +310,7 @@ def create_birth_pdf(data: BirthPDFRequest):
     try:
         pdf_bytes = generate_birth_pdf(data)
         filename = f"birth_{uuid.uuid4().hex[:8]}_{datetime.now().strftime('%Y%m%d')}.pdf"
-        pdf_url = upload_to_supabase(pdf_bytes, filename)
+        pdf_url = upload_to_supabase(pdf_bytes, filename, data.supabase_url or "", data.supabase_key or "")
         return PDFResponse(pdf_url=pdf_url, filename=filename)
     except HTTPException:
         raise
@@ -317,7 +324,7 @@ def create_death_pdf(data: DeathPDFRequest):
     try:
         pdf_bytes = generate_death_pdf(data)
         filename = f"death_{uuid.uuid4().hex[:8]}_{datetime.now().strftime('%Y%m%d')}.pdf"
-        pdf_url = upload_to_supabase(pdf_bytes, filename)
+        pdf_url = upload_to_supabase(pdf_bytes, filename, data.supabase_url or "", data.supabase_key or "")
         return PDFResponse(pdf_url=pdf_url, filename=filename)
     except HTTPException:
         raise
