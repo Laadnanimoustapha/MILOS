@@ -184,15 +184,15 @@ input, select, textarea {
 .header__title-row {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
+  gap: var(--space-md);
 }
 
 .header__role {
   display: inline-block;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-small);
   font-weight: var(--fw-bold);
   color: var(--clr-primary);
-  margin-inline-start: var(--space-sm);
+  margin-inline-start: var(--space-md);
   letter-spacing: 0.03em;
 }
 
