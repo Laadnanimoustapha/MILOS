@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       const pdfBuffer = await generateBirthPDFBuffer(pdfData);
       
       const supabaseUrl = process.env.SUPABASE_URL || "";
-      const supabaseKey = process.env.SUPABASE_API_KEY || "";
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_API_KEY || "";
       
       if (supabaseUrl && supabaseKey) {
         const supabase = createClient(supabaseUrl, supabaseKey);
