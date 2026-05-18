@@ -38,9 +38,11 @@ export default function SiteHeader() {
       <nav className="header__brand">
         <Image src="/logo.png" alt="شعار النظام" className="header__logo" width={48} height={48} aria-hidden="true" />
         <article className="header__title-block">
-          <h1 className="header__title">نظام تدبير سجلات الحالة المدنية</h1>
+          <div className="header__title-row">
+            <h1 className="header__title">نظام تدبير سجلات الحالة المدنية</h1>
+            {userRole && <span className="header__role">{userRole}</span>}
+          </div>
           <p className="header__subtitle">المملكة المغربية - وزارة الداخلية</p>
-          {userRole && <p className="header__role">{userRole}</p>}
         </article>
       </nav>
       <nav className="header__actions" aria-label="إجراءات النظام">

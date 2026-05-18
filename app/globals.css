@@ -181,16 +181,18 @@ input, select, textarea {
 }
 
 /* Header role display */
+.header__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
 .header__role {
   display: inline-block;
   font-size: var(--fs-xs);
   font-weight: var(--fw-bold);
   color: var(--clr-primary);
-  background-color: rgba(10, 77, 60, 0.10);
-  border: 1px solid rgba(10, 77, 60, 0.20);
-  padding: 1px 8px;
-  border-radius: 20px;
-  margin-top: var(--space-xs);
+  margin-inline-start: var(--space-sm);
   letter-spacing: 0.03em;
 }
 
