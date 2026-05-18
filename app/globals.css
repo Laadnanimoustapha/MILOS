@@ -182,9 +182,16 @@ input, select, textarea {
 
 /* Header role display */
 .header__role {
+  display: inline-block;
   font-size: var(--fs-xs);
-  color: var(--clr-text-secondary);
+  font-weight: var(--fw-bold);
+  color: var(--clr-primary);
+  background-color: rgba(10, 77, 60, 0.10);
+  border: 1px solid rgba(10, 77, 60, 0.20);
+  padding: 1px 8px;
+  border-radius: 20px;
   margin-top: var(--space-xs);
+  letter-spacing: 0.03em;
 }
 
 /* Remove blur on scrolled header to keep background visible */
