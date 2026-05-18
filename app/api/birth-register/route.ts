@@ -1,7 +1,25 @@
 import { NextResponse } from "next/server";
 import { getPool, initSchema } from "@/lib/db";
 
-const PYTHON_API_URL = process.env.PYTHON_API_URL || "";
+const PYTHON_API_URL = (process.env.PYTHON_API_URL || "").replace(/\/$/, "");
+
+/**
+ * Wake a sleeping HuggingFace Space by polling GET /
+ * Returns true once the Space responds with 2xx, false on timeout.
+ */
+async function wakeSpace(baseUrl: string, timeoutMs = 12000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(`${baseUrl}/`, { method: "GET" });
+      if (res.ok) return true;
+    } catch {
+      // still sleeping
+    }
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  return false;
+}
 
 export async function POST(request: Request) {
   try {
@@ -37,68 +55,61 @@ export async function POST(request: Request) {
 
     const insertId = (result as { insertId: number }).insertId;
 
-    // 2. Call Python FastAPI to generate PDF
+    // 2. Call Python FastAPI to generate PDF (non-blocking — registration always succeeds)
     let pdfUrl = "";
-    console.log(`[PDF] Calling HF backend at: ${PYTHON_API_URL}/generate-birth-pdf`);
     if (PYTHON_API_URL) {
       try {
-        const pdfResponse = await fetch(`${PYTHON_API_URL}/generate-birth-pdf`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            father_fname: body.fatherFname || "",
-            father_lname: body.fatherLname || "",
-            father_dob: body.fatherDob || "",
-            father_cin: body.fatherCin || "",
-            mother_fname: body.motherFname || "",
-            mother_lname: body.motherLname || "",
-            mother_dob: body.motherDob || "",
-            mother_cin: body.motherCin || "",
-            mother_address: body.motherAddress || "",
-            newborn_fname: body.newbornFname || "",
-            gender: body.gender || "",
-            newborn_dob: body.newbornDob || "",
-            newborn_birthplace: body.newbornBirthplace || "",
-          }),
-        });
-
-        console.log(`[PDF] HF response status: ${pdfResponse.status}`);
-
-        if (pdfResponse.ok) {
-          const pdfData = await pdfResponse.json();
-          pdfUrl = pdfData.pdf_url || "";
-          console.log(`[PDF] Got PDF URL: ${pdfUrl}`);
-
-          // 3. Update DB record with PDF URL
-          if (pdfUrl) {
-            await db.execute(
-              "UPDATE birth_registrations SET pdf_url = ? WHERE id = ?",
-              [pdfUrl, insertId]
-            );
-          }
+        console.log(`[PDF] Waking HF Space at ${PYTHON_API_URL} ...`);
+        const awake = await wakeSpace(PYTHON_API_URL);
+        if (!awake) {
+          console.warn("[PDF] HF Space did not wake in time — skipping PDF.");
         } else {
-          const errText = await pdfResponse.text();
-          console.error(`[PDF] HF backend error ${pdfResponse.status}: ${errText}`);
+          const pdfResponse = await fetch(`${PYTHON_API_URL}/generate-birth-pdf`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              father_fname:       body.fatherFname || "",
+              father_lname:       body.fatherLname || "",
+              father_dob:         body.fatherDob || "",
+              father_cin:         body.fatherCin || "",
+              mother_fname:       body.motherFname || "",
+              mother_lname:       body.motherLname || "",
+              mother_dob:         body.motherDob || "",
+              mother_cin:         body.motherCin || "",
+              mother_address:     body.motherAddress || "",
+              newborn_fname:      body.newbornFname || "",
+              gender:             body.gender || "",
+              newborn_dob:        body.newbornDob || "",
+              newborn_birthplace: body.newbornBirthplace || "",
+            }),
+          });
+
+          if (pdfResponse.ok) {
+            const pdfData = await pdfResponse.json();
+            pdfUrl = pdfData.pdf_url || "";
+            console.log(`[PDF] Got PDF URL: ${pdfUrl}`);
+            if (pdfUrl) {
+              await db.execute(
+                "UPDATE birth_registrations SET pdf_url = ? WHERE id = ?",
+                [pdfUrl, insertId]
+              );
+            }
+          } else {
+            const errText = await pdfResponse.text();
+            console.error(`[PDF] HF error ${pdfResponse.status}: ${errText.slice(0, 200)}`);
+          }
         }
       } catch (pdfErr) {
         console.error("[PDF] Failed to reach HF backend:", pdfErr);
       }
     } else {
-      console.warn("[PDF] PYTHON_API_URL is not set — skipping PDF generation");
+      console.warn("[PDF] PYTHON_API_URL not set — skipping PDF generation.");
     }
 
-    return NextResponse.json({
-      success: true,
-      id: insertId,
-      pdf_url: pdfUrl,
-    });
+    return NextResponse.json({ success: true, id: insertId, pdf_url: pdfUrl });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Unknown server error";
+    const message = error instanceof Error ? error.message : "Unknown server error";
     console.error("Birth registration error:", message);
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
