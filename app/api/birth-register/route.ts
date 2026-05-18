@@ -2,16 +2,22 @@ import { NextResponse } from "next/server";
 import { getPool, initSchema } from "@/lib/db";
 
 const PYTHON_API_URL = (process.env.PYTHON_API_URL || "").replace(/\/$/, "");
+const HF_READ_TKEN   = process.env.HF_READ_TKEN || "";
 
 /**
- * Wake a sleeping HuggingFace Space by polling GET /
+ * Wake a sleeping HuggingFace Space by polling GET / with Auth header
  * Returns true once the Space responds with 2xx, false on timeout.
  */
-async function wakeSpace(baseUrl: string, timeoutMs = 12000): Promise<boolean> {
+async function wakeSpace(baseUrl: string, token: string, timeoutMs = 12000): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   while (Date.now() < deadline) {
     try {
-      const res = await fetch(`${baseUrl}/`, { method: "GET" });
+      const res = await fetch(`${baseUrl}/`, { method: "GET", headers });
       if (res.ok) return true;
     } catch {
       // still sleeping
@@ -60,13 +66,20 @@ export async function POST(request: Request) {
     if (PYTHON_API_URL) {
       try {
         console.log(`[PDF] Waking HF Space at ${PYTHON_API_URL} ...`);
-        const awake = await wakeSpace(PYTHON_API_URL);
+        const awake = await wakeSpace(PYTHON_API_URL, HF_READ_TKEN);
         if (!awake) {
           console.warn("[PDF] HF Space did not wake in time — skipping PDF.");
         } else {
+          const headers: Record<string, string> = {
+            "Content-Type": "application/json",
+          };
+          if (HF_READ_TKEN) {
+            headers["Authorization"] = `Bearer ${HF_READ_TKEN}`;
+          }
+
           const pdfResponse = await fetch(`${PYTHON_API_URL}/generate-birth-pdf`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers,
             body: JSON.stringify({
               father_fname:       body.fatherFname || "",
               father_lname:       body.fatherLname || "",
