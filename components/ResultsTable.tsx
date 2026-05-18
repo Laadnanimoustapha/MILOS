@@ -23,6 +23,19 @@ function ViewButton() {
   );
 }
 
+function DownloadButton({ url }: { url: string }) {
+  if (!url) return null;
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" className="table-action" title="تحميل الوثيقة" aria-label="تحميل الوثيقة" style={{ marginLeft: '8px' }}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="7 10 12 15 17 10" />
+        <line x1="12" y1="15" x2="12" y2="3" />
+      </svg>
+    </a>
+  );
+}
+
 export default function ResultsTable({ headers, rows, dateKey }: ResultsTableProps) {
   if (rows.length === 0) {
     return (
@@ -70,8 +83,9 @@ export default function ResultsTable({ headers, rows, dateKey }: ResultsTablePro
                 <td>{row.father}</td>
                 <td>{row.mother}</td>
                 <td>{row.office}</td>
-                <td>
+                <td style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <ViewButton />
+                  <DownloadButton url={row.pdf_url} />
                 </td>
               </tr>
             ))}

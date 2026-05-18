@@ -1,31 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPool, initSchema } from "@/lib/db";
-
-const PYTHON_API_URL = (process.env.PYTHON_API_URL || "").replace(/\/$/, "");
-const HF_READ_TKEN   = process.env.HF_READ_TKEN || "";
-
-/**
- * Wake a sleeping HuggingFace Space by polling GET / with Auth header
- * Returns true once the Space responds with 2xx, false on timeout.
- */
-async function wakeSpace(baseUrl: string, token: string, timeoutMs = 12000): Promise<boolean> {
-  const deadline = Date.now() + timeoutMs;
-  const headers: Record<string, string> = {};
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
-  while (Date.now() < deadline) {
-    try {
-      const res = await fetch(`${baseUrl}/`, { method: "GET", headers });
-      if (res.ok) return true;
-    } catch {
-      // still sleeping
-    }
-    await new Promise((r) => setTimeout(r, 2000));
-  }
-  return false;
-}
+import { generateBirthPDFBuffer } from "@/lib/pdfGenerator";
+import { createClient } from "@supabase/supabase-js";
 
 export async function POST(request: Request) {
   try {
@@ -61,64 +37,68 @@ export async function POST(request: Request) {
 
     const insertId = (result as { insertId: number }).insertId;
 
-    // 2. Call Python FastAPI to generate PDF (non-blocking — registration always succeeds)
+    // 2. Local PDF Generation & Supabase Upload
     let pdfUrl = "";
-    if (PYTHON_API_URL) {
-      try {
-        console.log(`[PDF] Waking HF Space at ${PYTHON_API_URL} ...`);
-        const awake = await wakeSpace(PYTHON_API_URL, HF_READ_TKEN);
-        if (!awake) {
-          console.warn("[PDF] HF Space did not wake in time — skipping PDF.");
-        } else {
-          const headers: Record<string, string> = {
-            "Content-Type": "application/json",
-          };
-          if (HF_READ_TKEN) {
-            headers["Authorization"] = `Bearer ${HF_READ_TKEN}`;
-          }
+    try {
+      console.log(`[PDF] Generating local PDF...`);
+      const pdfData = {
+        father_fname:       body.fatherFname || "",
+        father_lname:       body.fatherLname || "",
+        father_dob:         body.fatherDob || "",
+        father_cin:         body.fatherCin || "",
+        mother_fname:       body.motherFname || "",
+        mother_lname:       body.motherLname || "",
+        mother_dob:         body.motherDob || "",
+        mother_cin:         body.motherCin || "",
+        mother_address:     body.motherAddress || "",
+        newborn_fname:      body.newbornFname || "",
+        gender:             body.gender || "",
+        newborn_dob:        body.newbornDob || "",
+        newborn_birthplace: body.newbornBirthplace || "",
+      };
 
-          const pdfResponse = await fetch(`${PYTHON_API_URL}/generate-birth-pdf`, {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-              father_fname:       body.fatherFname || "",
-              father_lname:       body.fatherLname || "",
-              father_dob:         body.fatherDob || "",
-              father_cin:         body.fatherCin || "",
-              mother_fname:       body.motherFname || "",
-              mother_lname:       body.motherLname || "",
-              mother_dob:         body.motherDob || "",
-              mother_cin:         body.motherCin || "",
-              mother_address:     body.motherAddress || "",
-              newborn_fname:      body.newbornFname || "",
-              gender:             body.gender || "",
-              newborn_dob:        body.newbornDob || "",
-              newborn_birthplace: body.newbornBirthplace || "",
-              supabase_url:       process.env.SUPABASE_URL || "",
-              supabase_key:       process.env.SUPABASE_API_KEY || "",
-            }),
+      const pdfBuffer = await generateBirthPDFBuffer(pdfData);
+      
+      const supabaseUrl = process.env.SUPABASE_URL || "";
+      const supabaseKey = process.env.SUPABASE_API_KEY || "";
+      
+      if (supabaseUrl && supabaseKey) {
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        
+        // Generate random filename
+        const randStr = Math.random().toString(36).substring(2, 10);
+        const dateStr = new Date().toISOString().split("T")[0].replace(/-/g, "");
+        const filename = `birth_${randStr}_${dateStr}.pdf`;
+        const filePath = `pdf/${filename}`;
+        
+        const { error } = await supabase.storage
+          .from("DP")
+          .upload(filePath, pdfBuffer, {
+            contentType: "application/pdf",
           });
 
-          if (pdfResponse.ok) {
-            const pdfData = await pdfResponse.json();
-            pdfUrl = pdfData.pdf_url || "";
-            console.log(`[PDF] Got PDF URL: ${pdfUrl}`);
-            if (pdfUrl) {
-              await db.execute(
-                "UPDATE birth_registrations SET pdf_url = ? WHERE id = ?",
-                [pdfUrl, insertId]
-              );
-            }
-          } else {
-            const errText = await pdfResponse.text();
-            console.error(`[PDF] HF error ${pdfResponse.status}: ${errText.slice(0, 200)}`);
+        if (error) {
+          console.error("[PDF] Supabase upload error:", error);
+        } else {
+          const { data: publicUrlData } = supabase.storage
+            .from("DP")
+            .getPublicUrl(filePath);
+          
+          pdfUrl = publicUrlData.publicUrl;
+          console.log(`[PDF] Got PDF URL: ${pdfUrl}`);
+          
+          if (pdfUrl) {
+            await db.execute(
+              "UPDATE birth_registrations SET pdf_url = ? WHERE id = ?",
+              [pdfUrl, insertId]
+            );
           }
         }
-      } catch (pdfErr) {
-        console.error("[PDF] Failed to reach HF backend:", pdfErr);
+      } else {
+         console.warn("[PDF] Supabase credentials missing, skipping upload.");
       }
-    } else {
-      console.warn("[PDF] PYTHON_API_URL not set — skipping PDF generation.");
+    } catch (pdfErr) {
+      console.error("[PDF] Failed to generate/upload local PDF:", pdfErr);
     }
 
     return NextResponse.json({ success: true, id: insertId, pdf_url: pdfUrl });
