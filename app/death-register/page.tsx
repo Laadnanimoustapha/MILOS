@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import SiteHeader from '@/components/SiteHeader';
 
@@ -9,6 +9,13 @@ export default function DeathRegisterPage() {
   const totalSteps = 7;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<{ success: boolean; pdf_url?: string; error?: string } | null>(null);
+
+  // Proactively wake up the sleeping HuggingFace Space backend in the background on mount
+  useEffect(() => {
+    fetch("https://dfifa-stage-backend.hf.space/", { mode: "no-cors" })
+      .then(() => console.log("[HF Wakeup] Pinged HuggingFace Space successfully to wake it up."))
+      .catch((err) => console.warn("[HF Wakeup] Sleep wake-up ping error:", err));
+  }, []);
 
   const [formData, setFormData] = useState({
     dtype: 'direct',
