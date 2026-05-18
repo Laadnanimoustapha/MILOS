@@ -47,3 +47,18 @@ CREATE TABLE IF NOT EXISTS death_registrations (
     pdf_url VARCHAR(1000),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 4. Create Users Table
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insert default users
+-- Note: Passwords should be hashed in a real production environment.
+INSERT IGNORE INTO users (username, password, role) VALUES 
+('officer1', '00000000', 'ضابط'),
+('a1', '00000000', 'مستخدم');
