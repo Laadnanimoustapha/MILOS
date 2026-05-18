@@ -67,10 +67,14 @@ const styles = StyleSheet.create({
   stampFr: { fontSize: 9, color: '#666666', textAlign: 'center', marginTop: 2 }
 });
 
-// Helper for Arabic text
+// Helper for Arabic text -- reshape characters for proper PDF rendering
 const ar = (text: string | null | undefined) => {
   if (!text) return "---";
-  return text;
+  try {
+    return ArabicShaper.convertArabic(text);
+  } catch {
+    return text;
+  }
 };
 
 const Header = ({ titleAr, titleFr }: { titleAr: string, titleFr: string }) => (
