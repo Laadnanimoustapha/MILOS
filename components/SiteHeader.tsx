@@ -1,60 +1,46 @@
-export default function SiteHeader() {
-  const router = useRouter();
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const isLoggedIn = sessionStorage.getItem("dilona_logged_in");
-    if (!isLoggedIn) {
-      router.replace("/login");
-    }
-    const role = sessionStorage.getItem("dilona_user_role");
-    setUserRole(role);
-  }, [router]);
-
+"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 export default function SiteHeader() {
-  const role = sessionStorage.getItem("dilona_user_role");
+  const router = useRouter();
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
 
+  // Authentication and role handling
   useEffect(() => {
     const isLoggedIn = sessionStorage.getItem("dilona_logged_in");
     if (!isLoggedIn) {
       router.replace("/login");
+      return;
     }
+    const role = sessionStorage.getItem("dilona_user_role");
+    setUserRole(role);
   }, [router]);
 
+  // Scroll effect for header styling
   useEffect(() => {
-    function handleScroll() {
-      setScrolled(window.scrollY > 10);
-    }
+    const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  function handleLogout() {
+  const handleLogout = () => {
     sessionStorage.removeItem("dilona_logged_in");
+    sessionStorage.removeItem("dilona_user_role");
     router.replace("/login");
-  }
+  };
 
   return (
     <header className={`site-header${scrolled ? " is-scrolled" : ""}`}>
       <nav className="header__brand">
-        <Image
-          src="/logo.png"
-          alt="شعار النظام"
-          className="header__logo"
-          width={48}
-          height={48}
-          aria-hidden="true"
-        />
+        <Image src="/logo.png" alt="شعار النظام" className="header__logo" width={48} height={48} aria-hidden="true" />
         <article className="header__title-block">
           <h1 className="header__title">نظام تدبير سجلات الحالة المدنية</h1>
           <p className="header__subtitle">المملكة المغربية - وزارة الداخلية</p>
+          {userRole && <p className="header__role">{userRole}</p>}
         </article>
       </nav>
       <nav className="header__actions" aria-label="إجراءات النظام">
