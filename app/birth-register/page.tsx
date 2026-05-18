@@ -6,7 +6,7 @@ import SiteHeader from '@/components/SiteHeader';
 
 export default function BirthRegisterPage() {
   const [currentStep, setCurrentStep] = useState(0);
-  const totalSteps = 5;
+  const totalSteps = 4;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<{ success: boolean; pdf_url?: string; error?: string } | null>(null);
 
@@ -89,7 +89,6 @@ export default function BirthRegisterPage() {
     "معلومات عن الأب",
     "معلومات عن الأم",
     "معلومات عن المولود(ة)",
-    "نسخ الوثائق المدعمة",
     "خلاصة وتأكيد"
   ];
 
@@ -240,32 +239,8 @@ export default function BirthRegisterPage() {
           </fieldset>
         </section>
 
-        {/* STEP 3: Documents */}
+        {/* STEP 3: Summary */}
         <section className="form-step" hidden={currentStep !== 3}>
-          <fieldset className="form-panel">
-            <legend className="form-panel__legend">نسخ الوثائق المدعمة</legend>
-            <article className="upload-controls">
-              <article className="upload-controls__field">
-                <label className="form-label">نوع الوثيقة</label>
-                <select className="form-select" id="upload-doc-type" style={{ minWidth: '220px' }}>
-                  <option value="">-- اختر نوع الوثيقة --</option>
-                  <option value="شهادة طبية">شهادة طبية</option>
-                  <option value="بطاقة التعريف">بطاقة التعريف</option>
-                  <option value="عقد الزواج">عقد الزواج</option>
-                </select>
-              </article>
-              <article className="upload-controls__field">
-                <label className="form-label">تحميل صورة الوثيقة</label>
-                <input type="file" className="form-input" id="upload-doc-file" accept="image/*" />
-              </article>
-              <button type="button" className="btn btn--primary" id="upload-doc-btn">تحميل صورة الوثيقة</button>
-            </article>
-            <article className="doc-gallery" id="doc-gallery-container"></article>
-          </fieldset>
-        </section>
-
-        {/* STEP 4: Summary */}
-        <section className="form-step" hidden={currentStep !== 4}>
           <section className="review-accordion review-accordion--open">
             <button className="review-accordion__header">
               <span className="review-accordion__icon">-</span>

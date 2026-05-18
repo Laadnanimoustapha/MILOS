@@ -6,7 +6,7 @@ import SiteHeader from '@/components/SiteHeader';
 
 export default function DeathRegisterPage() {
   const [currentStep, setCurrentStep] = useState(0);
-  const totalSteps = 7;
+  const totalSteps = 5;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<{ success: boolean; pdf_url?: string; error?: string } | null>(null);
 
@@ -86,8 +86,6 @@ export default function DeathRegisterPage() {
     "بيانات المتوفى",
     "بيانات الأب",
     "بيانات الأم",
-    "معلومات عامة",
-    "نسخ الوثائق المدعمة",
     "خلاصة وتأكيد"
   ];
 
@@ -249,56 +247,8 @@ export default function DeathRegisterPage() {
           </fieldset>
         </section>
 
-        {/* STEP 4: General Info */}
+        {/* STEP 4: Summary */}
         <section className="form-step" hidden={currentStep !== 4}>
-          <fieldset className="form-panel">
-            <legend className="form-panel__legend">معلومات عامة</legend>
-            <article className="form-row">
-              <label className="form-label" htmlFor="causeDeath">سبب الوفاة</label>
-              <select className="form-select" name="causeDeath" id="causeDeath" style={{ maxWidth: '300px' }} value={formData.causeDeath} onChange={handleInputChange} required>
-                <option value="">-- اختر --</option>
-                <option value="سكتة قلبية">سكتة قلبية</option>
-                <option value="أسباب طبيعية">أسباب طبيعية</option>
-                <option value="حادث سير">حادث سير</option>
-                <option value="غير محدد">غير محدد</option>
-              </select>
-            </article>
-            <article className="form-row">
-              <label className="form-label" htmlFor="declarantName">اسم المصرح</label>
-              <input type="text" className="form-input form-input--with-keyboard" name="declarantName" id="declarantName" style={{ maxWidth: '400px' }} value={formData.declarantName} onChange={handleInputChange} required />
-            </article>
-            <article className="form-row">
-              <label className="form-label" htmlFor="declarantCin">رقم بطاقة التعريف</label>
-              <input type="text" className="form-input" name="declarantCin" id="declarantCin" style={{ maxWidth: '250px' }} value={formData.declarantCin} onChange={handleInputChange} required />
-            </article>
-          </fieldset>
-        </section>
-
-        {/* STEP 5: Documents */}
-        <section className="form-step" hidden={currentStep !== 5}>
-          <fieldset className="form-panel">
-            <legend className="form-panel__legend">نسخ الوثائق المدعمة</legend>
-            <article className="upload-controls">
-              <article className="upload-controls__field">
-                <label className="form-label">نوع الوثيقة</label>
-                <select className="form-select" id="upload-doc-type" style={{ minWidth: '220px' }}>
-                  <option value="">-- اختر --</option>
-                  <option value="شهادة الوفاة">شهادة الوفاة</option>
-                  <option value="بطاقة التعريف">بطاقة التعريف</option>
-                </select>
-              </article>
-              <article className="upload-controls__field">
-                <label className="form-label">تحميل صورة الوثيقة</label>
-                <input type="file" className="form-input" id="upload-doc-file" accept="image/*" />
-              </article>
-              <button type="button" className="btn btn--primary" id="upload-doc-btn">تحميل صورة الوثيقة</button>
-            </article>
-            <article className="doc-gallery" id="doc-gallery-container"></article>
-          </fieldset>
-        </section>
-
-        {/* STEP 6: Summary */}
-        <section className="form-step" hidden={currentStep !== 6}>
           <section className="review-accordion review-accordion--open">
             <button className="review-accordion__header">
               <span className="review-accordion__icon">-</span>
