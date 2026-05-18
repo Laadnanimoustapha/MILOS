@@ -20,6 +20,9 @@ export default function LoginPage() {
       // Mock login delay matching the HTML prototype
       setTimeout(() => {
         setLoading(false);
+        // Simple role assignment based on username prefix
+        const role = username.toLowerCase().includes('officer') ? 'ضابط' : 'مدير';
+        sessionStorage.setItem("dilona_user_role", role);
         sessionStorage.setItem("dilona_logged_in", "true");
         router.push('/'); // Redirect to dashboard
       }, 1500);

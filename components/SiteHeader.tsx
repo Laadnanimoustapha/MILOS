@@ -1,11 +1,24 @@
-"use client";
+export default function SiteHeader() {
+  const router = useRouter();
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const isLoggedIn = sessionStorage.getItem("dilona_logged_in");
+    if (!isLoggedIn) {
+      router.replace("/login");
+    }
+    const role = sessionStorage.getItem("dilona_user_role");
+    setUserRole(role);
+  }, [router]);
+
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 export default function SiteHeader() {
-  const router = useRouter();
+  const role = sessionStorage.getItem("dilona_user_role");
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
