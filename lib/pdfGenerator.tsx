@@ -67,15 +67,10 @@ const styles = StyleSheet.create({
   stampFr: { fontSize: 9, color: '#666666', textAlign: 'center', marginTop: 2 }
 });
 
-// Helper to reshape Arabic text so it renders connected
+// Helper for Arabic text
 const ar = (text: string | null | undefined) => {
   if (!text) return "---";
-  // Convert Arabic text to properly shaped forms
-  let shaped = ArabicShaper.convertArabic(text);
-  // React-PDF generally renders strings left-to-right, so we reverse the string
-  // for correct RTL display if it's pure Arabic text.
-  // (In a more complex app, bidi-js is used for mixed English/Arabic).
-  return shaped.split('').reverse().join('');
+  return text;
 };
 
 const Header = ({ titleAr, titleFr }: { titleAr: string, titleFr: string }) => (
