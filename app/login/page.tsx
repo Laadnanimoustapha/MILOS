@@ -20,6 +20,7 @@ export default function LoginPage() {
       // Mock login delay matching the HTML prototype
       setTimeout(() => {
         setLoading(false);
+        sessionStorage.setItem("dilona_logged_in", "true");
         router.push('/'); // Redirect to dashboard
       }, 1500);
     } else {

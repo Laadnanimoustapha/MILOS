@@ -1,11 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 export default function SiteHeader() {
+  const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const isLoggedIn = sessionStorage.getItem("dilona_logged_in");
+    if (!isLoggedIn) {
+      router.replace("/login");
+    }
+  }, [router]);
 
   useEffect(() => {
     function handleScroll() {
@@ -14,6 +22,11 @@ export default function SiteHeader() {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  function handleLogout() {
+    sessionStorage.removeItem("dilona_logged_in");
+    router.replace("/login");
+  }
 
   return (
     <header className={`site-header${scrolled ? " is-scrolled" : ""}`}>
@@ -32,12 +45,19 @@ export default function SiteHeader() {
         </article>
       </nav>
       <nav className="header__actions" aria-label="إجراءات النظام">
-        <Link href="/" className="header__action-btn" title="القائمة الرئيسية" aria-label="القائمة الرئيسية">
+        <button
+          type="button"
+          className="header__action-btn"
+          title="تسجيل الخروج"
+          aria-label="تسجيل الخروج"
+          onClick={handleLogout}
+        >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width={22} height={22} aria-hidden="true">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            <polyline points="9 22 9 12 15 12 15 22" />
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
           </svg>
-        </Link>
+        </button>
       </nav>
     </header>
   );
