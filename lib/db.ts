@@ -17,7 +17,7 @@ export function getPool(): mysql.Pool {
   if (!pool) {
     pool = mysql.createPool({
       uri: connectionString,
-      ssl: { rejectUnauthorized: true },
+      ssl: { rejectUnauthorized: false },
       waitForConnections: true,
       connectionLimit: 5,
       queueLimit: 0,
