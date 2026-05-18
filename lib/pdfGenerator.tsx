@@ -1,7 +1,7 @@
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Font, renderToBuffer } from '@react-pdf/renderer';
 import path from 'path';
-import ArabicReshaper from 'arabic-persian-reshaper';
+import { ArabicShaper } from 'arabic-persian-reshaper';
 
 // On Vercel, public files are in process.cwd()/public
 const fontDir = path.join(process.cwd(), 'public', 'fonts');
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
 const ar = (text: string | null | undefined) => {
   if (!text) return "---";
   // Convert Arabic text to properly shaped forms
-  let shaped = ArabicReshaper.convertArabic(text);
+  let shaped = ArabicShaper.convertArabic(text);
   // React-PDF generally renders strings left-to-right, so we reverse the string
   // for correct RTL display if it's pure Arabic text.
   // (In a more complex app, bidi-js is used for mixed English/Arabic).
