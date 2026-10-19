@@ -17,15 +17,15 @@ A calm, tactile home for one person's daily tasks. The page should feel like a f
 ## Page structure
 
 1. **Top greeting:** today's date, short greeting, and a small sun mark.
-2. **Curved title header:** a white panel whose lower edge flows down into a broad centered valley; “Today” sits above the dip with a brief encouraging line.
-3. **Daily progress:** a compact circular completion indicator, count, and short supportive sentence.
-4. **Task list:** a short set of believable personal tasks. Each row has a completion circle, title, category, and time. Completed work is crossed out and muted.
+2. **Curved title header:** a compact white panel whose lower edge flows down into a broad centered valley; “Today” sits above the dip with a brief encouraging line. The header is part of the page scroll, so it moves out of view as tasks are browsed.
+3. **Daily progress:** a compact circular completion indicator, count, and short supportive sentence. Start at 0% with no tasks; derive the ring and count from tasks the user creates and completes in the current session.
+4. **Task list:** start empty and invite the user to add their first task. Each created row has a completion circle, title, category, and time. Completed work is crossed out and muted.
 5. **Add task:** a single teal floating action opens a lightweight entry sheet; new items are kept in memory for the current session.
 6. **Empty state:** when no tasks remain, replace the list with a clear, encouraging note.
 
 ## Interaction notes
 
-- Check circles update completion and the progress summary immediately.
+- Check circles update completion and the progress summary immediately. The circle is completed tasks divided by all tasks created; with no tasks it remains at 0%.
 - New task entry accepts a title and adds it to today's list.
 - Keep the home page as the only destination; omit bottom navigation until there are real additional screens.
 
