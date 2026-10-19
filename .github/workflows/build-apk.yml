@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-apk:
@@ -40,6 +40,16 @@ jobs:
         run: |
           mkdir -p versions
           cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk versions/Milos-arm64-v8a.apk
+
+      - name: Publish APK to repository Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view latest >/dev/null 2>&1 || gh release create latest \
+            --title "Latest MILOS APK" \
+            --notes "Latest arm64 Android APK built from the main branch." \
+            --prerelease
+          gh release upload latest versions/Milos-arm64-v8a.apk --clobber
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
