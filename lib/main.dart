@@ -1,12 +1,24 @@
 import 'package:flutter/material.dart';
 
+import 'reminder_service.dart';
+import 'task.dart';
+import 'task_store.dart';
+
 const _teal = Color(0xFF4CAF9E);
 const _sky = Color(0xFFA3DAF5);
 const _ink = Color(0xFF253533);
 const _muted = Color(0xFF82908D);
 const _paper = Color(0xFFF5F8F7);
 
-void main() => runApp(const MilosApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await ReminderService.instance.initialize();
+  } catch (_) {
+    // The task list remains available if device notifications are unavailable.
+  }
+  runApp(const MilosApp());
+}
 
 class MilosApp extends StatelessWidget {
   const MilosApp({super.key});
@@ -25,14 +37,6 @@ class MilosApp extends StatelessWidget {
   );
 }
 
-class _Task {
-  _Task(this.title, this.category, this.time, {this.done = false});
-  final String title;
-  final String category;
-  final String time;
-  bool done;
-}
-
 class TodayPage extends StatefulWidget {
   const TodayPage({super.key});
 
@@ -41,7 +45,39 @@ class TodayPage extends StatefulWidget {
 }
 
 class _TodayPageState extends State<TodayPage> {
-  final List<_Task> _tasks = [];
+  final _store = TaskStore();
+  final List<Task> _tasks = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTasks();
+  }
+
+  Future<void> _loadTasks() async {
+    try {
+      _tasks.addAll(await _store.load());
+    } catch (_) {
+      _showMessage('Saved tasks could not be loaded.');
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _saveTasks() async {
+    try {
+      await _store.save(_tasks);
+    } catch (_) {
+      _showMessage('This task could not be saved on this device.');
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
 
   int get _completed => _tasks.where((task) => task.done).length;
 
@@ -53,49 +89,50 @@ class _TodayPageState extends State<TodayPage> {
   }
 
   Future<void> _addTask() async {
-    final controller = TextEditingController();
-    final title = await showModalBottomSheet<String>(
+    final draft = await showModalBottomSheet<Task>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Center(child: Container(width: 34, height: 4, decoration: BoxDecoration(color: const Color(0xFFDCE5E2), borderRadius: BorderRadius.circular(4)))),
-              const SizedBox(height: 22),
-              const Text('A little something to do', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700, color: _ink)),
-              const SizedBox(height: 14),
-              TextField(
-                controller: controller,
-                autofocus: true,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(
-                  hintText: 'Write your task...',
-                  filled: true,
-                  fillColor: _paper,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                ),
-                onSubmitted: (value) => Navigator.pop(context, value),
-              ),
-              const SizedBox(height: 14),
-              SizedBox(width: double.infinity, child: FilledButton(onPressed: () => Navigator.pop(context, controller.text), child: const Text('Add to today'))),
-            ]),
-          ),
-        ),
-      ),
+      builder: (context) => const _AddTaskSheet(),
     );
-    controller.dispose();
-    if (title != null && title.trim().isNotEmpty) {
-      setState(() => _tasks.add(_Task(title.trim(), 'PERSONAL', 'Anytime')));
+    if (draft == null) return;
+
+    final task = Task(
+      id: _tasks.isEmpty ? 1 : _tasks.last.id + 1,
+      title: draft.title,
+      remindAt: draft.remindAt,
+      remindUntil: draft.remindUntil,
+    );
+    var reminderScheduled = false;
+    try {
+      if (await ReminderService.instance.requestPermission()) {
+        await ReminderService.instance.schedule(task);
+        reminderScheduled = true;
+      }
+    } catch (_) {
+      // Keep the task locally even if the OS cannot schedule its reminder.
     }
+
+    setState(() => _tasks.add(task));
+    await _saveTasks();
+    if (!reminderScheduled) {
+      _showMessage('Task saved. Allow notifications to receive reminders.');
+    }
+  }
+
+  Future<void> _toggleTask(Task task, bool? value) async {
+    final updated = task.copyWith(done: value ?? false);
+    setState(() => _tasks[_tasks.indexOf(task)] = updated);
+    try {
+      if (updated.done) {
+        await ReminderService.instance.cancel(updated);
+      } else if (updated.remindUntil.isAfter(DateTime.now())) {
+        await ReminderService.instance.schedule(updated);
+      }
+    } catch (_) {
+      _showMessage('The reminder could not be updated.');
+    }
+    await _saveTasks();
   }
 
   @override
@@ -163,12 +200,14 @@ class _TodayPageState extends State<TodayPage> {
                         const Text('See all', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _muted)),
                       ]),
                       const SizedBox(height: 13),
-                      if (_tasks.isEmpty)
+                      if (_loading)
+                        const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator(color: _teal)))
+                      else if (_tasks.isEmpty)
                         const _EmptyTasks()
                       else
-                        ..._tasks.asMap().entries.map((entry) => Padding(
+                        ..._tasks.map((task) => Padding(
                           padding: const EdgeInsets.only(bottom: 10),
-                          child: _TaskTile(task: entry.value, onChanged: (value) => setState(() => entry.value.done = value ?? false)),
+                          child: _TaskTile(task: task, onChanged: (value) => _toggleTask(task, value)),
                         )),
                       const SizedBox(height: 5),
                       const _GentleNote(),
@@ -181,6 +220,301 @@ class _TodayPageState extends State<TodayPage> {
       ),
     );
   }
+}
+
+class _AddTaskSheet extends StatefulWidget {
+  const _AddTaskSheet();
+
+  @override
+  State<_AddTaskSheet> createState() => _AddTaskSheetState();
+}
+
+class _AddTaskSheetState extends State<_AddTaskSheet> {
+  final _controller = TextEditingController();
+  late DateTime _date;
+  late TimeOfDay _from;
+  late TimeOfDay _until;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final nextHour = DateTime.now().add(const Duration(hours: 1));
+    _date = DateTime(nextHour.year, nextHour.month, nextHour.day);
+    _from = TimeOfDay.fromDateTime(nextHour);
+    final endHour = nextHour.hour + 3;
+    _until = TimeOfDay(hour: endHour > 23 ? 23 : endHour, minute: 0);
+    if (_until.hour == _from.hour) _until = const TimeOfDay(hour: 23, minute: 59);
+  }
+
+  DateTime _at(TimeOfDay time) => DateTime(
+    _date.year,
+    _date.month,
+    _date.day,
+    time.hour,
+    time.minute,
+  );
+
+  Future<void> _pickDate() async {
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: DateUtils.dateOnly(DateTime.now()),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
+    );
+    if (selected != null) setState(() => _date = selected);
+  }
+
+  Future<void> _pickTime({required bool start}) async {
+    final selected = await showTimePicker(
+      context: context,
+      initialTime: start ? _from : _until,
+    );
+    if (selected != null) {
+      setState(() {
+        if (start) {
+          _from = selected;
+        } else {
+          _until = selected;
+        }
+        _error = null;
+      });
+    }
+  }
+
+  void _save() {
+    final title = _controller.text.trim();
+    final from = _at(_from);
+    final until = _at(_until);
+    if (title.isEmpty) {
+      setState(() => _error = 'Give your task a name first.');
+    } else if (!from.isAfter(DateTime.now())) {
+      setState(() => _error = 'Choose a reminder time in the future.');
+    } else if (!until.isAfter(from)) {
+      setState(() => _error = 'The reminder end must be after its start.');
+    } else {
+      Navigator.pop(
+        context,
+        Task(id: 0, title: title, remindAt: from, remindUntil: until),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FractionallySizedBox(
+    heightFactor: .92,
+    child: Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(22, 14, 22, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFDCE5E2),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Make time for it',
+                  style: TextStyle(
+                    fontSize: 23,
+                    fontWeight: FontWeight.w800,
+                    color: _ink,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                const Text(
+                  'Choose when you want a gentle nudge.',
+                  style: TextStyle(fontSize: 13, color: _muted),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: _controller,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    labelText: 'Task',
+                    hintText: 'What would you like to do?',
+                    filled: true,
+                    fillColor: _paper,
+                    prefixIcon: const Icon(Icons.edit_outlined, color: _teal),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  onSubmitted: (_) => _save(),
+                ),
+                const SizedBox(height: 20),
+                const _FormLabel('REMIND ME ON'),
+                const SizedBox(height: 8),
+                _PickerButton(
+                  icon: Icons.calendar_today_rounded,
+                  title: MaterialLocalizations.of(context).formatMediumDate(_date),
+                  onTap: _pickDate,
+                ),
+                const SizedBox(height: 18),
+                const _FormLabel('KEEP REMINDING ME'),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _PickerButton(
+                        icon: Icons.notifications_active_outlined,
+                        title: _from.format(context),
+                        subtitle: 'START',
+                        onTap: () => _pickTime(start: true),
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      child: Icon(Icons.arrow_forward_rounded, size: 17, color: _muted),
+                    ),
+                    Expanded(
+                      child: _PickerButton(
+                        icon: Icons.notifications_none_rounded,
+                        title: _until.format(context),
+                        subtitle: 'UNTIL',
+                        onTap: () => _pickTime(start: false),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 9),
+                const Row(
+                  children: [
+                    Icon(Icons.repeat_rounded, size: 15, color: _teal),
+                    SizedBox(width: 6),
+                    Text(
+                      'Every hour on this date',
+                      style: TextStyle(fontSize: 12, color: _muted),
+                    ),
+                  ],
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(_error!, style: const TextStyle(color: Color(0xFFB54141), fontSize: 12)),
+                ],
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: FilledButton.icon(
+                    onPressed: _save,
+                    icon: const Icon(Icons.notifications_active_outlined),
+                    label: const Text('Save task & reminder'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _teal,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _FormLabel extends StatelessWidget {
+  const _FormLabel(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    text,
+    style: const TextStyle(
+      fontSize: 10,
+      letterSpacing: 1.1,
+      fontWeight: FontWeight.w800,
+      color: _muted,
+    ),
+  );
+}
+
+class _PickerButton extends StatelessWidget {
+  const _PickerButton({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+    this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: _paper,
+    borderRadius: BorderRadius.circular(15),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(15),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+        child: Row(
+          children: [
+            Icon(icon, color: _teal, size: 18),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (subtitle != null)
+                    Text(
+                      subtitle!,
+                      style: const TextStyle(
+                        fontSize: 9,
+                        letterSpacing: .8,
+                        fontWeight: FontWeight.w800,
+                        color: _muted,
+                      ),
+                    ),
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: _ink,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _ProgressPanel extends StatelessWidget {
@@ -220,11 +554,17 @@ class _ProgressPanel extends StatelessWidget {
 
 class _TaskTile extends StatelessWidget {
   const _TaskTile({required this.task, required this.onChanged});
-  final _Task task;
+  final Task task;
   final ValueChanged<bool?> onChanged;
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) {
+    final localizations = MaterialLocalizations.of(context);
+    final reminderTime =
+        '${localizations.formatShortDate(task.remindAt)} · '
+        '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(task.remindAt))}'
+        '–${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(task.remindUntil))}';
+    return Container(
     padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(17), border: Border.all(color: const Color(0xFFE9EFED))),
     child: Row(children: [
@@ -234,15 +574,16 @@ class _TaskTile extends StatelessWidget {
         Text(task.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: task.done ? _muted : _ink, decoration: task.done ? TextDecoration.lineThrough : null)),
         const SizedBox(height: 7),
         Row(children: [
-          Text(task.category, style: const TextStyle(fontSize: 9, letterSpacing: .9, fontWeight: FontWeight.w800, color: _teal)),
+          const Text('PERSONAL', style: TextStyle(fontSize: 9, letterSpacing: .9, fontWeight: FontWeight.w800, color: _teal)),
           Container(width: 3, height: 3, margin: const EdgeInsets.symmetric(horizontal: 7), decoration: const BoxDecoration(color: _sky, shape: BoxShape.circle)),
-          Text(task.time, style: const TextStyle(fontSize: 10, color: _muted)),
+          Expanded(child: Text(reminderTime, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, color: _muted))),
         ]),
       ])),
       const SizedBox(width: 7),
       const Icon(Icons.drag_indicator_rounded, size: 18, color: Color(0xFFCAD5D2)),
     ]),
   );
+  }
 }
 
 class _EmptyTasks extends StatelessWidget {
