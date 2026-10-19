@@ -8,6 +8,10 @@
 
 Project: Flutter 3.47.1 / Dart ^3.13.1 (`milos`). Android, iOS, Windows, macOS, Linux, Web. Current deps intentionally minimal: `flutter`, `cupertino_icons`. Keep it that way.
 
+## Project identity
+
+MILOS is my personal, mobile-first to-do app, designed and built by me for my own use. Prioritize my personal workflow and mobile experience; do not assume it is a public, multi-user, or commercial product unless I explicitly ask for that.
+
 ## 0. PRIME DIRECTIVE — SMALLEST POSSIBLE APP
 
 1. **EVERY change MUST minimize or maintain release size. NEVER increase size without justification.**
@@ -163,5 +167,4 @@ VIOLATION (REJECT): firebase_core+firestore+storage (+8MB) for one bool -> use s
 To exceed budget need explicit sign-off with: 1) why smaller fails (proof), 2) exact delta (--analyze-size table), 3) removal/shrink plan + date. No silent exceptions. When in doubt, choose smaller.
 
 *By editing this repo you agree you read Sections 0-11 and size wins over speed/convenience.*
-
 
