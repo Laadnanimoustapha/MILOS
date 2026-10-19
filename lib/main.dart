@@ -41,12 +41,7 @@ class TodayPage extends StatefulWidget {
 }
 
 class _TodayPageState extends State<TodayPage> {
-  final List<_Task> _tasks = [
-    _Task('Plan the week ahead', 'PERSONAL', '9:00 AM', done: true),
-    _Task('Send the project update', 'WORK', '11:30 AM'),
-    _Task('Pick up groceries', 'ERRANDS', '4:00 PM'),
-    _Task('Take a little evening walk', 'WELLNESS', '6:15 PM'),
-  ];
+  final List<_Task> _tasks = [];
 
   int get _completed => _tasks.where((task) => task.done).length;
 
@@ -117,9 +112,11 @@ class _TodayPageState extends State<TodayPage> {
       ),
       body: SafeArea(
         bottom: false,
-        child: Column(children: [
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 110),
+          child: Column(children: [
           SizedBox(
-            height: 225,
+            height: 174,
             width: double.infinity,
             child: ClipPath(
               clipper: _NotchClipper(),
@@ -145,14 +142,13 @@ class _TodayPageState extends State<TodayPage> {
                   const Text('Today', style: TextStyle(fontSize: 40, height: 1, letterSpacing: -1.6, fontWeight: FontWeight.w800, color: _ink)),
                   const SizedBox(height: 8),
                   const Text('A fresh page, at your own pace.', style: TextStyle(fontSize: 13, color: _muted)),
-                  const SizedBox(height: 44),
+                  const SizedBox(height: 22),
                 ]),
               ),
             ),
           ),
-          Expanded(
-            child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(22, 3, 22, 110),
+          Padding(
+                padding: const EdgeInsets.fromLTRB(22, 3, 22, 0),
                 child: Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 560),
@@ -162,7 +158,7 @@ class _TodayPageState extends State<TodayPage> {
                       Row(children: [
                         const Text('Your tasks', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -.4, color: _ink)),
                         const SizedBox(width: 9),
-                        Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4), decoration: BoxDecoration(color: const Color(0xFFE8F5F2), borderRadius: BorderRadius.circular(20)), child: Text('${_tasks.length - _completed} left', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _teal))),
+                        Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4), decoration: BoxDecoration(color: const Color(0xFFE8F5F2), borderRadius: BorderRadius.circular(20)), child: Text(_tasks.isEmpty ? 'Start fresh' : '${_tasks.length - _completed} left', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _teal))),
                         const Spacer(),
                         const Text('See all', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _muted)),
                       ]),
@@ -179,9 +175,9 @@ class _TodayPageState extends State<TodayPage> {
                     ]),
                   ),
                 ),
-              ),
           ),
         ]),
+        ),
       ),
     );
   }
@@ -207,9 +203,15 @@ class _ProgressPanel extends StatelessWidget {
       ),
       const SizedBox(width: 15),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('$completed of $total tasks complete', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _ink)),
+        Text(
+          total == 0 ? 'No tasks added yet' : '$completed of $total tasks complete',
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _ink),
+        ),
         const SizedBox(height: 4),
-        const Text('Small steps still move you forward.', style: TextStyle(fontSize: 11, color: _muted)),
+        Text(
+          total == 0 ? 'Add a task to start your progress.' : 'Small steps still move you forward.',
+          style: const TextStyle(fontSize: 11, color: _muted),
+        ),
       ])),
       Container(width: 35, height: 35, decoration: BoxDecoration(color: const Color(0xFFEAF7FC), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.spa_outlined, size: 18, color: Color(0xFF65B8D8))),
     ]),
@@ -250,7 +252,7 @@ class _EmptyTasks extends StatelessWidget {
     width: double.infinity,
     padding: const EdgeInsets.all(24),
     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0xFFE9EFED))),
-    child: const Column(children: [Icon(Icons.check_circle_outline_rounded, color: _teal, size: 28), SizedBox(height: 8), Text('Your list is clear.', style: TextStyle(fontWeight: FontWeight.w700, color: _ink)), SizedBox(height: 4), Text('Enjoy the breathing room.', style: TextStyle(fontSize: 12, color: _muted))]),
+    child: const Column(children: [Icon(Icons.check_circle_outline_rounded, color: _teal, size: 28), SizedBox(height: 8), Text('Your list is empty.', style: TextStyle(fontWeight: FontWeight.w700, color: _ink)), SizedBox(height: 4), Text('Tap New task to add your first one.', style: TextStyle(fontSize: 12, color: _muted))]),
   );
 }
 
