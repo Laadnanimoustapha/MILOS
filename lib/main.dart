@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'reminder_service.dart';
@@ -116,7 +117,11 @@ class _TodayPageState extends State<TodayPage> {
     setState(() => _tasks.add(task));
     await _saveTasks();
     if (!reminderScheduled) {
-      _showMessage('Task saved. Allow notifications to receive reminders.');
+      _showMessage(
+        kIsWeb
+            ? 'Task saved. Reminders are available in the phone app.'
+            : 'Task saved. Allow notifications to receive reminders.',
+      );
     }
   }
 

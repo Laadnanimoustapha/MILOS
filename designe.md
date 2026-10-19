@@ -28,6 +28,7 @@ A calm, tactile home for one person's daily tasks. The page should feel like a f
 - Check circles update completion and the progress summary immediately. The circle is completed tasks divided by all tasks created; with no tasks it remains at 0%.
 - New task entry accepts a title, date, and same-day reminder window. It schedules a notification at the start and repeats hourly through the selected end time.
 - Task details and completion state are stored locally on the device. Completing a task cancels its remaining reminders.
+- Reminders use the phone OS on Android and iOS. Browser previews keep task data local but do not schedule notifications.
 - Keep the home page as the only destination; omit bottom navigation until there are real additional screens.
 
 ## Size constraints
