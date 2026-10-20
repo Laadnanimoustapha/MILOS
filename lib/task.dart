@@ -8,6 +8,7 @@ class Task {
     required this.remindUntil,
     this.done = false,
     this.importance = TaskImportance.normal,
+    this.superReminderIntervalMinutes = 15,
   });
 
   final int id;
@@ -16,14 +17,27 @@ class Task {
   final DateTime remindUntil;
   final bool done;
   final TaskImportance importance;
+  final int superReminderIntervalMinutes;
 
-  Task copyWith({bool? done, TaskImportance? importance}) => Task(
+  int get reminderIntervalMinutes => switch (importance) {
+    TaskImportance.normal => 60,
+    TaskImportance.necessary => 30,
+    TaskImportance.superNecessary => superReminderIntervalMinutes,
+  };
+
+  Task copyWith({
+    bool? done,
+    TaskImportance? importance,
+    int? superReminderIntervalMinutes,
+  }) => Task(
     id: id,
     title: title,
     remindAt: remindAt,
     remindUntil: remindUntil,
     done: done ?? this.done,
     importance: importance ?? this.importance,
+    superReminderIntervalMinutes:
+        superReminderIntervalMinutes ?? this.superReminderIntervalMinutes,
   );
 
   Map<String, Object> toJson() => {
@@ -33,6 +47,7 @@ class Task {
     'remindUntil': remindUntil.toIso8601String(),
     'done': done,
     'importance': importance.name,
+    'superReminderIntervalMinutes': superReminderIntervalMinutes,
   };
 
   factory Task.fromJson(Map<String, dynamic> json) => Task(
@@ -45,5 +60,7 @@ class Task {
       (value) => value.name == json['importance'],
       orElse: () => TaskImportance.normal,
     ),
+    superReminderIntervalMinutes:
+        json['superReminderIntervalMinutes'] as int? ?? 15,
   );
 }
