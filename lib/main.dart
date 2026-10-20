@@ -131,7 +131,7 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
     await _saveTasks();
     try {
       if (await ReminderService.instance.requestPermission()) {
-        await ReminderService.instance.schedule(task);
+        await ReminderService.instance.refresh(_tasks);
       }
     } catch (_) {}
   }
@@ -141,12 +141,7 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
     setState(() => _tasks[_tasks.indexOf(task)] = updated);
     await _saveTasks();
     try {
-      if (updated.done) {
-        await ReminderService.instance.cancel(updated);
-      } else if (updated.repeat != TaskRepeat.none ||
-          updated.remindUntil.isAfter(DateTime.now())) {
-        await ReminderService.instance.schedule(updated);
-      }
+      await ReminderService.instance.refresh(_tasks);
     } catch (_) {}
   }
 
@@ -166,8 +161,7 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
     setState(() => _tasks[_tasks.indexOf(task)] = updated);
     await _saveTasks();
     try {
-      await ReminderService.instance.cancel(task);
-      await ReminderService.instance.schedule(updated);
+      await ReminderService.instance.refresh(_tasks);
     } catch (_) {}
   }
 
