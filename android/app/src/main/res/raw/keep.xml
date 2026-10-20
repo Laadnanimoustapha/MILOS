@@ -1,0 +1,2 @@
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/milos_notification_small,@drawable/milos_notification_logo" />

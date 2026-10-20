@@ -129,7 +129,8 @@ class _TodayPageState extends State<TodayPage> {
       reminderMessage =
           'Task saved, but the reminder limit was reached. Shorten the window or choose a longer interval.';
     } catch (_) {
-      // Keep the task locally even if the OS cannot schedule its reminder.
+      reminderMessage =
+          'Task saved, but the notification could not be scheduled. Check notification permissions.';
     }
 
     setState(() => _tasks.add(task));
@@ -187,12 +188,6 @@ class _TodayPageState extends State<TodayPage> {
                       SizedBox(height: 5),
                       Text('Good morning,', style: TextStyle(fontSize: 15, color: _ink)),
                     ]),
-                    const Spacer(),
-                    Container(
-                      width: 42, height: 42,
-                      decoration: BoxDecoration(color: const Color(0xFFE8F5F2), borderRadius: BorderRadius.circular(15)),
-                      child: const Icon(Icons.wb_sunny_outlined, color: _teal, size: 21),
-                    ),
                   ]),
                   const Spacer(),
                   const Text('Today', style: TextStyle(fontSize: 40, height: 1, letterSpacing: -1.6, fontWeight: FontWeight.w800, color: _ink)),
