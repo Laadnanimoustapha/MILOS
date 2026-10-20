@@ -89,6 +89,10 @@ class ReminderService {
                 'milos_task_reminders',
                 'Task reminders',
                 channelDescription: 'Reminders for your tasks',
+                icon: 'milos_notification_small',
+                largeIcon: DrawableResourceAndroidBitmap(
+                  'milos_notification_logo',
+                ),
                 importance: Importance.defaultImportance,
                 priority: Priority.defaultPriority,
               ),
