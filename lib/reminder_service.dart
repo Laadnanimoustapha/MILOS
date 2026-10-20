@@ -60,7 +60,7 @@ class ReminderService {
     return false;
   }
 
-  Future<void> schedule(Task task) async {
+  Future<void> schedule(Task task, {int limit = 60}) async {
     await initialize();
     if (kIsWeb ||
         (defaultTargetPlatform != TargetPlatform.android &&
@@ -68,41 +68,120 @@ class ReminderService {
       throw UnsupportedError('Scheduled reminders require the mobile app.');
     }
     final pending = await _plugin.pendingNotificationRequests();
-    final now = DateTime.now();
-    final intervalSeconds = task.reminderIntervalMinutes * 60;
-    final interval = Duration(seconds: intervalSeconds);
-    final slots = _futureSlotCount(task, now, intervalSeconds);
-    if (pending.length + slots > 60) {
+    final reminders = _upcomingReminders(task, DateTime.now(), limit);
+    if (pending.length + reminders.length > 60) {
       throw StateError('There are too many scheduled reminders.');
     }
-
-    var firstAt = task.remindAt;
-    if (!firstAt.isAfter(now)) {
-      final elapsed = now.difference(firstAt).inSeconds;
-      firstAt = firstAt.add(
-        Duration(seconds: (elapsed ~/ intervalSeconds + 1) * intervalSeconds),
-      );
-    }
-    var scheduled = 0;
     try {
-      for (var at = firstAt;
-          !at.isAfter(task.remindUntil);
-          at = at.add(interval)) {
-        if (at.isAfter(DateTime.now())) {
-          await _scheduleOne(task, at, scheduled);
-          scheduled++;
-        }
-      }
-      final spanSeconds =
-          task.remindUntil.difference(task.remindAt).inSeconds;
-      if (task.remindUntil.isAfter(DateTime.now()) &&
-          spanSeconds % intervalSeconds != 0) {
-        await _scheduleOne(task, task.remindUntil, scheduled);
+      for (var index = 0; index < reminders.length; index++) {
+        await _scheduleOne(task, reminders[index], index);
       }
     } catch (_) {
       await cancel(task);
       rethrow;
     }
+  }
+
+  Future<void> refresh(List<Task> tasks) async {
+    await initialize();
+    if (kIsWeb ||
+        (defaultTargetPlatform != TargetPlatform.android &&
+            defaultTargetPlatform != TargetPlatform.iOS)) {
+      return;
+    }
+    final pending = await _plugin.pendingNotificationRequests();
+    final now = DateTime.now();
+    final active = tasks
+        .where(
+          (task) =>
+              !task.done &&
+              (task.repeat != TaskRepeat.none || task.remindUntil.isAfter(now)),
+        )
+        .toList();
+    bool belongsToTask(int id) => tasks.any(
+      (task) => id >= task.id * 100 && id < task.id * 100 + 60,
+    );
+    final managed = pending.where((request) => belongsToTask(request.id)).toList();
+    for (final request in managed) {
+      await _plugin.cancel(id: request.id);
+    }
+    if (active.isEmpty) return;
+
+    final freeSlots = (60 - pending.length + managed.length)
+        .clamp(0, 60)
+        .toInt();
+    final perTask = freeSlots ~/ active.length;
+    final extraSlots = freeSlots % active.length;
+    for (var index = 0; index < active.length; index++) {
+      final limit = perTask + (index < extraSlots ? 1 : 0);
+      if (limit > 0) await schedule(active[index], limit: limit);
+    }
+  }
+
+  List<DateTime> _upcomingReminders(Task task, DateTime now, int limit) {
+    final reminders = <DateTime>[];
+    var occurrence = DateTime(
+      task.remindAt.year,
+      task.remindAt.month,
+      task.remindAt.day,
+    );
+    while (reminders.length < limit) {
+      final start = DateTime(
+        occurrence.year,
+        occurrence.month,
+        occurrence.day,
+        task.remindAt.hour,
+        task.remindAt.minute,
+      );
+      if (task.scheduleMode == TaskScheduleMode.fixed) {
+        if (start.isAfter(now)) reminders.add(start);
+      } else {
+        final end = DateTime(
+          occurrence.year,
+          occurrence.month,
+          occurrence.day,
+          task.remindUntil.hour,
+          task.remindUntil.minute,
+        );
+        final interval = Duration(minutes: task.reminderIntervalMinutes);
+        var at = start;
+        while (!at.isAfter(end) && reminders.length < limit) {
+          if (at.isAfter(now)) reminders.add(at);
+          at = at.add(interval);
+        }
+        if (end.isAfter(now) &&
+            !reminders.contains(end) &&
+            start.isBefore(end) &&
+            reminders.length < limit) {
+          reminders.add(end);
+        }
+      }
+      if (task.repeat == TaskRepeat.none) break;
+      final next = _nextOccurrence(occurrence, task);
+      if (!next.isAfter(occurrence)) break;
+      occurrence = next;
+    }
+    return reminders;
+  }
+
+  DateTime _nextOccurrence(DateTime date, Task task) {
+    final unit = switch (task.repeat) {
+      TaskRepeat.daily => TaskRepeatUnit.days,
+      TaskRepeat.weekly => TaskRepeatUnit.weeks,
+      TaskRepeat.monthly => TaskRepeatUnit.months,
+      TaskRepeat.custom => task.customRepeatUnit,
+      TaskRepeat.none => TaskRepeatUnit.days,
+    };
+    final every = task.repeat == TaskRepeat.custom
+        ? task.customRepeatEvery.clamp(1, 365).toInt()
+        : 1;
+    if (unit == TaskRepeatUnit.days) return date.add(Duration(days: every));
+    if (unit == TaskRepeatUnit.weeks) return date.add(Duration(days: every * 7));
+    final monthIndex = date.year * 12 + date.month - 1 + every;
+    final year = monthIndex ~/ 12;
+    final month = monthIndex % 12 + 1;
+    final lastDay = DateTime(year, month + 1, 0).day;
+    return DateTime(year, month, task.remindAt.day.clamp(1, lastDay).toInt());
   }
 
   Future<void> _scheduleOne(Task task, DateTime at, int index) =>
@@ -130,24 +209,6 @@ class ReminderService {
         payload: task.id.toString(),
       );
 
-  int _futureSlotCount(Task task, DateTime now, int intervalSeconds) {
-    var firstAt = task.remindAt;
-    if (!firstAt.isAfter(now)) {
-      final elapsed = now.difference(firstAt).inSeconds;
-      firstAt = firstAt.add(
-        Duration(seconds: (elapsed ~/ intervalSeconds + 1) * intervalSeconds),
-      );
-    }
-    var count = firstAt.isAfter(task.remindUntil)
-        ? 0
-        : task.remindUntil.difference(firstAt).inSeconds ~/ intervalSeconds + 1;
-    final spanSeconds = task.remindUntil.difference(task.remindAt).inSeconds;
-    if (task.remindUntil.isAfter(now) && spanSeconds % intervalSeconds != 0) {
-      count++;
-    }
-    return count;
-  }
-
   Future<void> cancel(Task task) async {
     await initialize();
     if (kIsWeb ||
@@ -155,13 +216,7 @@ class ReminderService {
             defaultTargetPlatform != TargetPlatform.iOS)) {
       return;
     }
-    final intervalSeconds = task.reminderIntervalMinutes * 60;
-    final spanSeconds = task.remindUntil.difference(task.remindAt).inSeconds;
-    final slots =
-        spanSeconds ~/ intervalSeconds +
-        1 +
-        (spanSeconds % intervalSeconds == 0 ? 0 : 1);
-    for (var index = 0; index < slots; index++) {
+    for (var index = 0; index < 60; index++) {
       await _plugin.cancel(id: task.id * 100 + index);
     }
   }

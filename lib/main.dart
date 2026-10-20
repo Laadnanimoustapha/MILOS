@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'reminder_service.dart';
@@ -54,7 +56,7 @@ class TodayPage extends StatefulWidget {
   State<TodayPage> createState() => _TodayPageState();
 }
 
-class _TodayPageState extends State<TodayPage> {
+class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
   final _store = TaskStore();
   final List<Task> _tasks = [];
   bool _loading = true;
@@ -62,7 +64,19 @@ class _TodayPageState extends State<TodayPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadTasks();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(_refreshReminders());
   }
 
   Future<void> _loadTasks() async {
@@ -70,6 +84,13 @@ class _TodayPageState extends State<TodayPage> {
       _tasks.addAll(await _store.load());
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
+    await _refreshReminders();
+  }
+
+  Future<void> _refreshReminders() async {
+    try {
+      await ReminderService.instance.refresh(_tasks);
+    } catch (_) {}
   }
 
   Future<void> _saveTasks() async {
@@ -101,6 +122,10 @@ class _TodayPageState extends State<TodayPage> {
       remindUntil: draft.remindUntil,
       importance: draft.importance,
       superReminderIntervalMinutes: draft.superReminderIntervalMinutes,
+      scheduleMode: draft.scheduleMode,
+      repeat: draft.repeat,
+      customRepeatEvery: draft.customRepeatEvery,
+      customRepeatUnit: draft.customRepeatUnit,
     );
     try {
       if (await ReminderService.instance.requestPermission()) {
@@ -118,7 +143,8 @@ class _TodayPageState extends State<TodayPage> {
     try {
       if (updated.done) {
         await ReminderService.instance.cancel(updated);
-      } else if (updated.remindUntil.isAfter(DateTime.now())) {
+      } else if (updated.repeat != TaskRepeat.none ||
+          updated.remindUntil.isAfter(DateTime.now())) {
         await ReminderService.instance.schedule(updated);
       }
     } catch (_) {}
@@ -245,6 +271,10 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
   late TimeOfDay _until;
   TaskImportance _importance = TaskImportance.normal;
   int _superReminderIntervalMinutes = 15;
+  TaskScheduleMode _scheduleMode = TaskScheduleMode.range;
+  TaskRepeat _repeat = TaskRepeat.none;
+  int _customRepeatEvery = 1;
+  TaskRepeatUnit _customRepeatUnit = TaskRepeatUnit.days;
   String? _error;
 
   @override
@@ -279,12 +309,15 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
   Future<void> _pickTime({required bool start}) async {
     final selected = await showTimePicker(
       context: context,
-      initialTime: start ? _from : _until,
+      initialTime: start || _scheduleMode == TaskScheduleMode.fixed
+          ? _from
+          : _until,
     );
     if (selected != null) {
       setState(() {
         if (start) {
           _from = selected;
+          if (_scheduleMode == TaskScheduleMode.fixed) _until = selected;
         } else {
           _until = selected;
         }
@@ -296,15 +329,15 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
   void _save() {
     final title = _controller.text.trim();
     final from = _at(_from);
-    final until = _at(_until);
+    final until = _scheduleMode == TaskScheduleMode.fixed ? from : _at(_until);
     if (title.isEmpty) {
       setState(() => _error = 'Give your task a name first.');
     } else if (!from.isAfter(DateTime.now())) {
       setState(() => _error = 'Choose a reminder time in the future.');
-    } else if (!until.isAfter(from)) {
+    } else if (_scheduleMode == TaskScheduleMode.range && !until.isAfter(from)) {
       setState(() => _error = 'The reminder end must be after its start.');
     } else {
-      final intervalMinutes = switch (_importance) {
+      final intervalMinutes = _scheduleMode == TaskScheduleMode.fixed ? 1 : switch (_importance) {
         TaskImportance.normal => 60,
         TaskImportance.necessary => 30,
         TaskImportance.superNecessary => _superReminderIntervalMinutes,
@@ -330,6 +363,10 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
           remindUntil: until,
           importance: _importance,
           superReminderIntervalMinutes: _superReminderIntervalMinutes,
+          scheduleMode: _scheduleMode,
+          repeat: _repeat,
+          customRepeatEvery: _customRepeatEvery,
+          customRepeatUnit: _customRepeatUnit,
         ),
       );
     }
@@ -496,9 +533,80 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
                         onTap: _pickDate,
                       ),
                       const SizedBox(height: 18),
-                      const _FormLabel('REMINDER WINDOW'),
+                      const _FormLabel('REMINDER TYPE'),
                       const SizedBox(height: 7),
-                      Row(
+                      _ChoiceRow<TaskScheduleMode>(
+                        values: TaskScheduleMode.values,
+                        selected: _scheduleMode,
+                        labels: const ['Time range', 'One time'],
+                        onSelected: (mode) => setState(() {
+                          _scheduleMode = mode;
+                          if (mode == TaskScheduleMode.fixed) _until = _from;
+                        }),
+                      ),
+                      const SizedBox(height: 18),
+                      const _FormLabel('REPEAT'),
+                      const SizedBox(height: 7),
+                      DropdownButtonFormField<TaskRepeat>(
+                        initialValue: _repeat,
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: _paper,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: TaskRepeat.none, child: Text('Does not repeat')),
+                          DropdownMenuItem(value: TaskRepeat.daily, child: Text('Every day')),
+                          DropdownMenuItem(value: TaskRepeat.weekly, child: Text('Every week')),
+                          DropdownMenuItem(value: TaskRepeat.monthly, child: Text('Every month')),
+                          DropdownMenuItem(value: TaskRepeat.custom, child: Text('Custom')),
+                        ],
+                        onChanged: (repeat) => setState(() => _repeat = repeat ?? TaskRepeat.none),
+                      ),
+                      if (_repeat == TaskRepeat.custom) ...[
+                        const SizedBox(height: 9),
+                        Row(children: [
+                          const Text('Every', style: TextStyle(color: _muted)),
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            width: 68,
+                            child: TextFormField(
+                              initialValue: '$_customRepeatEvery',
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: _paper,
+                                isDense: true,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                              ),
+                              onChanged: (value) => _customRepeatEvery = (int.tryParse(value) ?? 1).clamp(1, 365).toInt(),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: DropdownButtonFormField<TaskRepeatUnit>(
+                              initialValue: _customRepeatUnit,
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: _paper,
+                                isDense: true,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                              ),
+                              items: const [
+                                DropdownMenuItem(value: TaskRepeatUnit.days, child: Text('days')),
+                                DropdownMenuItem(value: TaskRepeatUnit.weeks, child: Text('weeks')),
+                                DropdownMenuItem(value: TaskRepeatUnit.months, child: Text('months')),
+                              ],
+                              onChanged: (unit) => setState(() => _customRepeatUnit = unit ?? TaskRepeatUnit.days),
+                            ),
+                          ),
+                        ]),
+                      ],
+                      const SizedBox(height: 18),
+                      _FormLabel(_scheduleMode == TaskScheduleMode.fixed ? 'REMIND ME AT' : 'REMINDER WINDOW'),
+                      const SizedBox(height: 7),
+                      if (_scheduleMode == TaskScheduleMode.range) Row(
                         children: [
                           Expanded(
                             child: _PickerButton(
@@ -521,9 +629,13 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
                             ),
                           ),
                         ],
+                      ) else _PickerButton(
+                        icon: Icons.notifications_active_outlined,
+                        title: _from.format(context),
+                        onTap: () => _pickTime(start: true),
                       ),
                       const SizedBox(height: 10),
-                      Row(
+                      if (_scheduleMode == TaskScheduleMode.range) Row(
                         children: [
                           const Icon(Icons.repeat_rounded, size: 16, color: _teal),
                           const SizedBox(width: 7),
@@ -582,6 +694,50 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
     TaskImportance.superNecessary =>
       'Every ${_superReminderIntervalMinutes == 60 ? 'hour' : '$_superReminderIntervalMinutes minutes'}',
   };
+}
+
+class _ChoiceRow<T> extends StatelessWidget {
+  const _ChoiceRow({
+    required this.values,
+    required this.selected,
+    required this.labels,
+    required this.onSelected,
+  });
+
+  final List<T> values;
+  final T selected;
+  final List<String> labels;
+  final ValueChanged<T> onSelected;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(4),
+    decoration: BoxDecoration(color: _paper, borderRadius: BorderRadius.circular(15)),
+    child: Row(children: [
+      for (var index = 0; index < values.length; index++)
+        Expanded(
+          child: Material(
+            color: selected == values[index] ? const Color(0xFFDDF2ED) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => onSelected(values[index]),
+              child: SizedBox(
+                height: 42,
+                child: Center(
+                  child: Text(labels[index], style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: selected == values[index] ? _teal : _muted,
+                  )),
+                ),
+              ),
+            ),
+          ),
+        ),
+    ]),
+  );
 }
 
 class _FormLabel extends StatelessWidget {
@@ -708,10 +864,13 @@ class _TaskTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final localizations = MaterialLocalizations.of(context);
-    final reminderTime =
-        '${localizations.formatShortDate(task.remindAt)} · '
-        '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(task.remindAt))}'
-        '–${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(task.remindUntil))}';
+    final startTime = localizations.formatTimeOfDay(
+      TimeOfDay.fromDateTime(task.remindAt),
+    );
+    final reminderTime = task.scheduleMode == TaskScheduleMode.fixed
+        ? '${localizations.formatShortDate(task.remindAt)} · at $startTime${_repeatLabel(task)}'
+        : '${localizations.formatShortDate(task.remindAt)} · $startTime'
+              '–${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(task.remindUntil))}${_repeatLabel(task)}';
     return Container(
     padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(17), border: Border.all(color: const Color(0xFFE9EFED))),
@@ -749,6 +908,14 @@ class _TaskTile extends StatelessWidget {
     ]),
   );
   }
+
+  String _repeatLabel(Task task) => switch (task.repeat) {
+    TaskRepeat.none => '',
+    TaskRepeat.daily => ' · Daily',
+    TaskRepeat.weekly => ' · Weekly',
+    TaskRepeat.monthly => ' · Monthly',
+    TaskRepeat.custom => ' · Every ${task.customRepeatEvery} ${task.customRepeatUnit.name}',
+  };
 }
 
 class _EmptyTasks extends StatelessWidget {

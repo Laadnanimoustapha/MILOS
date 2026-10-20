@@ -1,4 +1,7 @@
 enum TaskImportance { normal, necessary, superNecessary }
+enum TaskScheduleMode { range, fixed }
+enum TaskRepeat { none, daily, weekly, monthly, custom }
+enum TaskRepeatUnit { days, weeks, months }
 
 class Task {
   const Task({
@@ -9,6 +12,10 @@ class Task {
     this.done = false,
     this.importance = TaskImportance.normal,
     this.superReminderIntervalMinutes = 15,
+    this.scheduleMode = TaskScheduleMode.range,
+    this.repeat = TaskRepeat.none,
+    this.customRepeatEvery = 1,
+    this.customRepeatUnit = TaskRepeatUnit.days,
   });
 
   final int id;
@@ -18,6 +25,10 @@ class Task {
   final bool done;
   final TaskImportance importance;
   final int superReminderIntervalMinutes;
+  final TaskScheduleMode scheduleMode;
+  final TaskRepeat repeat;
+  final int customRepeatEvery;
+  final TaskRepeatUnit customRepeatUnit;
 
   int get reminderIntervalMinutes => switch (importance) {
     TaskImportance.normal => 60,
@@ -29,6 +40,10 @@ class Task {
     bool? done,
     TaskImportance? importance,
     int? superReminderIntervalMinutes,
+    TaskScheduleMode? scheduleMode,
+    TaskRepeat? repeat,
+    int? customRepeatEvery,
+    TaskRepeatUnit? customRepeatUnit,
     DateTime? remindAt,
     DateTime? remindUntil,
   }) => Task(
@@ -40,6 +55,10 @@ class Task {
     importance: importance ?? this.importance,
     superReminderIntervalMinutes:
         superReminderIntervalMinutes ?? this.superReminderIntervalMinutes,
+    scheduleMode: scheduleMode ?? this.scheduleMode,
+    repeat: repeat ?? this.repeat,
+    customRepeatEvery: customRepeatEvery ?? this.customRepeatEvery,
+    customRepeatUnit: customRepeatUnit ?? this.customRepeatUnit,
   );
 
   Map<String, Object> toJson() => {
@@ -50,6 +69,10 @@ class Task {
     'done': done,
     'importance': importance.name,
     'superReminderIntervalMinutes': superReminderIntervalMinutes,
+    'scheduleMode': scheduleMode.name,
+    'repeat': repeat.name,
+    'customRepeatEvery': customRepeatEvery,
+    'customRepeatUnit': customRepeatUnit.name,
   };
 
   factory Task.fromJson(Map<String, dynamic> json) => Task(
@@ -64,5 +87,18 @@ class Task {
     ),
     superReminderIntervalMinutes:
         json['superReminderIntervalMinutes'] as int? ?? 15,
+    scheduleMode: TaskScheduleMode.values.firstWhere(
+      (value) => value.name == json['scheduleMode'],
+      orElse: () => TaskScheduleMode.range,
+    ),
+    repeat: TaskRepeat.values.firstWhere(
+      (value) => value.name == json['repeat'],
+      orElse: () => TaskRepeat.none,
+    ),
+    customRepeatEvery: json['customRepeatEvery'] as int? ?? 1,
+    customRepeatUnit: TaskRepeatUnit.values.firstWhere(
+      (value) => value.name == json['customRepeatUnit'],
+      orElse: () => TaskRepeatUnit.days,
+    ),
   );
 }
