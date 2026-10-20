@@ -29,11 +29,13 @@ class Task {
     bool? done,
     TaskImportance? importance,
     int? superReminderIntervalMinutes,
+    DateTime? remindAt,
+    DateTime? remindUntil,
   }) => Task(
     id: id,
     title: title,
-    remindAt: remindAt,
-    remindUntil: remindUntil,
+    remindAt: remindAt ?? this.remindAt,
+    remindUntil: remindUntil ?? this.remindUntil,
     done: done ?? this.done,
     importance: importance ?? this.importance,
     superReminderIntervalMinutes:

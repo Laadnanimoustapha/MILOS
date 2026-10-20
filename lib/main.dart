@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'reminder_service.dart';
@@ -69,25 +68,12 @@ class _TodayPageState extends State<TodayPage> {
   Future<void> _loadTasks() async {
     try {
       _tasks.addAll(await _store.load());
-    } catch (_) {
-      _showMessage('Saved tasks could not be loaded.');
-    }
+    } catch (_) {}
     if (mounted) setState(() => _loading = false);
   }
 
   Future<void> _saveTasks() async {
-    try {
-      await _store.save(_tasks);
-    } catch (_) {
-      _showMessage('This task could not be saved on this device.');
-    }
-  }
-
-  void _showMessage(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    try { await _store.save(_tasks); } catch (_) {}
   }
 
   int get _completed => _tasks.where((task) => task.done).length;
@@ -116,28 +102,14 @@ class _TodayPageState extends State<TodayPage> {
       importance: draft.importance,
       superReminderIntervalMinutes: draft.superReminderIntervalMinutes,
     );
-    var reminderScheduled = false;
-    var reminderMessage = kIsWeb
-        ? 'Task saved. Reminders are available in the phone app.'
-        : 'Task saved. Allow notifications to receive reminders.';
     try {
       if (await ReminderService.instance.requestPermission()) {
         await ReminderService.instance.schedule(task);
-        reminderScheduled = true;
       }
-    } on StateError {
-      reminderMessage =
-          'Task saved, but the reminder limit was reached. Shorten the window or choose a longer interval.';
-    } catch (_) {
-      reminderMessage =
-          'Task saved, but the notification could not be scheduled. Check notification permissions.';
-    }
+    } catch (_) {}
 
     setState(() => _tasks.add(task));
     await _saveTasks();
-    if (!reminderScheduled) {
-      _showMessage(reminderMessage);
-    }
   }
 
   Future<void> _toggleTask(Task task, bool? value) async {
@@ -149,9 +121,28 @@ class _TodayPageState extends State<TodayPage> {
       } else if (updated.remindUntil.isAfter(DateTime.now())) {
         await ReminderService.instance.schedule(updated);
       }
-    } catch (_) {
-      _showMessage('The reminder could not be updated.');
-    }
+    } catch (_) {}
+    await _saveTasks();
+  }
+
+  Future<void> _remindTomorrow(Task task) async {
+    DateTime tomorrowAt(DateTime value) => DateTime(
+      value.year,
+      value.month,
+      value.day + 1,
+      value.hour,
+      value.minute,
+    );
+
+    final updated = task.copyWith(
+      remindAt: tomorrowAt(task.remindAt),
+      remindUntil: tomorrowAt(task.remindUntil),
+    );
+    try {
+      await ReminderService.instance.cancel(task);
+      await ReminderService.instance.schedule(updated);
+    } catch (_) {}
+    setState(() => _tasks[_tasks.indexOf(task)] = updated);
     await _saveTasks();
   }
 
@@ -221,7 +212,11 @@ class _TodayPageState extends State<TodayPage> {
                       else
                         ..._tasks.map((task) => Padding(
                           padding: const EdgeInsets.only(bottom: 10),
-                          child: _TaskTile(task: task, onChanged: (value) => _toggleTask(task, value)),
+                          child: _TaskTile(
+                            task: task,
+                            onChanged: (value) => _toggleTask(task, value),
+                            onRemindTomorrow: () => _remindTomorrow(task),
+                          ),
                         )),
                       const SizedBox(height: 5),
                       const _GentleNote(),
@@ -644,9 +639,14 @@ class _ProgressPanel extends StatelessWidget {
 }
 
 class _TaskTile extends StatelessWidget {
-  const _TaskTile({required this.task, required this.onChanged});
+  const _TaskTile({
+    required this.task,
+    required this.onChanged,
+    required this.onRemindTomorrow,
+  });
   final Task task;
   final ValueChanged<bool?> onChanged;
+  final VoidCallback onRemindTomorrow;
 
   @override
   Widget build(BuildContext context) {
@@ -671,7 +671,24 @@ class _TaskTile extends StatelessWidget {
         ]),
       ])),
       const SizedBox(width: 7),
-      const Icon(Icons.drag_indicator_rounded, size: 18, color: Color(0xFFCAD5D2)),
+      if (!task.done)
+        PopupMenuButton<String>(
+          tooltip: 'Task options',
+          icon: const Icon(Icons.more_vert_rounded, size: 19, color: Color(0xFF9EAEAA)),
+          onSelected: (_) => onRemindTomorrow(),
+          itemBuilder: (context) => const [
+            PopupMenuItem<String>(
+              value: 'tomorrow',
+              child: Row(
+                children: [
+                  Icon(Icons.event_repeat_rounded, size: 18, color: _teal),
+                  SizedBox(width: 9),
+                  Text('Remind tomorrow'),
+                ],
+              ),
+            ),
+          ],
+        ),
     ]),
   );
   }
