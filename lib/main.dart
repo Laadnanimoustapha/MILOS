@@ -127,19 +127,19 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
       customRepeatEvery: draft.customRepeatEvery,
       customRepeatUnit: draft.customRepeatUnit,
     );
+    setState(() => _tasks.add(task));
+    await _saveTasks();
     try {
       if (await ReminderService.instance.requestPermission()) {
         await ReminderService.instance.schedule(task);
       }
     } catch (_) {}
-
-    setState(() => _tasks.add(task));
-    await _saveTasks();
   }
 
   Future<void> _toggleTask(Task task, bool? value) async {
     final updated = task.copyWith(done: value ?? false);
     setState(() => _tasks[_tasks.indexOf(task)] = updated);
+    await _saveTasks();
     try {
       if (updated.done) {
         await ReminderService.instance.cancel(updated);
@@ -148,7 +148,6 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
         await ReminderService.instance.schedule(updated);
       }
     } catch (_) {}
-    await _saveTasks();
   }
 
   Future<void> _remindTomorrow(Task task) async {
@@ -164,12 +163,12 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
       remindAt: tomorrowAt(task.remindAt),
       remindUntil: tomorrowAt(task.remindUntil),
     );
+    setState(() => _tasks[_tasks.indexOf(task)] = updated);
+    await _saveTasks();
     try {
       await ReminderService.instance.cancel(task);
       await ReminderService.instance.schedule(updated);
     } catch (_) {}
-    setState(() => _tasks[_tasks.indexOf(task)] = updated);
-    await _saveTasks();
   }
 
   @override
