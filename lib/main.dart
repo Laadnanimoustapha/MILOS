@@ -6,10 +6,19 @@ import 'task.dart';
 import 'task_store.dart';
 
 const _teal = Color(0xFF4CAF9E);
-const _sky = Color(0xFFA3DAF5);
 const _ink = Color(0xFF253533);
 const _muted = Color(0xFF82908D);
 const _paper = Color(0xFFF5F8F7);
+const _importanceLabels = {
+  TaskImportance.normal: 'NORMAL',
+  TaskImportance.necessary: 'NECESSARY',
+  TaskImportance.superNecessary: 'SUPER NECESSARY',
+};
+const _importanceColors = {
+  TaskImportance.normal: _teal,
+  TaskImportance.necessary: Color(0xFF3988A0),
+  TaskImportance.superNecessary: Color(0xFFC36E36),
+};
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -103,6 +112,7 @@ class _TodayPageState extends State<TodayPage> {
       title: draft.title,
       remindAt: draft.remindAt,
       remindUntil: draft.remindUntil,
+      importance: draft.importance,
     );
     var reminderScheduled = false;
     try {
@@ -239,6 +249,7 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
   late DateTime _date;
   late TimeOfDay _from;
   late TimeOfDay _until;
+  TaskImportance _importance = TaskImportance.normal;
   String? _error;
 
   @override
@@ -300,7 +311,13 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
     } else {
       Navigator.pop(
         context,
-        Task(id: 0, title: title, remindAt: from, remindUntil: until),
+        Task(
+          id: 0,
+          title: title,
+          remindAt: from,
+          remindUntil: until,
+          importance: _importance,
+        ),
       );
     }
   }
@@ -369,6 +386,38 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
                     ),
                   ),
                   onSubmitted: (_) => _save(),
+                ),
+                const SizedBox(height: 18),
+                const _FormLabel('HOW NECESSARY IS THIS?'),
+                const SizedBox(height: 8),
+                SegmentedButton<TaskImportance>(
+                  showSelectedIcon: false,
+                  style: const ButtonStyle(
+                    textStyle: WidgetStatePropertyAll(
+                      TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                    ),
+                    padding: WidgetStatePropertyAll(
+                      EdgeInsets.symmetric(horizontal: 5, vertical: 12),
+                    ),
+                  ),
+                  segments: const [
+                    ButtonSegment(
+                      value: TaskImportance.normal,
+                      label: Text('Normal'),
+                    ),
+                    ButtonSegment(
+                      value: TaskImportance.necessary,
+                      label: Text('Necessary'),
+                    ),
+                    ButtonSegment(
+                      value: TaskImportance.superNecessary,
+                      label: Text('Super\nnecessary', textAlign: TextAlign.center),
+                    ),
+                  ],
+                  selected: {_importance},
+                  onSelectionChanged: (selection) => setState(
+                    () => _importance = selection.first,
+                  ),
                 ),
                 const SizedBox(height: 20),
                 const _FormLabel('REMIND ME ON'),
@@ -579,8 +628,8 @@ class _TaskTile extends StatelessWidget {
         Text(task.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: task.done ? _muted : _ink, decoration: task.done ? TextDecoration.lineThrough : null)),
         const SizedBox(height: 7),
         Row(children: [
-          const Text('PERSONAL', style: TextStyle(fontSize: 9, letterSpacing: .9, fontWeight: FontWeight.w800, color: _teal)),
-          Container(width: 3, height: 3, margin: const EdgeInsets.symmetric(horizontal: 7), decoration: const BoxDecoration(color: _sky, shape: BoxShape.circle)),
+          Text(_importanceLabels[task.importance]!, style: TextStyle(fontSize: 9, letterSpacing: .5, fontWeight: FontWeight.w800, color: _importanceColors[task.importance]!)),
+          Container(width: 3, height: 3, margin: const EdgeInsets.symmetric(horizontal: 7), decoration: BoxDecoration(color: _importanceColors[task.importance]!, shape: BoxShape.circle)),
           Expanded(child: Text(reminderTime, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, color: _muted))),
         ]),
       ])),
