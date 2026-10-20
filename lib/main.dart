@@ -415,49 +415,57 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
                       const SizedBox(height: 20),
                       const _FormLabel('PRIORITY'),
                       const SizedBox(height: 8),
-                      SegmentedButton<TaskImportance>(
-                        showSelectedIcon: false,
-                        style: ButtonStyle(
-                          textStyle: const WidgetStatePropertyAll(
-                            TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                          ),
-                          padding: const WidgetStatePropertyAll(
-                            EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-                          ),
-                          backgroundColor: WidgetStateProperty.resolveWith(
-                            (states) => states.contains(WidgetState.selected)
-                                ? const Color(0xFFDDF2ED)
-                                : _paper,
-                          ),
-                          foregroundColor: WidgetStateProperty.resolveWith(
-                            (states) => states.contains(WidgetState.selected)
-                                ? _teal
-                                : _muted,
-                          ),
-                          side: const WidgetStatePropertyAll(BorderSide.none),
-                          shape: WidgetStatePropertyAll(
-                            RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: _paper,
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                        segments: const [
-                          ButtonSegment(
-                            value: TaskImportance.normal,
-                            label: Text('Normal'),
-                          ),
-                          ButtonSegment(
-                            value: TaskImportance.necessary,
-                            label: Text('Necessary'),
-                          ),
-                          ButtonSegment(
-                            value: TaskImportance.superNecessary,
-                            label: Text('Super\nnecessary', textAlign: TextAlign.center),
-                          ),
-                        ],
-                        selected: {_importance},
-                        onSelectionChanged: (selection) => setState(
-                          () => _importance = selection.first,
+                        child: Row(
+                          children: [
+                            for (final priority in TaskImportance.values)
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(2),
+                                  child: Material(
+                                    color: _importance == priority
+                                        ? const Color(0xFFDDF2ED)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(12),
+                                      onTap: () => setState(
+                                        () => _importance = priority,
+                                      ),
+                                      child: SizedBox(
+                                        height: 48,
+                                        child: Center(
+                                          child: Text(
+                                            switch (priority) {
+                                              TaskImportance.normal => 'Normal',
+                                              TaskImportance.necessary => 'Necessary',
+                                              TaskImportance.superNecessary =>
+                                                'Super\nnecessary',
+                                            },
+                                            maxLines: 2,
+                                            overflow: TextOverflow.clip,
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: _importance == priority
+                                                  ? _teal
+                                                  : _muted,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                       if (_importance == TaskImportance.superNecessary) ...[
