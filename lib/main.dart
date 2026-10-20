@@ -353,162 +353,204 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
         ),
         child: SafeArea(
           top: false,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(22, 14, 22, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFDCE5E2),
-                      borderRadius: BorderRadius.circular(4),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 12, 22, 15),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDCE5E2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Make time for it',
-                  style: TextStyle(
-                    fontSize: 23,
-                    fontWeight: FontWeight.w800,
-                    color: _ink,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                const Text(
-                  'Choose when you want a gentle nudge.',
-                  style: TextStyle(fontSize: 13, color: _muted),
-                ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: _controller,
-                  autofocus: true,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: InputDecoration(
-                    labelText: 'Task',
-                    hintText: 'What would you like to do?',
-                    filled: true,
-                    fillColor: _paper,
-                    prefixIcon: const Icon(Icons.edit_outlined, color: _teal),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide.none,
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Make time for it',
+                      style: TextStyle(
+                        fontSize: 23,
+                        fontWeight: FontWeight.w800,
+                        color: _ink,
+                      ),
                     ),
-                  ),
-                  onSubmitted: (_) => _save(),
-                ),
-                const SizedBox(height: 18),
-                const _FormLabel('HOW NECESSARY IS THIS?'),
-                const SizedBox(height: 8),
-                SegmentedButton<TaskImportance>(
-                  showSelectedIcon: false,
-                  style: const ButtonStyle(
-                    textStyle: WidgetStatePropertyAll(
-                      TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                    ),
-                    padding: WidgetStatePropertyAll(
-                      EdgeInsets.symmetric(horizontal: 5, vertical: 12),
-                    ),
-                  ),
-                  segments: const [
-                    ButtonSegment(
-                      value: TaskImportance.normal,
-                      label: Text('Normal'),
-                    ),
-                    ButtonSegment(
-                      value: TaskImportance.necessary,
-                      label: Text('Necessary'),
-                    ),
-                    ButtonSegment(
-                      value: TaskImportance.superNecessary,
-                      label: Text('Super\nnecessary', textAlign: TextAlign.center),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'A small nudge at the right time.',
+                      style: TextStyle(fontSize: 13, color: _muted),
                     ),
                   ],
-                  selected: {_importance},
-                  onSelectionChanged: (selection) => setState(
-                    () => _importance = selection.first,
-                  ),
                 ),
-                if (_importance == TaskImportance.superNecessary) ...[
-                  const SizedBox(height: 16),
-                  const _FormLabel('REMIND ME EVERY'),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 7,
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(22, 0, 22, 18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      for (final minutes in _superReminderIntervals)
-                        ChoiceChip(
-                          label: Text(minutes == 60 ? '1 hour' : '$minutes min'),
-                          selected: _superReminderIntervalMinutes == minutes,
-                          onSelected: (_) => setState(
-                            () => _superReminderIntervalMinutes = minutes,
+                      const _FormLabel('TASK'),
+                      const SizedBox(height: 7),
+                      TextField(
+                        controller: _controller,
+                        autofocus: true,
+                        textCapitalization: TextCapitalization.sentences,
+                        decoration: InputDecoration(
+                          hintText: 'What would you like to do?',
+                          filled: true,
+                          fillColor: _paper,
+                          prefixIcon: const Icon(Icons.edit_outlined, color: _teal),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 17),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
                           ),
-                          visualDensity: VisualDensity.compact,
                         ),
+                        onSubmitted: (_) => _save(),
+                      ),
+                      const SizedBox(height: 20),
+                      const _FormLabel('PRIORITY'),
+                      const SizedBox(height: 8),
+                      SegmentedButton<TaskImportance>(
+                        showSelectedIcon: false,
+                        style: ButtonStyle(
+                          textStyle: const WidgetStatePropertyAll(
+                            TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                          ),
+                          padding: const WidgetStatePropertyAll(
+                            EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                          ),
+                          backgroundColor: WidgetStateProperty.resolveWith(
+                            (states) => states.contains(WidgetState.selected)
+                                ? const Color(0xFFDDF2ED)
+                                : _paper,
+                          ),
+                          foregroundColor: WidgetStateProperty.resolveWith(
+                            (states) => states.contains(WidgetState.selected)
+                                ? _teal
+                                : _muted,
+                          ),
+                          side: const WidgetStatePropertyAll(BorderSide.none),
+                          shape: WidgetStatePropertyAll(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                        segments: const [
+                          ButtonSegment(
+                            value: TaskImportance.normal,
+                            label: Text('Normal'),
+                          ),
+                          ButtonSegment(
+                            value: TaskImportance.necessary,
+                            label: Text('Necessary'),
+                          ),
+                          ButtonSegment(
+                            value: TaskImportance.superNecessary,
+                            label: Text('Super\nnecessary', textAlign: TextAlign.center),
+                          ),
+                        ],
+                        selected: {_importance},
+                        onSelectionChanged: (selection) => setState(
+                          () => _importance = selection.first,
+                        ),
+                      ),
+                      if (_importance == TaskImportance.superNecessary) ...[
+                        const SizedBox(height: 14),
+                        const _FormLabel('REMIND ME EVERY'),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 7,
+                          children: [
+                            for (final minutes in _superReminderIntervals)
+                              ChoiceChip(
+                                label: Text(minutes == 60 ? '1 hour' : '$minutes min'),
+                                selected: _superReminderIntervalMinutes == minutes,
+                                onSelected: (_) => setState(
+                                  () => _superReminderIntervalMinutes = minutes,
+                                ),
+                                visualDensity: VisualDensity.compact,
+                              ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 20),
+                      const _FormLabel('DATE'),
+                      const SizedBox(height: 7),
+                      _PickerButton(
+                        icon: Icons.calendar_today_rounded,
+                        title: MaterialLocalizations.of(context).formatMediumDate(_date),
+                        onTap: _pickDate,
+                      ),
+                      const SizedBox(height: 18),
+                      const _FormLabel('REMINDER WINDOW'),
+                      const SizedBox(height: 7),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _PickerButton(
+                              icon: Icons.notifications_active_outlined,
+                              title: _from.format(context),
+                              subtitle: 'FROM',
+                              onTap: () => _pickTime(start: true),
+                            ),
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8),
+                            child: Icon(Icons.arrow_forward_rounded, size: 17, color: _muted),
+                          ),
+                          Expanded(
+                            child: _PickerButton(
+                              icon: Icons.notifications_none_rounded,
+                              title: _until.format(context),
+                              subtitle: 'UNTIL',
+                              onTap: () => _pickTime(start: false),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          const Icon(Icons.repeat_rounded, size: 16, color: _teal),
+                          const SizedBox(width: 7),
+                          Expanded(
+                            child: Text(
+                              '${_intervalDescription()} · final reminder at ${_until.format(context)}',
+                              style: const TextStyle(fontSize: 12, color: _muted),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_error != null) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          _error!,
+                          style: const TextStyle(color: Color(0xFFB54141), fontSize: 12),
+                        ),
+                      ],
                     ],
                   ),
-                ],
-                const SizedBox(height: 20),
-                const _FormLabel('REMIND ME ON'),
-                const SizedBox(height: 8),
-                _PickerButton(
-                  icon: Icons.calendar_today_rounded,
-                  title: MaterialLocalizations.of(context).formatMediumDate(_date),
-                  onTap: _pickDate,
                 ),
-                const SizedBox(height: 18),
-                const _FormLabel('KEEP REMINDING ME'),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _PickerButton(
-                        icon: Icons.notifications_active_outlined,
-                        title: _from.format(context),
-                        subtitle: 'START',
-                        onTap: () => _pickTime(start: true),
-                      ),
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10),
-                      child: Icon(Icons.arrow_forward_rounded, size: 17, color: _muted),
-                    ),
-                    Expanded(
-                      child: _PickerButton(
-                        icon: Icons.notifications_none_rounded,
-                        title: _until.format(context),
-                        subtitle: 'UNTIL',
-                        onTap: () => _pickTime(start: false),
-                      ),
-                    ),
-                  ],
+              ),
+              Container(
+                padding: const EdgeInsets.fromLTRB(22, 12, 22, 12),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: Color(0xFFE9EFED))),
                 ),
-                const SizedBox(height: 9),
-                const Row(
-                  children: [
-                    Icon(Icons.repeat_rounded, size: 15, color: _teal),
-                    SizedBox(width: 6),
-                    Text(
-                      'Every hour on this date',
-                      style: TextStyle(fontSize: 12, color: _muted),
-                    ),
-                  ],
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: 12),
-                  Text(_error!, style: const TextStyle(color: Color(0xFFB54141), fontSize: 12)),
-                ],
-                const SizedBox(height: 20),
-                SizedBox(
+                child: SizedBox(
                   width: double.infinity,
                   height: 52,
                   child: FilledButton.icon(
                     onPressed: _save,
-                    icon: const Icon(Icons.notifications_active_outlined),
-                    label: const Text('Save task & reminder'),
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Create task'),
                     style: FilledButton.styleFrom(
                       backgroundColor: _teal,
                       foregroundColor: Colors.white,
@@ -518,13 +560,20 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     ),
   );
+
+  String _intervalDescription() => switch (_importance) {
+    TaskImportance.normal => 'Every hour',
+    TaskImportance.necessary => 'Every 30 minutes',
+    TaskImportance.superNecessary =>
+      'Every ${_superReminderIntervalMinutes == 60 ? 'hour' : '$_superReminderIntervalMinutes minutes'}',
+  };
 }
 
 class _FormLabel extends StatelessWidget {
