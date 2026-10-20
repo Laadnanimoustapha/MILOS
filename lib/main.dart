@@ -19,6 +19,7 @@ const _importanceColors = {
   TaskImportance.necessary: Color(0xFF3988A0),
   TaskImportance.superNecessary: Color(0xFFC36E36),
 };
+const _superReminderIntervals = [5, 10, 15, 30, 60];
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -113,13 +114,20 @@ class _TodayPageState extends State<TodayPage> {
       remindAt: draft.remindAt,
       remindUntil: draft.remindUntil,
       importance: draft.importance,
+      superReminderIntervalMinutes: draft.superReminderIntervalMinutes,
     );
     var reminderScheduled = false;
+    var reminderMessage = kIsWeb
+        ? 'Task saved. Reminders are available in the phone app.'
+        : 'Task saved. Allow notifications to receive reminders.';
     try {
       if (await ReminderService.instance.requestPermission()) {
         await ReminderService.instance.schedule(task);
         reminderScheduled = true;
       }
+    } on StateError {
+      reminderMessage =
+          'Task saved, but the reminder limit was reached. Shorten the window or choose a longer interval.';
     } catch (_) {
       // Keep the task locally even if the OS cannot schedule its reminder.
     }
@@ -127,11 +135,7 @@ class _TodayPageState extends State<TodayPage> {
     setState(() => _tasks.add(task));
     await _saveTasks();
     if (!reminderScheduled) {
-      _showMessage(
-        kIsWeb
-            ? 'Task saved. Reminders are available in the phone app.'
-            : 'Task saved. Allow notifications to receive reminders.',
-      );
+      _showMessage(reminderMessage);
     }
   }
 
@@ -250,6 +254,7 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
   late TimeOfDay _from;
   late TimeOfDay _until;
   TaskImportance _importance = TaskImportance.normal;
+  int _superReminderIntervalMinutes = 15;
   String? _error;
 
   @override
@@ -309,6 +314,23 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
     } else if (!until.isAfter(from)) {
       setState(() => _error = 'The reminder end must be after its start.');
     } else {
+      final intervalMinutes = switch (_importance) {
+        TaskImportance.normal => 60,
+        TaskImportance.necessary => 30,
+        TaskImportance.superNecessary => _superReminderIntervalMinutes,
+      };
+      final windowMinutes = until.difference(from).inMinutes;
+      final reminderCount =
+          windowMinutes ~/ intervalMinutes +
+          1 +
+          (windowMinutes % intervalMinutes == 0 ? 0 : 1);
+      if (reminderCount > 60) {
+        setState(
+          () => _error =
+              'Choose a longer interval or a shorter reminder window (max 60 reminders).',
+        );
+        return;
+      }
       Navigator.pop(
         context,
         Task(
@@ -317,6 +339,7 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
           remindAt: from,
           remindUntil: until,
           importance: _importance,
+          superReminderIntervalMinutes: _superReminderIntervalMinutes,
         ),
       );
     }
@@ -419,6 +442,25 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
                     () => _importance = selection.first,
                   ),
                 ),
+                if (_importance == TaskImportance.superNecessary) ...[
+                  const SizedBox(height: 16),
+                  const _FormLabel('REMIND ME EVERY'),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 7,
+                    children: [
+                      for (final minutes in _superReminderIntervals)
+                        ChoiceChip(
+                          label: Text(minutes == 60 ? '1 hour' : '$minutes min'),
+                          selected: _superReminderIntervalMinutes == minutes,
+                          onSelected: (_) => setState(
+                            () => _superReminderIntervalMinutes = minutes,
+                          ),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 20),
                 const _FormLabel('REMIND ME ON'),
                 const SizedBox(height: 8),
