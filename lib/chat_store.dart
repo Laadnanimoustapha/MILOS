@@ -71,10 +71,10 @@ class ChatStore {
   static const _sessionsKey = 'milos.chat.sessions.v1';
 
   Future<List<ChatSession>> loadSessions() async {
-    final prefs = SharedPreferencesAsync();
-    final raw = await prefs.getString(_sessionsKey);
-    if (raw == null) return [];
     try {
+      final prefs = SharedPreferencesAsync();
+      final raw = await prefs.getString(_sessionsKey);
+      if (raw == null) return [];
       final list = jsonDecode(raw) as List;
       return list
           .map((e) => ChatSession.fromJson(e as Map<String, dynamic>))
@@ -101,4 +101,3 @@ class ChatStore {
   int nextId(List<ChatSession> sessions) =>
       sessions.isEmpty ? 1 : sessions.map((s) => s.id).reduce((a, b) => a > b ? a : b) + 1;
 }
-
