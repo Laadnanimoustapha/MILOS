@@ -165,6 +165,80 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
     } catch (_) {}
   }
 
+  List<Widget> _buildGroupedTaskList() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final tomorrow = today.add(const Duration(days: 1));
+
+    // Sort tasks chronologically by remindAt
+    final sorted = List<Task>.from(_tasks)
+      ..sort((a, b) => a.remindAt.compareTo(b.remindAt));
+
+    // Group tasks by day (year, month, day)
+    final groups = <DateTime, List<Task>>{};
+    for (final task in sorted) {
+      final taskDate = DateTime(
+        task.remindAt.year,
+        task.remindAt.month,
+        task.remindAt.day,
+      );
+      groups.putIfAbsent(taskDate, () => []).add(task);
+    }
+
+    final widgets = <Widget>[];
+    var isFirstSection = true;
+
+    for (final entry in groups.entries) {
+      final date = entry.key;
+      final tasks = entry.value;
+
+      String sectionTitle;
+      Color? accentColor;
+      if (date.isBefore(today)) {
+        sectionTitle = 'Overdue';
+        accentColor = const Color(0xFFC36E36);
+      } else if (date == today) {
+        sectionTitle = 'Today';
+        accentColor = _teal;
+      } else if (date == tomorrow) {
+        sectionTitle = 'Tomorrow';
+      } else {
+        const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const months = [
+          'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+        ];
+        sectionTitle =
+            '${weekdays[date.weekday - 1]}, ${months[date.month - 1]} ${date.day}';
+      }
+
+      widgets.add(
+        _DateSectionHeader(
+          title: sectionTitle,
+          count: tasks.length,
+          showDivider: !isFirstSection,
+          accentColor: accentColor,
+        ),
+      );
+      isFirstSection = false;
+
+      for (final task in tasks) {
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _TaskTile(
+              task: task,
+              onChanged: (value) => _toggleTask(task, value),
+              onRemindTomorrow: () => _remindTomorrow(task),
+            ),
+          ),
+        );
+      }
+    }
+
+    return widgets;
+  }
+
   @override
   Widget build(BuildContext context) {
     final progress = _tasks.isEmpty ? 0.0 : _completed / _tasks.length;
@@ -229,14 +303,7 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
                       else if (_tasks.isEmpty)
                         const _EmptyTasks()
                       else
-                        ..._tasks.map((task) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _TaskTile(
-                            task: task,
-                            onChanged: (value) => _toggleTask(task, value),
-                            onRemindTomorrow: () => _remindTomorrow(task),
-                          ),
-                        )),
+                        ..._buildGroupedTaskList(),
                       const SizedBox(height: 5),
                       const _GentleNote(),
                     ]),
@@ -909,6 +976,68 @@ class _TaskTile extends StatelessWidget {
     TaskRepeat.monthly => ' · Monthly',
     TaskRepeat.custom => ' · Every ${task.customRepeatEvery} ${task.customRepeatUnit.name}',
   };
+}
+
+class _DateSectionHeader extends StatelessWidget {
+  const _DateSectionHeader({
+    required this.title,
+    required this.count,
+    this.showDivider = true,
+    this.accentColor,
+  });
+
+  final String title;
+  final int count;
+  final bool showDivider;
+  final Color? accentColor;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.only(top: showDivider ? 18.0 : 4.0, bottom: 9.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (showDivider)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: Divider(
+              height: 1,
+              thickness: 1,
+              color: Color(0xFFE4ECE9),
+            ),
+          ),
+        Row(
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: .2,
+                color: accentColor ?? _ink,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: (accentColor ?? _teal).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: accentColor ?? _teal,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
 }
 
 class _EmptyTasks extends StatelessWidget {
