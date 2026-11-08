@@ -45,11 +45,11 @@ class _GroqKeysPageState extends State<GroqKeysPage> {
     try {
       await GroqKeyStore.save(_controllers.map((controller) => controller.text).toList());
       if (mounted) Navigator.pop(context);
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
         setState(() {
           _saving = false;
-          _error = 'Could not save the API keys. Please try again.';
+          _error = 'Could not save the API keys: $error';
         });
       }
     }
