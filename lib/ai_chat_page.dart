@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'chat_store.dart';
+import 'groq_keys_page.dart';
 import 'groq_service.dart';
 import 'task.dart';
 import 'task_store.dart';
@@ -104,6 +105,10 @@ class _AiChatPageState extends State<AiChatPage> {
     if (mounted) setState(() => _active = session);
   }
 
+  Future<void> _openApiKeys() => Navigator.of(context).push(
+    MaterialPageRoute<void>(builder: (_) => const GroqKeysPage()),
+  );
+
   Future<void> _deleteSession(ChatSession session) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -162,6 +167,11 @@ class _AiChatPageState extends State<AiChatPage> {
                 onPressed: () => Navigator.of(context).pop(),
               ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined, color: _muted),
+            tooltip: 'API keys',
+            onPressed: _openApiKeys,
+          ),
           if (_active == null)
             IconButton(
               icon: const Icon(Icons.add_comment_outlined, color: _teal),
