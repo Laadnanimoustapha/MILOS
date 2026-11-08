@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'ai_chat_page.dart';
+import 'app_language.dart';
 import 'reminder_service.dart';
 import 'task.dart';
 import 'task_store.dart';
@@ -33,8 +34,28 @@ Future<void> main() async {
   runApp(const MilosApp());
 }
 
-class MilosApp extends StatelessWidget {
+class MilosApp extends StatefulWidget {
   const MilosApp({super.key});
+
+  @override
+  State<MilosApp> createState() => _MilosAppState();
+}
+
+class _MilosAppState extends State<MilosApp> {
+  AppLanguage? _language;
+
+  @override
+  void initState() {
+    super.initState();
+    AppLanguageStore.load().then((language) {
+      if (mounted) setState(() => _language = language);
+    });
+  }
+
+  Future<void> _setLanguage(AppLanguage language) async {
+    await AppLanguageStore.save(language);
+    if (mounted) setState(() => _language = language);
+  }
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -46,12 +67,20 @@ class MilosApp extends StatelessWidget {
       colorScheme: ColorScheme.fromSeed(seedColor: _teal),
       fontFamily: 'Roboto',
     ),
-    home: const TodayPage(),
+    builder: (context, child) => Directionality(
+      textDirection: _language == AppLanguage.arabic ? TextDirection.rtl : TextDirection.ltr,
+      child: child!,
+    ),
+    home: _language == null
+        ? LanguageChoicePage(onSelected: _setLanguage)
+        : TodayPage(language: _language!, onLanguageChanged: _setLanguage),
   );
 }
 
 class TodayPage extends StatefulWidget {
-  const TodayPage({super.key});
+  const TodayPage({super.key, required this.language, required this.onLanguageChanged});
+  final AppLanguage language;
+  final ValueChanged<AppLanguage> onLanguageChanged;
 
   @override
   State<TodayPage> createState() => _TodayPageState();
@@ -61,6 +90,9 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
   final _store = TaskStore();
   final List<Task> _tasks = [];
   bool _loading = true;
+
+  bool get _arabic => widget.language == AppLanguage.arabic;
+  String _text(String english, String arabic) => _arabic ? arabic : english;
 
   @override
   void initState() {
@@ -104,6 +136,11 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
     final now = DateTime.now();
     const weekdays = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
     const months = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+    if (_arabic) {
+      const arabicWeekdays = ['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'];
+      const arabicMonths = ['يناير', 'فبراير', 'مارس', 'أبريل', 'ماي', 'يونيو', 'يوليو', 'غشت', 'شتنبر', 'أكتوبر', 'نونبر', 'دجنبر'];
+      return '${arabicWeekdays[now.weekday - 1]}، ${now.day} ${arabicMonths[now.month - 1]}';
+    }
     return '${weekdays[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}';
   }
 
@@ -114,6 +151,18 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
       ),
     );
     setState(() {});
+  }
+
+  Future<void> _openSettings() async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => LanguageSettingsPage(
+        selected: widget.language,
+        onSelected: (language) {
+          widget.onLanguageChanged(language);
+          Navigator.of(context).pop();
+        },
+      ),
+    ));
   }
 
   Future<void> _addAiTasks(List<Task> drafts) async {
@@ -284,7 +333,7 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
         foregroundColor: Colors.white,
         elevation: 4,
         icon: const Icon(Icons.add_rounded),
-        label: const Text('New task', style: TextStyle(fontWeight: FontWeight.w700)),
+        label: Text(_text('New task', 'مهمة جديدة'), style: const TextStyle(fontWeight: FontWeight.w700)),
       ),
       body: SafeArea(
         bottom: false,
@@ -305,15 +354,16 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
                     Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(_todayLabel, style: const TextStyle(fontSize: 10, letterSpacing: 1.4, fontWeight: FontWeight.w700, color: _muted)),
                       SizedBox(height: 5),
-                      Text('Good morning,', style: TextStyle(fontSize: 15, color: _ink)),
+                      Text(_text('Good morning,', 'صباح الخير،'), style: const TextStyle(fontSize: 15, color: _ink)),
                     ]),
                     const Spacer(),
+                    IconButton(icon: const Icon(Icons.settings_outlined, color: _muted), onPressed: _openSettings),
                     _MilosButton(onTap: _openMilos),
                   ]),
                   const Spacer(),
-                  const Text('Today', style: TextStyle(fontSize: 40, height: 1, letterSpacing: -1.6, fontWeight: FontWeight.w800, color: _ink)),
+                  Text(_text('Today', 'اليوم'), style: const TextStyle(fontSize: 40, height: 1, letterSpacing: -1.6, fontWeight: FontWeight.w800, color: _ink)),
                   const SizedBox(height: 8),
-                  const Text('A fresh page, at your own pace.', style: TextStyle(fontSize: 13, color: _muted)),
+                  Text(_text('A fresh page, at your own pace.', 'يوم جديد، على مهل.'), style: const TextStyle(fontSize: 13, color: _muted)),
                   const SizedBox(height: 22),
                 ]),
               ),
@@ -328,9 +378,9 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
                       _ProgressPanel(completed: _completed, total: _tasks.length, progress: progress),
                       const SizedBox(height: 25),
                       Row(children: [
-                        const Text('Your tasks', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -.4, color: _ink)),
+                        Text(_text('Your tasks', 'مهامك'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -.4, color: _ink)),
                         const SizedBox(width: 9),
-                        Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4), decoration: BoxDecoration(color: const Color(0xFFE8F5F2), borderRadius: BorderRadius.circular(20)), child: Text(_tasks.isEmpty ? 'Start fresh' : '${_tasks.length - _completed} left', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _teal))),
+                        Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4), decoration: BoxDecoration(color: const Color(0xFFE8F5F2), borderRadius: BorderRadius.circular(20)), child: Text(_tasks.isEmpty ? _text('Start fresh', 'ابدأ الآن') : _text('${_tasks.length - _completed} left', '${_tasks.length - _completed} متبقية'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _teal))),
                         const Spacer(),
                         const Text('See all', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _muted)),
                       ]),
