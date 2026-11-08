@@ -95,6 +95,7 @@ Future<String> groqChat({
         messages: messages,
       );
       if (!result.rateLimited) return result.content;
+      lastError = GroqException(result.content);
     } on GroqException catch (error) {
       allRateLimited = false;
       lastError = error;
@@ -102,7 +103,8 @@ Future<String> groqChat({
     _keyIndex = (index + 1) % keys.length;
   }
   if (allRateLimited) {
-    throw const GroqException('All API keys are rate-limited. Please wait a moment.');
+    throw lastError ??
+        const GroqException('All API keys are rate-limited. Please wait a moment.');
   }
   throw lastError ?? const GroqException('All API keys failed. Please try again.');
 }
@@ -137,10 +139,15 @@ Future<_GroqResult> _doRequest({
     final body = await response.transform(utf8.decoder).join();
 
     if (response.statusCode == 429) {
-      return const _GroqResult(content: '', rateLimited: true);
+      return _GroqResult(
+        content: 'Groq error 429: ${_providerError(body)}',
+        rateLimited: true,
+      );
     }
     if (response.statusCode != 200) {
-      throw GroqException('Groq error ${response.statusCode}: $body');
+      throw GroqException(
+        'Groq error ${response.statusCode}: ${_providerError(body)}',
+      );
     }
 
     final json = jsonDecode(body) as Map<String, dynamic>;
@@ -155,6 +162,26 @@ Future<_GroqResult> _doRequest({
   } finally {
     client.close();
   }
+}
+
+String _providerError(String body) {
+  try {
+    final json = jsonDecode(body);
+    if (json is Map<String, dynamic>) {
+      final error = json['error'];
+      if (error is Map) {
+        final message = error['message'];
+        final code = error['code'];
+        if (message is String && message.isNotEmpty) {
+          return code is String && code.isNotEmpty
+              ? '$message ($code)'
+              : message;
+        }
+      }
+      if (error is String && error.isNotEmpty) return error;
+    }
+  } catch (_) {}
+  return body.isEmpty ? 'No error details provided.' : body;
 }
 
 class GroqException implements Exception {
