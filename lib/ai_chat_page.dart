@@ -80,6 +80,11 @@ class _AiChatPageState extends State<AiChatPage> {
       sessions = await _store
           .loadSessions()
           .timeout(const Duration(seconds: 5));
+      for (final session in sessions) {
+        if (!groqModels.containsKey(session.model)) {
+          session.model = defaultGroqModel;
+        }
+      }
     } catch (_) {
       // A storage failure must not block access to the chat screen.
     }
