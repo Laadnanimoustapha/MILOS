@@ -16,13 +16,13 @@ const _groqPath = '/openai/v1/chat/completions';
 
 /// Available Groq models the user can choose from.
 const groqModels = <String, String>{
-  'llama-3.3-70b-versatile': 'Llama 3.3 70B',
-  'llama-3.1-8b-instant': 'Llama 3.1 8B (fast)',
-  'mixtral-8x7b-32768': 'Mixtral 8x7B',
-  'gemma2-9b-it': 'Gemma 2 9B',
+  'openai/gpt-oss-20b': 'GPT-OSS 20B (fast)',
+  'openai/gpt-oss-120b': 'GPT-OSS 120B',
+  'qwen/qwen3.8-27b': 'Qwen 3.8 27B',
+  'allam-2-7b': 'ALLaM 2 7B (Arabic)',
 };
 
-const defaultGroqModel = 'llama-3.3-70b-versatile';
+const defaultGroqModel = 'openai/gpt-oss-20b';
 
 // ---------------------------------------------------------------------------
 // Key storage – keys live only in shared_preferences, never in source code.
