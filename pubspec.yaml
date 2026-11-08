@@ -43,7 +43,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   # Direct test dependency for the in-memory SharedPreferences backend.
-  shared_preferences_platform_interface: 2.4.0
+  shared_preferences_platform_interface: 2.4.2
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -51,6 +51,9 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+
+dependency_overrides:
+  shared_preferences_android: 2.5.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
