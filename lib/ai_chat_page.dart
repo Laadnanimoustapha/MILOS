@@ -74,15 +74,21 @@ class _AiChatPageState extends State<AiChatPage> {
   }
 
   Future<void> _load() async {
-    final sessions = await _store.loadSessions();
-    if (mounted) {
-      setState(() {
-        _sessions
-          ..clear()
-          ..addAll(sessions);
-        _loading = false;
-      });
+    List<ChatSession> sessions = [];
+    try {
+      sessions = await _store
+          .loadSessions()
+          .timeout(const Duration(seconds: 5));
+    } catch (_) {
+      // A storage failure must not block access to the chat screen.
     }
+    if (!mounted) return;
+    setState(() {
+      _sessions
+        ..clear()
+        ..addAll(sessions);
+      _loading = false;
+    });
   }
 
   Future<void> _newChat() async {
