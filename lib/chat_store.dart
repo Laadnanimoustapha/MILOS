@@ -72,8 +72,8 @@ class ChatStore {
 
   Future<List<ChatSession>> loadSessions() async {
     try {
-      final prefs = SharedPreferencesAsync();
-      final raw = await prefs.getString(_sessionsKey);
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_sessionsKey);
       if (raw == null) return [];
       final list = jsonDecode(raw) as List;
       return list
@@ -86,7 +86,7 @@ class ChatStore {
   }
 
   Future<void> saveSessions(List<ChatSession> sessions) async {
-    final prefs = SharedPreferencesAsync();
+    final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
       _sessionsKey,
       jsonEncode(sessions.map((s) => s.toJson()).toList()),

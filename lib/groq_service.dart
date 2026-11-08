@@ -34,14 +34,14 @@ class GroqKeyStore {
   static const _k2 = 'milos.groq.key2';
 
   static Future<void> save(List<String> keys) async {
-    final p = SharedPreferencesAsync();
+    final p = await SharedPreferences.getInstance();
     await p.setString(_keys, jsonEncode(_clean(keys)));
   }
 
   static Future<List<String>> load() async {
     try {
-      final p = SharedPreferencesAsync();
-      final raw = await p.getString(_keys);
+      final p = await SharedPreferences.getInstance();
+      final raw = p.getString(_keys);
       if (raw != null) {
         try {
           final decoded = jsonDecode(raw);
@@ -49,9 +49,9 @@ class GroqKeyStore {
         } catch (_) {}
       }
       return _clean([
-        await p.getString(_k0) ?? '',
-        await p.getString(_k1) ?? '',
-        await p.getString(_k2) ?? '',
+        p.getString(_k0) ?? '',
+        p.getString(_k1) ?? '',
+        p.getString(_k2) ?? '',
       ]);
     } catch (_) {
       return [];
