@@ -35,7 +35,8 @@ class GroqKeyStore {
 
   static Future<void> save(List<String> keys) async {
     final p = await SharedPreferences.getInstance();
-    await p.setString(_keys, jsonEncode(_clean(keys)));
+    final saved = await p.setString(_keys, jsonEncode(_clean(keys)));
+    if (!saved) throw StateError('Local storage rejected the API keys.');
   }
 
   static Future<List<String>> load() async {
