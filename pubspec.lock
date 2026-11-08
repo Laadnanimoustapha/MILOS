@@ -332,7 +332,7 @@ packages:
     dependency: transitive
     description:
       name: shared_preferences_android
-    sha256: "33b38b07d9ac7d16aff0426c61418752fd3e7a8c7dc8be786c875d6ce673b002"
+      sha256: "33b38b07d9ac7d16aff0426c61418752fd3e7a8c7dc8be786c875d6ce673b002"
       url: "https://pub.dev"
     source: hosted
     version: "2.5.4"
@@ -356,7 +356,7 @@ packages:
     dependency: "direct dev"
     description:
       name: shared_preferences_platform_interface
-    sha256: "649dc798a33931919ea356c4305c2d1f81619ea6e92244070b520187b5140ef9"
+      sha256: "649dc798a33931919ea356c4305c2d1f81619ea6e92244070b520187b5140ef9"
       url: "https://pub.dev"
     source: hosted
     version: "2.4.2"
