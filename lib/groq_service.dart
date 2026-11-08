@@ -7,8 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 // ---------------------------------------------------------------------------
 // Groq API service – Dart-only, no extra dependencies.
 // Uses dart:io HttpClient to stay dep-free.
-// Three API keys with round-robin fallback on rate-limit (429).
-// Keys are stored in shared_preferences (set once via GroqKeyStore).
+// API keys with round-robin fallback. Keys are stored in shared_preferences.
 // ---------------------------------------------------------------------------
 
 const _groqEndpoint = 'api.groq.com';
@@ -28,24 +27,43 @@ const defaultGroqModel = 'llama-3.3-70b-versatile';
 // Key storage – keys live only in shared_preferences, never in source code.
 // ---------------------------------------------------------------------------
 class GroqKeyStore {
+  static const _keys = 'milos.groq.keys.v1';
   static const _k0 = 'milos.groq.key0';
   static const _k1 = 'milos.groq.key1';
   static const _k2 = 'milos.groq.key2';
 
-  static Future<void> save(String k0, String k1, String k2) async {
+  static Future<void> save(List<String> keys) async {
     final p = SharedPreferencesAsync();
-    await p.setString(_k0, k0);
-    await p.setString(_k1, k1);
-    await p.setString(_k2, k2);
+    await p.setString(_keys, jsonEncode(_clean(keys)));
   }
 
   static Future<List<String>> load() async {
-    final p = SharedPreferencesAsync();
-    return [
-      await p.getString(_k0) ?? '',
-      await p.getString(_k1) ?? '',
-      await p.getString(_k2) ?? '',
-    ];
+    try {
+      final p = SharedPreferencesAsync();
+      final raw = await p.getString(_keys);
+      if (raw != null) {
+        try {
+          final decoded = jsonDecode(raw);
+          if (decoded is List) return _clean(decoded.whereType<String>());
+        } catch (_) {}
+      }
+      return _clean([
+        await p.getString(_k0) ?? '',
+        await p.getString(_k1) ?? '',
+        await p.getString(_k2) ?? '',
+      ]);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  static List<String> _clean(Iterable<String> values) {
+    final keys = <String>[];
+    for (final value in values) {
+      final key = value.trim();
+      if (key.isNotEmpty && !keys.contains(key)) keys.add(key);
+    }
+    return keys;
   }
 
   static Future<bool> get hasKeys async {
@@ -66,17 +84,27 @@ Future<String> groqChat({
     throw const GroqException('No API keys configured. Add them in Settings.');
   }
 
-  // Try each key in order; advance index on rate-limit.
+  GroqException? lastError;
+  var allRateLimited = true;
   for (var attempt = 0; attempt < keys.length; attempt++) {
-    final key = keys[_keyIndex % keys.length];
-    final result = await _doRequest(key: key, model: model, messages: messages);
-    if (result.rateLimited) {
-      _keyIndex = (_keyIndex + 1) % keys.length;
-      continue;
+    final index = _keyIndex % keys.length;
+    try {
+      final result = await _doRequest(
+        key: keys[index],
+        model: model,
+        messages: messages,
+      );
+      if (!result.rateLimited) return result.content;
+    } on GroqException catch (error) {
+      allRateLimited = false;
+      lastError = error;
     }
-    return result.content;
+    _keyIndex = (index + 1) % keys.length;
   }
-  throw const GroqException('All API keys are rate-limited. Please wait a moment.');
+  if (allRateLimited) {
+    throw const GroqException('All API keys are rate-limited. Please wait a moment.');
+  }
+  throw lastError ?? const GroqException('All API keys failed. Please try again.');
 }
 
 class _GroqResult {
@@ -135,4 +163,3 @@ class GroqException implements Exception {
   @override
   String toString() => message;
 }
-
