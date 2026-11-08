@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'ai_chat_page.dart';
 import 'reminder_service.dart';
 import 'task.dart';
 import 'task_store.dart';
@@ -104,6 +105,40 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
     const weekdays = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
     const months = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
     return '${weekdays[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}';
+  }
+
+  Future<void> _openMilos() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AiChatPage(addTasksCallback: _addAiTasks),
+      ),
+    );
+    setState(() {});
+  }
+
+  Future<void> _addAiTasks(List<Task> drafts) async {
+    int nextId = _tasks.isEmpty
+        ? 1
+        : _tasks.map((t) => t.id).reduce((a, b) => a > b ? a : b) + 1;
+    final toAdd = drafts.map((d) => Task(
+      id: nextId++,
+      title: d.title,
+      remindAt: d.remindAt,
+      remindUntil: d.remindUntil,
+      importance: d.importance,
+      superReminderIntervalMinutes: d.superReminderIntervalMinutes,
+      scheduleMode: d.scheduleMode,
+      repeat: d.repeat,
+      customRepeatEvery: d.customRepeatEvery,
+      customRepeatUnit: d.customRepeatUnit,
+    )).toList();
+    setState(() => _tasks.addAll(toAdd));
+    await _saveTasks();
+    try {
+      if (await ReminderService.instance.requestPermission()) {
+        await ReminderService.instance.refresh(_tasks);
+      }
+    } catch (_) {}
   }
 
   Future<void> _addTask() async {
@@ -272,6 +307,8 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
                       SizedBox(height: 5),
                       Text('Good morning,', style: TextStyle(fontSize: 15, color: _ink)),
                     ]),
+                    const Spacer(),
+                    _MilosButton(onTap: _openMilos),
                   ]),
                   const Spacer(),
                   const Text('Today', style: TextStyle(fontSize: 40, height: 1, letterSpacing: -1.6, fontWeight: FontWeight.w800, color: _ink)),
@@ -1075,4 +1112,37 @@ class _NotchClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
+
+class _MilosButton extends StatelessWidget {
+  const _MilosButton({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F5F2),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFCDE8E1)),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.elderly_rounded, size: 16, color: _teal),
+          SizedBox(width: 5),
+          Text(
+            'Milos',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: _teal,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
