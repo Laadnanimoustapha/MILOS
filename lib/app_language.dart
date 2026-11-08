@@ -52,23 +52,19 @@ class LanguageSettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: Text(selected == AppLanguage.arabic ? 'الإعدادات' : 'Settings')),
-    body: ListView(children: [
-      ListTile(
-        title: Text(selected == AppLanguage.arabic ? 'اللغة' : 'Language'),
-        subtitle: Text(selected == AppLanguage.arabic ? 'العربية' : 'English'),
-      ),
-      RadioListTile(
-        value: AppLanguage.english,
-        groupValue: selected,
-        title: const Text('English'),
-        onChanged: (value) => onSelected(value!),
-      ),
-      RadioListTile(
-        value: AppLanguage.arabic,
-        groupValue: selected,
-        title: const Text('العربية'),
-        onChanged: (value) => onSelected(value!),
-      ),
-    ]),
+    body: RadioGroup<AppLanguage>(
+      groupValue: selected,
+      onChanged: (value) {
+        if (value != null) onSelected(value);
+      },
+      child: ListView(children: [
+        ListTile(
+          title: Text(selected == AppLanguage.arabic ? 'اللغة' : 'Language'),
+          subtitle: Text(selected == AppLanguage.arabic ? 'العربية' : 'English'),
+        ),
+        const RadioListTile(value: AppLanguage.english, title: Text('English')),
+        const RadioListTile(value: AppLanguage.arabic, title: Text('العربية')),
+      ]),
+    ),
   );
 }
