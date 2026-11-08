@@ -133,14 +133,16 @@ Future<_GroqResult> _doRequest({
     final request = await client.postUrl(
       Uri(scheme: 'https', host: _groqEndpoint, path: _groqPath),
     );
-    request.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
+    request.headers.contentType = ContentType.json;
     request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $key');
-    request.write(jsonEncode({
+    final payload = utf8.encode(jsonEncode({
       'model': model,
       'messages': messages,
       'temperature': 0.4,
       'max_tokens': 2048,
     }));
+    request.contentLength = payload.length;
+    request.add(payload);
 
     final response = await request.close();
     final body = await response.transform(utf8.decoder).join();
