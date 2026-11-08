@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ---------------------------------------------------------------------------
@@ -79,6 +80,11 @@ Future<String> groqChat({
   required String model,
   required List<Map<String, String>> messages,
 }) async {
+  if (kIsWeb) {
+    throw const GroqException(
+      'AI chat cannot use Groq keys directly in a browser. Run the app on Android or desktop, or configure a secure server proxy for web.',
+    );
+  }
   final keys = (await GroqKeyStore.load()).where((k) => k.isNotEmpty).toList();
   if (keys.isEmpty) {
     throw const GroqException('No API keys configured. Add them in Settings.');
