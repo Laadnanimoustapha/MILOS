@@ -206,7 +206,7 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const _AddTaskSheet(),
+      builder: (context) => _AddTaskSheet(arabic: _arabic),
     );
     if (draft == null) return;
 
@@ -486,7 +486,8 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
 }
 
 class _AddTaskSheet extends StatefulWidget {
-  const _AddTaskSheet();
+  const _AddTaskSheet({required this.arabic});
+  final bool arabic;
 
   @override
   State<_AddTaskSheet> createState() => _AddTaskSheetState();
@@ -504,6 +505,9 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
   int _customRepeatEvery = 1;
   TaskRepeatUnit _customRepeatUnit = TaskRepeatUnit.days;
   String? _error;
+  bool get _arabic => widget.arabic;
+  String _text(String english, String arabic) =>
+      _localized(_arabic, english, arabic);
 
   @override
   void initState() {
