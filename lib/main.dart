@@ -232,6 +232,54 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
     } catch (_) {}
   }
 
+  Future<void> _deleteTask(Task task) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(_text('Delete task?', 'حذف المهمة؟')),
+        content: Text(_text(
+          'Are you sure you want to delete ""?',
+          'هل أنت متأكد من حذف ""؟',
+        )),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(_text('Cancel', 'إلغاء')),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFC36E36)),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(_text('Delete', 'حذف')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _tasks.remove(task));
+    await _saveTasks();
+    try {
+      await ReminderService.instance.cancel(task);
+      await ReminderService.instance.refresh(_tasks);
+    } catch (_) {}
+  }
+
+  void _showTaskDetails(Task task) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _TaskDetailsSheet(
+        task: task,
+        arabic: _arabic,
+        onDelete: () {
+          Navigator.pop(context);
+          _deleteTask(task);
+        },
+      ),
+    );
+  }
+
   Future<void> _remindTomorrow(Task task) async {
     DateTime tomorrowAt(DateTime value) => DateTime(
       value.year,
@@ -315,8 +363,10 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
             padding: const EdgeInsets.only(bottom: 10),
             child: _TaskTile(
               task: task,
+              onTap: () => _showTaskDetails(task),
               onChanged: (value) => _toggleTask(task, value),
               onRemindTomorrow: () => _remindTomorrow(task),
+              onDelete: () => _deleteTask(task),
             ),
           ),
         );
@@ -1004,12 +1054,16 @@ class _ProgressPanel extends StatelessWidget {
 class _TaskTile extends StatelessWidget {
   const _TaskTile({
     required this.task,
+    required this.onTap,
     required this.onChanged,
     required this.onRemindTomorrow,
+    required this.onDelete,
   });
   final Task task;
+  final VoidCallback onTap;
   final ValueChanged<bool?> onChanged;
   final VoidCallback onRemindTomorrow;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -1017,46 +1071,127 @@ class _TaskTile extends StatelessWidget {
     final startTime = localizations.formatTimeOfDay(
       TimeOfDay.fromDateTime(task.remindAt),
     );
-    final reminderTime = task.scheduleMode == TaskScheduleMode.fixed
         ? '${localizations.formatShortDate(task.remindAt)} · at $startTime${_repeatLabel(task)}'
         : '${localizations.formatShortDate(task.remindAt)} · $startTime'
               '–${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(task.remindUntil))}${_repeatLabel(task)}';
-    return Container(
-    padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
-    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(17), border: Border.all(color: const Color(0xFFE9EFED))),
-    child: Row(children: [
-      SizedBox(width: 27, height: 27, child: Checkbox(value: task.done, onChanged: onChanged, shape: const CircleBorder(), side: const BorderSide(color: Color(0xFFB8C7C2), width: 1.5), activeColor: _teal, materialTapTargetSize: MaterialTapTargetSize.shrinkWrap)),
-      const SizedBox(width: 12),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(task.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: task.done ? _muted : _ink, decoration: task.done ? TextDecoration.lineThrough : null)),
-        const SizedBox(height: 7),
-        Row(children: [
-          Text(_importanceLabels[task.importance]!, style: TextStyle(fontSize: 9, letterSpacing: .5, fontWeight: FontWeight.w800, color: _importanceColors[task.importance]!)),
-          Container(width: 3, height: 3, margin: const EdgeInsets.symmetric(horizontal: 7), decoration: BoxDecoration(color: _importanceColors[task.importance]!, shape: BoxShape.circle)),
-          Expanded(child: Text(reminderTime, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, color: _muted))),
-        ]),
-      ])),
-      const SizedBox(width: 7),
-      if (!task.done)
-        PopupMenuButton<String>(
-          tooltip: 'Task options',
-          icon: const Icon(Icons.more_vert_rounded, size: 19, color: Color(0xFF9EAEAA)),
-          onSelected: (_) => onRemindTomorrow(),
-          itemBuilder: (context) => const [
-            PopupMenuItem<String>(
-              value: 'tomorrow',
-              child: Row(
-                children: [
-                  Icon(Icons.event_repeat_rounded, size: 18, color: _teal),
-                  SizedBox(width: 9),
-                  Text('Remind tomorrow'),
-                ],
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(17),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(17),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(17),
+            border: Border.all(color: const Color(0xFFE9EFED)),
+          ),
+          child: Row(children: [
+            SizedBox(
+              width: 27,
+              height: 27,
+              child: Checkbox(
+                value: task.done,
+                onChanged: onChanged,
+                shape: const CircleBorder(),
+                side: const BorderSide(color: Color(0xFFB8C7C2), width: 1.5),
+                activeColor: _teal,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ),
-          ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(
+                  task.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: task.done ? _muted : _ink,
+                    decoration: task.done ? TextDecoration.lineThrough : null,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Row(children: [
+                  Text(
+                    _importanceLabels[task.importance]!,
+                    style: TextStyle(
+                      fontSize: 9,
+                      letterSpacing: .5,
+                      fontWeight: FontWeight.w800,
+                      color: _importanceColors[task.importance]!,
+                    ),
+                  ),
+                  Container(
+                    width: 3,
+                    height: 3,
+                    margin: const EdgeInsets.symmetric(horizontal: 7),
+                    decoration: BoxDecoration(
+                      color: _importanceColors[task.importance]!,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      reminderTime,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 10, color: _muted),
+                    ),
+                  ),
+                ]),
+              ]),
+            ),
+            const SizedBox(width: 7),
+            PopupMenuButton<String>(
+              tooltip: 'Task options',
+              icon: const Icon(Icons.more_vert_rounded, size: 19, color: Color(0xFF9EAEAA)),
+              onSelected: (value) {
+                if (value == 'tomorrow') onRemindTomorrow();
+                if (value == 'details') onTap();
+                if (value == 'delete') onDelete();
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem<String>(
+                  value: 'details',
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline_rounded, size: 18, color: _teal),
+                      SizedBox(width: 9),
+                      Text('Details'),
+                    ],
+                  ),
+                ),
+                if (!task.done)
+                  const PopupMenuItem<String>(
+                    value: 'tomorrow',
+                    child: Row(
+                      children: [
+                        Icon(Icons.event_repeat_rounded, size: 18, color: _teal),
+                        SizedBox(width: 9),
+                        Text('Remind tomorrow'),
+                      ],
+                    ),
+                  ),
+                const PopupMenuItem<String>(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFFC36E36)),
+                      SizedBox(width: 9),
+                      Text('Delete', style: TextStyle(color: Color(0xFFC36E36))),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ]),
         ),
-    ]),
-  );
+      ),
+    );
   }
 
   String _repeatLabel(Task task) => switch (task.repeat) {
@@ -1198,4 +1333,226 @@ class _MilosButton extends StatelessWidget {
       ),
     ),
   );
+}
+
+
+class _TaskDetailsSheet extends StatelessWidget {
+  const _TaskDetailsSheet({
+    required this.task,
+    required this.arabic,
+    required this.onDelete,
+  });
+
+  final Task task;
+  final bool arabic;
+  final VoidCallback onDelete;
+
+  String _t(String en, String ar) => arabic ? ar : en;
+
+  @override
+  Widget build(BuildContext context) {
+    final localizations = MaterialLocalizations.of(context);
+    final startTime = localizations.formatTimeOfDay(TimeOfDay.fromDateTime(task.remindAt));
+    final endTime = localizations.formatTimeOfDay(TimeOfDay.fromDateTime(task.remindUntil));
+    final dateStr = localizations.formatMediumDate(task.remindAt);
+
+    return FractionallySizedBox(
+      heightFactor: .78,
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 12, 22, 10),
+                child: Column(
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDCE5E2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Text(
+                          _t('Task Details', 'تفاصيل المهمة'),
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: _ink,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: task.done
+                                ? const Color(0xFFE8F5F2)
+                                : const Color(0xFFFFF4EC),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            task.done
+                                ? _t('Completed', 'مكتملة')
+                                : (task.inProgress
+                                    ? _t('In progress', 'قيد التنفيذ')
+                                    : _t('Pending', 'قيد الانتظار')),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: task.done ? _teal : const Color(0xFFC36E36),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1, color: Color(0xFFE9EFED)),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(22, 16, 22, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        task.title,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: _ink,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      _detailRow(
+                        Icons.flag_rounded,
+                        _t('Priority', 'الأولوية'),
+                        _importanceLabels[task.importance]!,
+                        color: _importanceColors[task.importance],
+                      ),
+                      const SizedBox(height: 14),
+                      _detailRow(
+                        Icons.calendar_today_rounded,
+                        _t('Date', 'التاريخ'),
+                        dateStr,
+                      ),
+                      const SizedBox(height: 14),
+                      _detailRow(
+                        Icons.access_time_rounded,
+                        _t('Schedule', 'الوقت'),
+                            ? '${_t("At", "عند")} $startTime'
+                            : '$startTime – $endTime',
+
+                      ),
+                      const SizedBox(height: 14),
+                      _detailRow(
+                        Icons.repeat_rounded,
+                        _t('Repeat', 'التكرار'),
+                        _repeatText(),
+                      ),
+                      if (task.steps.isNotEmpty) ...[
+                        const SizedBox(height: 20),
+                        Text(
+                          _t('Steps', 'الخطوات'),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.1,
+                            color: _muted,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        for (var i = 0; i < task.steps.length; i++)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('. ', style: const TextStyle(fontWeight: FontWeight.w700, color: _teal)),
+                                Expanded(
+                                  child: Text(
+                                    task.steps[i],
+                                    style: const TextStyle(fontSize: 13, color: _ink),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.fromLTRB(22, 12, 22, 14),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: Color(0xFFE9EFED))),
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: onDelete,
+                    icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFC36E36)),
+                    label: Text(
+                      _t('Delete task', 'حذف المهمة'),
+                      style: const TextStyle(color: Color(0xFFC36E36), fontWeight: FontWeight.w700),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFFFFD4C2)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _detailRow(IconData icon, String label, String value, {Color? color}) => Row(
+    children: [
+      Icon(icon, size: 18, color: color ?? _teal),
+      const SizedBox(width: 10),
+      Text(
+        label,
+        style: const TextStyle(fontSize: 13, color: _muted, fontWeight: FontWeight.w500),
+      ),
+      const Spacer(),
+      Text(
+        value,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: color ?? _ink,
+        ),
+      ),
+    ],
+  );
+
+  String _repeatText() => switch (task.repeat) {
+    TaskRepeat.none => _t('Does not repeat', 'لا يتكرر'),
+    TaskRepeat.daily => _t('Daily', 'يومياً'),
+    TaskRepeat.weekly => _t('Weekly', 'أسبوعياً'),
+    TaskRepeat.monthly => _t('Monthly', 'شهرياً'),
+    TaskRepeat.custom => _t(
+      'Every  ',
+      'كل  ',
+    ),
+  };
 }

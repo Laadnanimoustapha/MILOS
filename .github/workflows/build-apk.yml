@@ -36,38 +36,25 @@ jobs:
           flutter build apk --release --split-per-abi --target-platform android-arm64
           --obfuscate --split-debug-info=build/debug-info --tree-shake-icons
 
-      - name: Copy APK to versions folder
+      - name: Prepare APK for Release
         run: |
-          mkdir -p versions
-          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk versions/Milos-arm64-v8a.apk
+          mkdir -p release-artifacts
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk release-artifacts/Milos-arm64-v8a.apk
 
-      - name: Commit APK to repository
-        if: github.ref_type == 'branch'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add --force versions/Milos-arm64-v8a.apk
-          if git diff --cached --quiet; then
-            echo "The versions APK is already up to date."
-          else
-            git commit -m "chore: update Android APK"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
-          fi
-
-      - name: Publish APK to repository Releases
+      - name: Publish APK to GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view latest >/dev/null 2>&1 || gh release create latest \
             --title "Latest MILOS APK" \
-            --notes "Latest arm64 Android APK built from the main branch." \
+            --notes "Latest arm64 Android APK built automatically." \
             --prerelease
-          gh release upload latest versions/Milos-arm64-v8a.apk --clobber
+          gh release upload latest release-artifacts/Milos-arm64-v8a.apk --clobber
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: Milos-Android-APK
-          path: versions/Milos-arm64-v8a.apk
+          path: release-artifacts/Milos-arm64-v8a.apk
           if-no-files-found: error
           retention-days: 30
