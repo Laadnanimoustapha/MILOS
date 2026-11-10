@@ -414,13 +414,11 @@ class _ChatViewState extends State<_ChatView> {
         messages: apiMessages,
       );
 
-      // Parse out task JSON if present.
+      // Always strip JSON block from stored/displayed reply, even if parsing fails.
+      final cleanReply = reply
+          .replaceAll(RegExp(r'<<TASKS_JSON>>.*?<<END_TASKS_JSON>>', dotAll: true), '')
+          .trim();
       final extracted = _extractTasks(reply);
-      final cleanReply = extracted != null
-          ? reply
-              .replaceAll(RegExp(r'<<TASKS_JSON>>.*<<END_TASKS_JSON>>', dotAll: true), '')
-              .trim()
-          : reply;
 
       final assistantMsg = ChatMessage(
         role: 'assistant',
@@ -444,11 +442,14 @@ class _ChatViewState extends State<_ChatView> {
   }
 
   List<Map<String, dynamic>>? _extractTasks(String reply) {
-    final start = reply.indexOf('<<TASKS_JSON>>');
-    final end = reply.indexOf('<<END_TASKS_JSON>>');
-    if (start == -1 || end == -1) return null;
+    // Use regex so surrounding whitespace/newlines around markers are tolerated.
+    final m = RegExp(
+      r'<<TASKS_JSON>>\s*([\s\S]*?)\s*<<END_TASKS_JSON>>',
+      dotAll: true,
+    ).firstMatch(reply);
+    if (m == null) return null;
     try {
-      final jsonStr = reply.substring(start + 14, end).trim();
+      final jsonStr = m.group(1)!.trim();
       final list = jsonDecode(jsonStr) as List;
       return list.cast<Map<String, dynamic>>();
     } catch (_) {
@@ -607,8 +608,13 @@ class _ChatViewState extends State<_ChatView> {
 
   @override
   Widget build(BuildContext context) {
+    // Strip JSON blocks; also hide messages that become empty after stripping
+    // (handles old sessions saved before the JSON-stripping fix).
+    final stripRe = RegExp(r'<<TASKS_JSON>>.*?<<END_TASKS_JSON>>', dotAll: true);
     final messages = widget.session.messages
-        .where((m) => !m.content.startsWith('[System]'))
+        .where((m) =>
+          !m.content.startsWith('[System]') &&
+          m.content.replaceAll(stripRe, '').trim().isNotEmpty)
         .toList();
 
     return Column(
