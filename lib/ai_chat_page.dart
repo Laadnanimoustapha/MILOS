@@ -48,6 +48,7 @@ IMPORTANT RULES:
 9. If the user refuses or says something is wrong, apologise gently and ask what needs to be fixed — the way a kind grandfather would. Never get frustrated.
 10. Never output the JSON unless you are confident you have enough data to populate ALL required fields. If unsure, ask first.
 11. Keep answers concise but human. Do not add unsolicited advice.
+12. When the user approves the tasks, do NOT output <<TASKS_JSON>> again. Just say a warm, brief word of encouragement or confirmation.
 ''';
 
 // ---------------------------------------------------------------------------
@@ -531,12 +532,17 @@ class _ChatViewState extends State<_ChatView> {
         model: widget.session.model,
         messages: apiMessages,
       );
-      widget.session.messages.add(ChatMessage(
-        role: 'assistant',
-        content: reply,
-        timestamp: DateTime.now(),
-      ));
-      widget.onMessageAdded();
+      final cleanReply = reply
+          .replaceAll(RegExp(r'<<TASKS_JSON>>.*<<END_TASKS_JSON>>', dotAll: true), '')
+          .trim();
+      if (cleanReply.isNotEmpty) {
+        widget.session.messages.add(ChatMessage(
+          role: 'assistant',
+          content: cleanReply,
+          timestamp: DateTime.now(),
+        ));
+        widget.onMessageAdded();
+      }
     } catch (_) {
       // Don't block on confirmation reply failure.
     } finally {
@@ -579,12 +585,17 @@ class _ChatViewState extends State<_ChatView> {
         model: widget.session.model,
         messages: apiMessages,
       );
-      widget.session.messages.add(ChatMessage(
-        role: 'assistant',
-        content: reply,
-        timestamp: DateTime.now(),
-      ));
-      widget.onMessageAdded();
+      final cleanReply = reply
+          .replaceAll(RegExp(r'<<TASKS_JSON>>.*<<END_TASKS_JSON>>', dotAll: true), '')
+          .trim();
+      if (cleanReply.isNotEmpty) {
+        widget.session.messages.add(ChatMessage(
+          role: 'assistant',
+          content: cleanReply,
+          timestamp: DateTime.now(),
+        ));
+        widget.onMessageAdded();
+      }
     } catch (_) {
       // Ignore.
     } finally {
@@ -699,7 +710,7 @@ class _MessageBubble extends StatelessWidget {
                     : Border.all(color: const Color(0xFFE9EFED)),
               ),
               child: Text(
-                message.content,
+                message.content.replaceAll(RegExp(r'<<TASKS_JSON>>.*?<<END_TASKS_JSON>>', dotAll: true), '').trim(),
                 style: TextStyle(
                   fontSize: 14,
                   color: isUser ? Colors.white : _ink,
