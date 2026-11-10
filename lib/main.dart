@@ -238,8 +238,8 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
       builder: (context) => AlertDialog(
         title: Text(_text('Delete task?', 'حذف المهمة؟')),
         content: Text(_text(
-          'Are you sure you want to delete ""?',
-          'هل أنت متأكد من حذف ""؟',
+          'Are you sure you want to delete "${task.title}"?',
+          'هل أنت متأكد من حذف "${task.title}"؟',
         )),
         actions: [
           TextButton(
@@ -1070,7 +1070,8 @@ class _TaskTile extends StatelessWidget {
     final localizations = MaterialLocalizations.of(context);
     final startTime = localizations.formatTimeOfDay(
       TimeOfDay.fromDateTime(task.remindAt),
-    );
+);
+    final reminderTime = task.scheduleMode == TaskScheduleMode.fixed
         ? '${localizations.formatShortDate(task.remindAt)} · at $startTime${_repeatLabel(task)}'
         : '${localizations.formatShortDate(task.remindAt)} · $startTime'
               '–${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(task.remindUntil))}${_repeatLabel(task)}';
@@ -1452,6 +1453,7 @@ class _TaskDetailsSheet extends StatelessWidget {
                       _detailRow(
                         Icons.access_time_rounded,
                         _t('Schedule', 'الوقت'),
+                        task.scheduleMode == TaskScheduleMode.fixed
                             ? '${_t("At", "عند")} $startTime'
                             : '$startTime – $endTime',
 
@@ -1480,7 +1482,7 @@ class _TaskDetailsSheet extends StatelessWidget {
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('. ', style: const TextStyle(fontWeight: FontWeight.w700, color: _teal)),
+                                Text('${i + 1}. ', style: const TextStyle(fontWeight: FontWeight.w700, color: _teal)),
                                 Expanded(
                                   child: Text(
                                     task.steps[i],
@@ -1551,8 +1553,8 @@ class _TaskDetailsSheet extends StatelessWidget {
     TaskRepeat.weekly => _t('Weekly', 'أسبوعياً'),
     TaskRepeat.monthly => _t('Monthly', 'شهرياً'),
     TaskRepeat.custom => _t(
-      'Every  ',
-      'كل  ',
+      'Every ${task.customRepeatEvery} ${task.customRepeatUnit.name}',
+      'كل ${task.customRepeatEvery} ${task.customRepeatUnit.name}',
     ),
   };
 }
