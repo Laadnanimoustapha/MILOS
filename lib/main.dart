@@ -18,8 +18,18 @@ String _localized(bool arabic, String english, String arabicText) =>
 String _dateLabel(BuildContext context, DateTime date, bool arabic) {
   if (!arabic) return MaterialLocalizations.of(context).formatMediumDate(date);
   const months = [
-    'يناير', 'فبراير', 'مارس', 'أبريل', 'ماي', 'يونيو',
-    'يوليو', 'غشت', 'شتنبر', 'أكتوبر', 'نونبر', 'دجنبر',
+    'يناير',
+    'فبراير',
+    'مارس',
+    'أبريل',
+    'ماي',
+    'يونيو',
+    'يوليو',
+    'غشت',
+    'شتنبر',
+    'أكتوبر',
+    'نونبر',
+    'دجنبر',
   ];
   return '${date.day} ${months[date.month - 1]} ${date.year}';
 }
@@ -222,7 +232,8 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
   Future<void> _openMilos() async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => AiChatPage(addTasksCallback: _addAiTasks),
+        builder: (_) =>
+            AiChatPage(arabic: _arabic, addTasksCallback: _addAiTasks),
       ),
     );
     setState(() {});
@@ -729,8 +740,9 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
     _from = TimeOfDay.fromDateTime(nextHour);
     final endHour = nextHour.hour + 3;
     _until = TimeOfDay(hour: endHour > 23 ? 23 : endHour, minute: 0);
-    if (_until.hour == _from.hour)
+    if (_until.hour == _from.hour) {
       _until = const TimeOfDay(hour: 23, minute: 59);
+    }
   }
 
   DateTime _at(TimeOfDay time) =>

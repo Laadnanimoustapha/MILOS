@@ -17,6 +17,8 @@ const _teal = Color(0xFF4CAF9E);
 const _ink = Color(0xFF253533);
 const _muted = Color(0xFF82908D);
 const _paper = Color(0xFFF5F8F7);
+String _chatText(bool arabic, String english, String arabicText) =>
+    arabic ? arabicText : english;
 
 // ---------------------------------------------------------------------------
 // System prompt sent to the AI on every session.
@@ -56,7 +58,8 @@ IMPORTANT RULES:
 // ---------------------------------------------------------------------------
 class AiChatPage extends StatefulWidget {
   /// [addTasksCallback] is called when the user approves AI-generated tasks.
-  const AiChatPage({super.key, required this.addTasksCallback});
+  const AiChatPage({super.key, required this.arabic, required this.addTasksCallback});
+  final bool arabic;
   final Future<void> Function(List<Task> tasks) addTasksCallback;
 
   @override
@@ -112,20 +115,27 @@ class _AiChatPageState extends State<AiChatPage> {
   }
 
   Future<void> _openApiKeys() => Navigator.of(context).push(
-    MaterialPageRoute<void>(builder: (_) => const GroqKeysPage()),
+    MaterialPageRoute<void>(builder: (_) => GroqKeysPage(arabic: widget.arabic)),
   );
 
   Future<void> _deleteSession(ChatSession session) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete chat?'),
-        content: Text('Delete "${session.title}"?'),
+        title: Text(_chatText(widget.arabic, 'Delete chat?', 'حذف المحادثة؟')),
+        content: Text(_chatText(
+          widget.arabic,
+          'Delete "${session.title}"?',
+          'هل تريد حذف "${session.title}"؟',
+        )),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(_chatText(widget.arabic, 'Cancel', 'إلغاء')),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text(_chatText(widget.arabic, 'Delete', 'حذف'), style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -175,18 +185,19 @@ class _AiChatPageState extends State<AiChatPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined, color: _muted),
-            tooltip: 'API keys',
+            tooltip: _chatText(widget.arabic, 'API keys', 'مفاتيح API'),
             onPressed: _openApiKeys,
           ),
           if (_active == null)
             IconButton(
               icon: const Icon(Icons.add_comment_outlined, color: _teal),
-              tooltip: 'New chat',
+              tooltip: _chatText(widget.arabic, 'New chat', 'محادثة جديدة'),
               onPressed: _newChat,
             ),
           if (_active != null)
             _ModelSelector(
               selected: _active!.model,
+              arabic: widget.arabic,
               onChanged: (m) {
                 setState(() => _active!.model = m);
                 _store.saveSessions(_sessions);
@@ -202,12 +213,14 @@ class _AiChatPageState extends State<AiChatPage> {
                   session: _active!,
                   onMessageAdded: () => _onMessageAdded(_active!),
                   addTasksCallback: widget.addTasksCallback,
+                  arabic: widget.arabic,
                 )
               : _SessionList(
                   sessions: _sessions,
                   onSelect: (s) => setState(() => _active = s),
                   onDelete: _deleteSession,
                   onNew: _newChat,
+                  arabic: widget.arabic,
                 ),
     );
   }
@@ -222,12 +235,14 @@ class _SessionList extends StatelessWidget {
     required this.onSelect,
     required this.onDelete,
     required this.onNew,
+    required this.arabic,
   });
 
   final List<ChatSession> sessions;
   final ValueChanged<ChatSession> onSelect;
   final ValueChanged<ChatSession> onDelete;
   final VoidCallback onNew;
+  final bool arabic;
 
   @override
   Widget build(BuildContext context) {
@@ -238,20 +253,20 @@ class _SessionList extends StatelessWidget {
           children: [
             const Icon(Icons.chat_bubble_outline_rounded, size: 52, color: _teal),
             const SizedBox(height: 16),
-            const Text(
-              'No chats yet',
+            Text(
+              _chatText(arabic, 'No chats yet', 'لا توجد محادثات بعد'),
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: _ink),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Milos is waiting. Start a conversation.',
+            Text(
+              _chatText(arabic, 'Milos is waiting. Start a conversation.', 'ميلوس في انتظارك. ابدأ محادثة.'),
               style: TextStyle(fontSize: 13, color: _muted),
             ),
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: onNew,
               icon: const Icon(Icons.add),
-              label: const Text('New chat'),
+              label: Text(_chatText(arabic, 'New chat', 'محادثة جديدة')),
               style: FilledButton.styleFrom(
                 backgroundColor: _teal,
                 foregroundColor: Colors.white,
@@ -270,7 +285,7 @@ class _SessionList extends StatelessWidget {
         final session = sessions[index];
         final lastMsg = session.messages.isNotEmpty
             ? session.messages.last.content
-            : 'No messages yet';
+            : _chatText(arabic, 'No messages yet', 'لا توجد رسائل بعد');
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: Material(
@@ -298,7 +313,10 @@ class _SessionList extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            session.title,
+                            session.title == 'New chat' ||
+                                    session.title == 'محادثة جديدة'
+                                ? _chatText(arabic, 'New chat', 'محادثة جديدة')
+                                : session.title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
@@ -320,7 +338,7 @@ class _SessionList extends StatelessWidget {
                     IconButton(
                       icon: const Icon(Icons.delete_outline_rounded, size: 18, color: _muted),
                       onPressed: () => onDelete(session),
-                      tooltip: 'Delete',
+                      tooltip: _chatText(arabic, 'Delete', 'حذف'),
                     ),
                   ],
                 ),
@@ -342,11 +360,13 @@ class _ChatView extends StatefulWidget {
     required this.session,
     required this.onMessageAdded,
     required this.addTasksCallback,
+    required this.arabic,
   });
 
   final ChatSession session;
   final VoidCallback onMessageAdded;
   final Future<void> Function(List<Task> tasks) addTasksCallback;
+  final bool arabic;
 
   @override
   State<_ChatView> createState() => _ChatViewState();
@@ -434,7 +454,13 @@ class _ChatViewState extends State<_ChatView> {
     } on GroqException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } catch (e) {
-      if (mounted) setState(() => _error = 'Unexpected error: $e');
+      if (mounted) {
+        setState(() => _error = _chatText(
+          widget.arabic,
+          'Unexpected error: $e',
+          'حدث خطأ غير متوقع: $e',
+        ));
+      }
     } finally {
       if (mounted) setState(() => _sending = false);
       _scrollToBottom();
@@ -503,7 +529,7 @@ class _ChatViewState extends State<_ChatView> {
     if (tasks.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not parse any valid tasks.')),
+          SnackBar(content: Text(_chatText(widget.arabic, 'Could not parse any valid tasks.', 'تعذر قراءة المهام.'))),
         );
       }
       return;
@@ -555,7 +581,11 @@ class _ChatViewState extends State<_ChatView> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${tasks.length} task${tasks.length > 1 ? 's' : ''} added!'),
+          content: Text(_chatText(
+            widget.arabic,
+            '${tasks.length} task${tasks.length > 1 ? 's' : ''} added!',
+            'تمت إضافة ${tasks.length} مهمة!',
+          )),
           backgroundColor: _teal,
         ),
       );
@@ -622,7 +652,7 @@ class _ChatViewState extends State<_ChatView> {
         // Message list.
         Expanded(
           child: messages.isEmpty
-              ? _EmptyChat(onSuggestionTap: (s) {
+              ? _EmptyChat(arabic: widget.arabic, onSuggestionTap: (s) {
                   _controller.text = s;
                   _send();
                 })
@@ -650,6 +680,7 @@ class _ChatViewState extends State<_ChatView> {
             tasks: _pendingTasks!,
             onApprove: _approveTasks,
             onReject: _rejectTasks,
+            arabic: widget.arabic,
           ),
 
         // Error.
@@ -668,6 +699,7 @@ class _ChatViewState extends State<_ChatView> {
           controller: _controller,
           sending: _sending,
           onSend: _send,
+          arabic: widget.arabic,
         ),
       ],
     );
@@ -817,11 +849,13 @@ class _TaskApprovalPanel extends StatelessWidget {
     required this.tasks,
     required this.onApprove,
     required this.onReject,
+    required this.arabic,
   });
 
   final List<Map<String, dynamic>> tasks;
   final VoidCallback onApprove;
   final VoidCallback onReject;
+  final bool arabic;
 
   @override
   Widget build(BuildContext context) {
@@ -842,7 +876,11 @@ class _TaskApprovalPanel extends StatelessWidget {
                 const Icon(Icons.task_alt_rounded, size: 16, color: _teal),
                 const SizedBox(width: 6),
                 Text(
-                  '${tasks.length} task${tasks.length > 1 ? 's' : ''} to add',
+                  _chatText(
+                    arabic,
+                    '${tasks.length} task${tasks.length > 1 ? 's' : ''} to add',
+                    '${tasks.length} مهمة للإضافة',
+                  ),
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -852,7 +890,7 @@ class _TaskApprovalPanel extends StatelessWidget {
               ],
             ),
           ),
-          ...tasks.map((t) => _TaskPreviewRow(task: t)),
+          ...tasks.map((t) => _TaskPreviewRow(task: t, arabic: arabic)),
           const Divider(height: 1, thickness: 1, color: Color(0xFFE9EFED)),
           Padding(
             padding: const EdgeInsets.all(10),
@@ -868,7 +906,7 @@ class _TaskApprovalPanel extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text('Not right'),
+                    child: Text(_chatText(arabic, 'Not right', 'ليس صحيحاً')),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -882,7 +920,7 @@ class _TaskApprovalPanel extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text('Add tasks'),
+                    child: Text(_chatText(arabic, 'Add tasks', 'إضافة المهام')),
                   ),
                 ),
               ],
@@ -895,12 +933,14 @@ class _TaskApprovalPanel extends StatelessWidget {
 }
 
 class _TaskPreviewRow extends StatelessWidget {
-  const _TaskPreviewRow({required this.task});
+  const _TaskPreviewRow({required this.task, required this.arabic});
   final Map<String, dynamic> task;
+  final bool arabic;
 
   @override
   Widget build(BuildContext context) {
-    final title = task['title'] as String? ?? 'Untitled';
+    final title = task['title'] as String? ??
+        _chatText(arabic, 'Untitled', 'بدون عنوان');
     final remindAt = task['remindAt'] as String? ?? '';
     DateTime? dt;
     try {
@@ -917,7 +957,7 @@ class _TaskPreviewRow extends StatelessWidget {
       TaskImportance.necessary: Color(0xFF3988A0),
       TaskImportance.superNecessary: Color(0xFFC36E36),
     };
-    const importanceLabels = {
+    final importanceLabels = {
       TaskImportance.normal: 'NORMAL',
       TaskImportance.necessary: 'NECESSARY',
       TaskImportance.superNecessary: 'SUPER NECESSARY',
@@ -949,7 +989,11 @@ class _TaskPreviewRow extends StatelessWidget {
             ),
           const SizedBox(width: 6),
           Text(
-            importanceLabels[importance]!,
+            _chatText(arabic, importanceLabels[importance]!, switch (importance) {
+              TaskImportance.normal => 'عادية',
+              TaskImportance.necessary => 'مهمة',
+              TaskImportance.superNecessary => 'مهمة جداً',
+            }),
             style: TextStyle(
               fontSize: 9,
               fontWeight: FontWeight.w800,
@@ -970,11 +1014,13 @@ class _InputBar extends StatelessWidget {
     required this.controller,
     required this.sending,
     required this.onSend,
+    required this.arabic,
   });
 
   final TextEditingController controller;
   final bool sending;
   final VoidCallback onSend;
+  final bool arabic;
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -1005,8 +1051,8 @@ class _InputBar extends StatelessWidget {
                 maxLines: null,
                 textCapitalization: TextCapitalization.sentences,
                 style: const TextStyle(fontSize: 14, color: _ink),
-                decoration: const InputDecoration(
-                  hintText: 'Tell me what you want to do…',
+                decoration: InputDecoration(
+                  hintText: _chatText(arabic, 'Tell me what you want to do…', 'أخبرني ما الذي تريد إنجازه…'),
                   hintStyle: TextStyle(fontSize: 14, color: _muted),
                   border: InputBorder.none,
                   contentPadding:
@@ -1055,13 +1101,18 @@ class _InputBar extends StatelessWidget {
 // Empty chat with quick suggestions
 // ---------------------------------------------------------------------------
 class _EmptyChat extends StatelessWidget {
-  const _EmptyChat({required this.onSuggestionTap});
+  const _EmptyChat({required this.arabic, required this.onSuggestionTap});
+  final bool arabic;
   final ValueChanged<String> onSuggestionTap;
 
   static const _suggestions = [
     'I need to call the doctor tomorrow morning',
     'Remind me to submit the report on Friday afternoon',
-    'غدا عندي موعد عند الطبيب الساعة 10',
+  ];
+  static const _arabicSuggestions = [
+    'أحتاج إلى الاتصال بالطبيب صباح الغد',
+    'ذكّرني بإرسال التقرير بعد ظهر الجمعة',
+    'غداً عندي موعد عند الطبيب الساعة 10',
     'نهار الجمعة كيجي خويا من السفر',
   ];
 
@@ -1073,8 +1124,8 @@ class _EmptyChat extends StatelessWidget {
       children: [
         const Icon(Icons.elderly_rounded, size: 56, color: _teal),
         const SizedBox(height: 14),
-        const Text(
-          'Milos is here.',
+        Text(
+          _chatText(arabic, 'Milos is here.', 'ميلوس هنا.'),
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 18,
@@ -1083,8 +1134,12 @@ class _EmptyChat extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        const Text(
-          'Tell me what you have planned, my friend.\nI\'ll take care of the rest.',
+        Text(
+          _chatText(
+            arabic,
+            'Tell me what you have planned, my friend.\nI\'ll take care of the rest.',
+            'أخبرني بما تخطط له يا صديقي، وسأتولى الباقي.',
+          ),
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 13, color: _muted, height: 1.5),
         ),
@@ -1093,8 +1148,9 @@ class _EmptyChat extends StatelessWidget {
           spacing: 8,
           runSpacing: 8,
           alignment: WrapAlignment.center,
-          children: _suggestions.map((s) => _SuggestionChip(
+          children: (arabic ? _arabicSuggestions : _suggestions).map((s) => _SuggestionChip(
             text: s,
+            arabic: arabic,
             onTap: () => onSuggestionTap(s),
           )).toList(),
         ),
@@ -1104,8 +1160,9 @@ class _EmptyChat extends StatelessWidget {
 }
 
 class _SuggestionChip extends StatelessWidget {
-  const _SuggestionChip({required this.text, required this.onTap});
+  const _SuggestionChip({required this.text, required this.arabic, required this.onTap});
   final String text;
+  final bool arabic;
   final VoidCallback onTap;
 
   @override
@@ -1121,7 +1178,7 @@ class _SuggestionChip extends StatelessWidget {
       child: Text(
         text,
         style: const TextStyle(fontSize: 12, color: _ink),
-        textDirection: TextDirection.rtl,
+        textDirection: arabic ? TextDirection.rtl : TextDirection.ltr,
       ),
     ),
   );
@@ -1131,13 +1188,14 @@ class _SuggestionChip extends StatelessWidget {
 // Model selector dropdown in AppBar
 // ---------------------------------------------------------------------------
 class _ModelSelector extends StatelessWidget {
-  const _ModelSelector({required this.selected, required this.onChanged});
+  const _ModelSelector({required this.selected, required this.onChanged, required this.arabic});
   final String selected;
   final ValueChanged<String> onChanged;
+  final bool arabic;
 
   @override
   Widget build(BuildContext context) => PopupMenuButton<String>(
-    tooltip: 'AI Model',
+    tooltip: _chatText(arabic, 'AI Model', 'نموذج الذكاء الاصطناعي'),
     icon: const Icon(Icons.tune_rounded, size: 20, color: _muted),
     onSelected: onChanged,
     itemBuilder: (_) => groqModels.entries.map((e) => PopupMenuItem(
