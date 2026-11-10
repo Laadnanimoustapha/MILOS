@@ -224,10 +224,27 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
   }
 
   Future<void> _toggleTask(Task task, bool? value) async {
-    final updated = task.copyWith(done: value ?? false);
-    setState(() => _tasks[_tasks.indexOf(task)] = updated);
+    final isDone = value ?? false;
+    final updated = task.copyWith(done: isDone, inProgress: isDone ? false : task.inProgress);
+    final taskIndex = _tasks.indexOf(task);
+    if (taskIndex == -1) return;
+
+    setState(() {
+      _tasks[taskIndex] = updated;
+      // If the task was just marked done and has repeat configured, spawn the next occurrence
+      if (isDone && task.repeat != TaskRepeat.none) {
+        final nextId = _tasks.isEmpty
+            ? 1
+            : _tasks.map((t) => t.id).reduce((a, b) => a > b ? a : b) + 1;
+        _tasks.add(task.nextRecurrence(nextId));
+      }
+    });
+
     await _saveTasks();
     try {
+      if (isDone) {
+        await ReminderService.instance.cancel(task);
+      }
       await ReminderService.instance.refresh(_tasks);
     } catch (_) {}
   }

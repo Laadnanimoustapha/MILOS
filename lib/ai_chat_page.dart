@@ -41,7 +41,7 @@ IMPORTANT RULES:
    <<END_TASKS_JSON>>
 3. importance must be one of: normal, necessary, superNecessary
 4. scheduleMode must be one of: range (time window), fixed (single point in time)
-5. repeat must be one of: none, daily, weekly, monthly, custom
+5. repeat must be one of: none, daily, weekly, monthly, custom. If the user mentions doing something regularly, every day, daily, every week, every month, every X days, set repeat accordingly (and customRepeatEvery/customRepeatUnit for custom intervals).
 6. customRepeatUnit must be one of: days, weeks, months
 7. All dates must be ISO 8601 format. Use the user's local context (today is: REPLACE_TODAY).
 8. After outputting the JSON, ask the user to approve the tasks in your warm old-man voice.
@@ -491,6 +491,7 @@ class _ChatViewState extends State<_ChatView> {
           ),
           superReminderIntervalMinutes:
               (raw['superReminderIntervalMinutes'] as num?)?.toInt() ?? 15,
+          steps: (raw['steps'] as List<dynamic>?)?.cast<String>() ?? const [],
         );
         tasks.add(task);
       } catch (_) {

@@ -71,6 +71,59 @@ class Task {
     inProgress: inProgress ?? this.inProgress,
   );
 
+  /// Calculates the next occurrence date for a repeating task.
+  DateTime nextOccurrence(DateTime from) {
+    final unit = switch (repeat) {
+      TaskRepeat.daily => TaskRepeatUnit.days,
+      TaskRepeat.weekly => TaskRepeatUnit.weeks,
+      TaskRepeat.monthly => TaskRepeatUnit.months,
+      TaskRepeat.custom => customRepeatUnit,
+      TaskRepeat.none => TaskRepeatUnit.days,
+    };
+    final every = repeat == TaskRepeat.custom
+        ? customRepeatEvery.clamp(1, 365).toInt()
+        : 1;
+    if (unit == TaskRepeatUnit.days) return from.add(Duration(days: every));
+    if (unit == TaskRepeatUnit.weeks) return from.add(Duration(days: every * 7));
+    final monthIndex = from.year * 12 + from.month - 1 + every;
+    final year = monthIndex ~/ 12;
+    final month = monthIndex % 12 + 1;
+    final lastDay = DateTime(year, month + 1, 0).day;
+    return DateTime(
+      year,
+      month,
+      remindAt.day.clamp(1, lastDay).toInt(),
+      from.hour,
+      from.minute,
+      from.second,
+      from.millisecond,
+    );
+  }
+
+  /// Returns a new Task representing the next recurrence.
+  Task nextRecurrence(int newId) {
+    final nextStart = nextOccurrence(remindAt);
+    final duration = remindUntil.difference(remindAt);
+    final nextEnd = scheduleMode == TaskScheduleMode.fixed
+        ? nextStart
+        : nextStart.add(duration);
+    return Task(
+      id: newId,
+      title: title,
+      remindAt: nextStart,
+      remindUntil: nextEnd,
+      done: false,
+      importance: importance,
+      superReminderIntervalMinutes: superReminderIntervalMinutes,
+      scheduleMode: scheduleMode,
+      repeat: repeat,
+      customRepeatEvery: customRepeatEvery,
+      customRepeatUnit: customRepeatUnit,
+      steps: steps,
+      inProgress: false,
+    );
+  }
+
   Map<String, Object> toJson() => {
     'id': id,
     'title': title,
