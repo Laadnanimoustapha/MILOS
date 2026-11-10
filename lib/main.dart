@@ -46,12 +46,18 @@ class MilosApp extends StatefulWidget {
 
 class _MilosAppState extends State<MilosApp> {
   AppLanguage? _language;
+  bool _loadingLanguage = true;
 
   @override
   void initState() {
     super.initState();
     AppLanguageStore.load().then((language) {
-      if (mounted) setState(() => _language = language);
+      if (mounted) {
+        setState(() {
+          _language = language;
+          _loadingLanguage = false;
+        });
+      }
     });
   }
 
@@ -74,9 +80,11 @@ class _MilosAppState extends State<MilosApp> {
       textDirection: _language == AppLanguage.arabic ? TextDirection.rtl : TextDirection.ltr,
       child: child!,
     ),
-    home: _language == null
-        ? LanguageChoicePage(onSelected: _setLanguage)
-        : TodayPage(language: _language!, onLanguageChanged: _setLanguage),
+    home: _loadingLanguage
+        ? const Scaffold(body: Center(child: CircularProgressIndicator(color: _teal)))
+        : _language == null
+            ? LanguageChoicePage(onSelected: _setLanguage)
+            : TodayPage(language: _language!, onLanguageChanged: _setLanguage),
   );
 }
 

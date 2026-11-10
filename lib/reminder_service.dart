@@ -7,7 +7,13 @@ import 'package:timezone/data/latest.dart' as timezone_data;
 import 'package:timezone/timezone.dart' as timezone;
 
 import 'task.dart';
+
 import 'task_store.dart';
+
+// ─── Custom distinctive vibration pattern (tap-tap... tap) ──────────────────
+// Distinct from Android's default buzz: 0ms wait, 120ms tap, 100ms pause,
+// 120ms tap, 250ms pause, 350ms hold.
+final _milosVibrationPattern = Int64List.fromList([0, 120, 100, 120, 250, 350]);
 
 // ─── Notification action IDs ─────────────────────────────────────────────────
 const _actionDone = 'done';
@@ -359,13 +365,15 @@ class ReminderService {
       scheduledDate: timezone.TZDateTime.from(at, timezone.local),
       notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
-          'milos_task_reminders',
+          'milos_task_reminders_v2',
           'Task reminders',
           channelDescription: 'Reminders for your tasks',
           icon: 'milos_notification_small',
           largeIcon: const DrawableResourceAndroidBitmap('milos_notification_logo'),
           importance: Importance.high,
           priority: Priority.high,
+          enableVibration: true,
+          vibrationPattern: _milosVibrationPattern,
           fullScreenIntent: false,
           actions: actions,
         ),
@@ -390,14 +398,16 @@ class ReminderService {
       title: 'Still waiting on you…',
       body: task.title,
       scheduledDate: tzAt,
-      notificationDetails: const NotificationDetails(
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
-          'milos_task_reminders',
+          'milos_task_reminders_v2',
           'Task reminders',
           channelDescription: 'Reminders for your tasks',
           icon: 'milos_notification_small',
           importance: Importance.high,
           priority: Priority.high,
+          enableVibration: true,
+          vibrationPattern: _milosVibrationPattern,
           actions: [
             AndroidNotificationAction(
               _actionDone,
