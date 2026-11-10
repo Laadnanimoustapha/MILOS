@@ -16,6 +16,8 @@ class Task {
     this.repeat = TaskRepeat.none,
     this.customRepeatEvery = 1,
     this.customRepeatUnit = TaskRepeatUnit.days,
+    this.steps = const [],
+    this.inProgress = false,
   });
 
   final int id;
@@ -29,6 +31,10 @@ class Task {
   final TaskRepeat repeat;
   final int customRepeatEvery;
   final TaskRepeatUnit customRepeatUnit;
+  /// Optional ordered steps. When non-empty each notification shows one step.
+  final List<String> steps;
+  /// Whether the user has tapped "I started doing it" / in progress.
+  final bool inProgress;
 
   int get reminderIntervalMinutes => switch (importance) {
     TaskImportance.normal => 60,
@@ -46,6 +52,8 @@ class Task {
     TaskRepeatUnit? customRepeatUnit,
     DateTime? remindAt,
     DateTime? remindUntil,
+    List<String>? steps,
+    bool? inProgress,
   }) => Task(
     id: id,
     title: title,
@@ -59,6 +67,8 @@ class Task {
     repeat: repeat ?? this.repeat,
     customRepeatEvery: customRepeatEvery ?? this.customRepeatEvery,
     customRepeatUnit: customRepeatUnit ?? this.customRepeatUnit,
+    steps: steps ?? this.steps,
+    inProgress: inProgress ?? this.inProgress,
   );
 
   Map<String, Object> toJson() => {
@@ -73,6 +83,8 @@ class Task {
     'repeat': repeat.name,
     'customRepeatEvery': customRepeatEvery,
     'customRepeatUnit': customRepeatUnit.name,
+    if (steps.isNotEmpty) 'steps': steps,
+    if (inProgress) 'inProgress': inProgress,
   };
 
   factory Task.fromJson(Map<String, dynamic> json) => Task(
@@ -100,5 +112,7 @@ class Task {
       (value) => value.name == json['customRepeatUnit'],
       orElse: () => TaskRepeatUnit.days,
     ),
+    steps: (json['steps'] as List<dynamic>?)?.cast<String>() ?? const [],
+    inProgress: json['inProgress'] as bool? ?? false,
   );
 }
