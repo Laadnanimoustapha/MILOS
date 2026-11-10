@@ -47,9 +47,20 @@ Future<void> _markTaskDone(int taskId) async {
     final tasks = await store.load();
     final index = tasks.indexWhere((t) => t.id == taskId);
     if (index == -1) return;
-    tasks[index] = tasks[index].copyWith(done: true, inProgress: false);
+    final task = tasks[index];
+    tasks[index] = task.copyWith(done: true, inProgress: false);
+
+    // If the task repeats, spawn the next occurrence for tomorrow / next month etc.
+    if (task.repeat != TaskRepeat.none) {
+      final nextId = tasks.isEmpty
+          ? 1
+          : tasks.map((t) => t.id).reduce((a, b) => a > b ? a : b) + 1;
+      tasks.add(task.nextRecurrence(nextId));
+    }
+
     await store.save(tasks);
-    await ReminderService.instance.cancel(tasks[index]);
+    await ReminderService.instance.cancel(task);
+    await ReminderService.instance.refresh(tasks);
   } catch (_) {}
 }
 
@@ -255,32 +266,14 @@ class ReminderService {
         }
       }
       if (task.repeat == TaskRepeat.none) break;
-      final next = _nextOccurrence(occurrence, task);
+      final next = task.nextOccurrence(occurrence);
       if (!next.isAfter(occurrence)) break;
       occurrence = next;
     }
     return reminders;
   }
 
-  DateTime _nextOccurrence(DateTime date, Task task) {
-    final unit = switch (task.repeat) {
-      TaskRepeat.daily => TaskRepeatUnit.days,
-      TaskRepeat.weekly => TaskRepeatUnit.weeks,
-      TaskRepeat.monthly => TaskRepeatUnit.months,
-      TaskRepeat.custom => task.customRepeatUnit,
-      TaskRepeat.none => TaskRepeatUnit.days,
-    };
-    final every = task.repeat == TaskRepeat.custom
-        ? task.customRepeatEvery.clamp(1, 365).toInt()
-        : 1;
-    if (unit == TaskRepeatUnit.days) return date.add(Duration(days: every));
-    if (unit == TaskRepeatUnit.weeks) return date.add(Duration(days: every * 7));
-    final monthIndex = date.year * 12 + date.month - 1 + every;
-    final year = monthIndex ~/ 12;
-    final month = monthIndex % 12 + 1;
-    final lastDay = DateTime(year, month + 1, 0).day;
-    return DateTime(year, month, task.remindAt.day.clamp(1, lastDay).toInt());
-  }
+
 
   /// Builds the notification body and title for a given reminder index.
   /// When task.inProgress is true or it's the last check-in, asks if finished.
