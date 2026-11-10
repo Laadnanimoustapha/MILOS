@@ -355,21 +355,23 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
       String sectionTitle;
       Color? accentColor;
       if (date.isBefore(today)) {
-        sectionTitle = 'Overdue';
+        sectionTitle = _text('Overdue', 'متأخرة');
         accentColor = const Color(0xFFC36E36);
       } else if (date == today) {
-        sectionTitle = 'Today';
+        sectionTitle = _text('Today', 'اليوم');
         accentColor = _teal;
       } else if (date == tomorrow) {
-        sectionTitle = 'Tomorrow';
+        sectionTitle = _text('Tomorrow', 'غداً');
       } else {
-        const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        const months = [
-          'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-        ];
-        sectionTitle =
-            '${weekdays[date.weekday - 1]}, ${months[date.month - 1]} ${date.day}';
+        if (_arabic) {
+          const weekdays = ['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'];
+          const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'ماي', 'يونيو', 'يوليو', 'غشت', 'شتنبر', 'أكتوبر', 'نونبر', 'دجنبر'];
+          sectionTitle = '${weekdays[date.weekday - 1]}، ${date.day} ${months[date.month - 1]}';
+        } else {
+          const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          sectionTitle = '${weekdays[date.weekday - 1]}, ${months[date.month - 1]} ${date.day}';
+        }
       }
 
       widgets.add(
@@ -388,6 +390,7 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
             padding: const EdgeInsets.only(bottom: 10),
             child: _TaskTile(
               task: task,
+              arabic: _arabic,
               onTap: () => _showTaskDetails(task),
               onChanged: (value) => _toggleTask(task, value),
               onRemindTomorrow: () => _remindTomorrow(task),
@@ -453,24 +456,24 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 560),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      _ProgressPanel(completed: _completed, total: _tasks.length, progress: progress),
+                      _ProgressPanel(completed: _completed, total: _tasks.length, progress: progress, arabic: _arabic),
                       const SizedBox(height: 25),
                       Row(children: [
                         Text(_text('Your tasks', 'مهامك'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -.4, color: _ink)),
                         const SizedBox(width: 9),
                         Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4), decoration: BoxDecoration(color: const Color(0xFFE8F5F2), borderRadius: BorderRadius.circular(20)), child: Text(_tasks.isEmpty ? _text('Start fresh', 'ابدأ الآن') : _text('${_tasks.length - _completed} left', '${_tasks.length - _completed} متبقية'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _teal))),
                         const Spacer(),
-                        const Text('See all', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _muted)),
+                        Text(_text('See all', 'عرض الكل'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _muted)),
                       ]),
                       const SizedBox(height: 13),
                       if (_loading)
                         const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator(color: _teal)))
                       else if (_tasks.isEmpty)
-                        const _EmptyTasks()
+                        _EmptyTasks(arabic: _arabic)
                       else
                         ..._buildGroupedTaskList(),
                       const SizedBox(height: 5),
-                      const _GentleNote(),
+                      _GentleNote(arabic: _arabic),
                     ]),
                   ),
                 ),
