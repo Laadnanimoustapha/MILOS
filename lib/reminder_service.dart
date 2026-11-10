@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -5,6 +7,82 @@ import 'package:timezone/data/latest.dart' as timezone_data;
 import 'package:timezone/timezone.dart' as timezone;
 
 import 'task.dart';
+import 'task_store.dart';
+
+// ─── Notification action IDs ─────────────────────────────────────────────────
+const _actionDone = 'done';
+const _actionWait = 'wait';
+const _actionStart = 'start';
+
+// ─── Snooze duration used by "Wait" action ───────────────────────────────────
+const _snoozeDuration = Duration(minutes: 15);
+
+// ─── Background isolate entry-point ──────────────────────────────────────────
+// Called by the OS when the user taps an action while the app is closed.
+@pragma('vm:entry-point')
+void notificationActionBackground(NotificationResponse response) {
+  _handleResponse(response);
+}
+
+void _handleResponse(NotificationResponse response) {
+  final payload = response.payload;
+  if (payload == null) return;
+
+  final parts = payload.split(':');
+  final taskId = int.tryParse(parts[0]);
+  if (taskId == null) return;
+
+  if (response.actionId == _actionDone) {
+    _markTaskDone(taskId);
+  } else if (response.actionId == _actionWait) {
+    _snoozeTask(taskId);
+  } else if (response.actionId == _actionStart) {
+    _startTask(taskId);
+  }
+}
+
+Future<void> _markTaskDone(int taskId) async {
+  try {
+    final store = TaskStore();
+    final tasks = await store.load();
+    final index = tasks.indexWhere((t) => t.id == taskId);
+    if (index == -1) return;
+    tasks[index] = tasks[index].copyWith(done: true, inProgress: false);
+    await store.save(tasks);
+    await ReminderService.instance.cancel(tasks[index]);
+  } catch (_) {}
+}
+
+Future<void> _startTask(int taskId) async {
+  try {
+    final store = TaskStore();
+    final tasks = await store.load();
+    final index = tasks.indexWhere((t) => t.id == taskId);
+    if (index == -1) return;
+    final task = tasks[index];
+    if (task.done) return;
+    // Mark inProgress = true and re-schedule reminders so that intermediate
+    // alerts are stopped until the final "Have you finished?" check-in.
+    tasks[index] = task.copyWith(inProgress: true);
+    await store.save(tasks);
+    await ReminderService.instance.refresh(tasks);
+  } catch (_) {}
+}
+
+Future<void> _snoozeTask(int taskId) async {
+  try {
+    final store = TaskStore();
+    final tasks = await store.load();
+    final task = tasks.firstWhere(
+      (t) => t.id == taskId,
+      orElse: () => throw StateError('not found'),
+    );
+    if (task.done) return;
+    await ReminderService.instance._scheduleSnooze(task);
+  } catch (_) {}
+}
+
+// ─── Service ─────────────────────────────────────────────────────────────────
 
 class ReminderService {
   ReminderService._();
@@ -14,7 +92,13 @@ class ReminderService {
       FlutterLocalNotificationsPlugin();
   bool _ready = false;
 
-  Future<void> initialize() async {
+  // ID range for snooze notifications (outside the task.id*100 range).
+  // We use 900000 + taskId so it doesn't collide with normal reminders.
+  int _snoozeId(int taskId) => 900000 + taskId;
+
+  Future<void> initialize({
+    void Function(NotificationResponse)? onForegroundResponse,
+  }) async {
     if (_ready) return;
     if (kIsWeb ||
         (defaultTargetPlatform != TargetPlatform.android &&
@@ -26,14 +110,19 @@ class ReminderService {
     final localZone = await FlutterTimezone.getLocalTimezone();
     timezone.setLocalLocation(timezone.getLocation(localZone.identifier));
     await _plugin.initialize(
-      settings: const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-        iOS: DarwinInitializationSettings(
+      settings: InitializationSettings(
+        android: const AndroidInitializationSettings('@mipmap/ic_launcher'),
+        iOS: const DarwinInitializationSettings(
           requestAlertPermission: false,
           requestBadgePermission: false,
           requestSoundPermission: false,
         ),
       ),
+      onDidReceiveNotificationResponse: (response) {
+        onForegroundResponse?.call(response);
+        _handleResponse(response);
+      },
+      onDidReceiveBackgroundNotificationResponse: notificationActionBackground,
     );
     _ready = true;
   }
@@ -74,7 +163,7 @@ class ReminderService {
     }
     try {
       for (var index = 0; index < reminders.length; index++) {
-        await _scheduleOne(task, reminders[index], index);
+        await _scheduleOne(task, reminders[index], index, isLast: index == reminders.length - 1);
       }
     } catch (_) {
       await cancel(task);
@@ -143,6 +232,15 @@ class ReminderService {
           task.remindUntil.hour,
           task.remindUntil.minute,
         );
+        // If task is in progress, skip repeating intermediate alerts and only
+        // schedule the final end reminder ("Have you finished?").
+        if (task.inProgress) {
+          if (end.isAfter(now) && reminders.length < limit) {
+            reminders.add(end);
+          }
+          break;
+        }
+
         final interval = Duration(minutes: task.reminderIntervalMinutes);
         var at = start;
         while (!at.isAfter(end) && reminders.length < limit) {
@@ -184,30 +282,154 @@ class ReminderService {
     return DateTime(year, month, task.remindAt.day.clamp(1, lastDay).toInt());
   }
 
-  Future<void> _scheduleOne(Task task, DateTime at, int index) =>
-      _plugin.zonedSchedule(
-        id: task.id * 100 + index,
-        title: 'A little reminder',
-        body: task.title,
-        scheduledDate: timezone.TZDateTime.from(at, timezone.local),
-        notificationDetails: const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'milos_task_reminders',
-            'Task reminders',
-            channelDescription: 'Reminders for your tasks',
-            icon: 'milos_notification_small',
-            largeIcon: DrawableResourceAndroidBitmap('milos_notification_logo'),
-            importance: Importance.defaultImportance,
-            priority: Priority.defaultPriority,
-          ),
-          iOS: DarwinNotificationDetails(
-            presentAlert: true,
-            presentSound: true,
-          ),
-        ),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        payload: task.id.toString(),
+  /// Builds the notification body and title for a given reminder index.
+  /// When task.inProgress is true or it's the last check-in, asks if finished.
+  /// For step tasks each reminder maps to a step until the last one.
+  ({String title, String body, bool isFinalCheck}) _notifContent(
+    Task task,
+    int index, {
+    required bool isLast,
+  }) {
+    if (task.inProgress || isLast) {
+      return (
+        title: task.title,
+        body: 'Have you finished this task?',
+        isFinalCheck: true,
       );
+    }
+
+    if (task.steps.isEmpty) {
+      return (
+        title: 'Time for your task!',
+        body: task.title,
+        isFinalCheck: false,
+      );
+    }
+
+    // Step-by-step task
+    final stepIndex = index % (task.steps.length + 1);
+    if (stepIndex < task.steps.length) {
+      return (
+        title: 'Step ${stepIndex + 1} of ${task.steps.length}: ${task.title}',
+        body: task.steps[stepIndex],
+        isFinalCheck: false,
+      );
+    } else {
+      return (
+        title: task.title,
+        body: 'Have you finished this task?',
+        isFinalCheck: true,
+      );
+    }
+  }
+
+  Future<void> _scheduleOne(
+    Task task,
+    DateTime at,
+    int index, {
+    required bool isLast,
+  }) {
+    final content = _notifContent(task, index, isLast: isLast);
+    final payload = '${task.id}:$index';
+
+    // Action buttons:
+    // If it's the final check or the task is in progress: [Done, Wait]
+    // If the task has not started yet and is in a time range: [Done, Wait, I start doing it]
+    final actions = <AndroidNotificationAction>[
+      const AndroidNotificationAction(
+        _actionDone,
+        '✅ Done',
+        showsUserInterface: false,
+        cancelNotification: true,
+      ),
+      const AndroidNotificationAction(
+        _actionWait,
+        '⏰ Wait 15 min',
+        showsUserInterface: false,
+        cancelNotification: true,
+      ),
+      if (!task.inProgress &&
+          !content.isFinalCheck &&
+          task.scheduleMode == TaskScheduleMode.range)
+        const AndroidNotificationAction(
+          _actionStart,
+          '🚀 I started doing it',
+          showsUserInterface: false,
+          cancelNotification: true,
+        ),
+    ];
+
+    return _plugin.zonedSchedule(
+      id: task.id * 100 + index,
+      title: content.title,
+      body: content.body,
+      scheduledDate: timezone.TZDateTime.from(at, timezone.local),
+      notificationDetails: NotificationDetails(
+        android: AndroidNotificationDetails(
+          'milos_task_reminders',
+          'Task reminders',
+          channelDescription: 'Reminders for your tasks',
+          icon: 'milos_notification_small',
+          largeIcon: const DrawableResourceAndroidBitmap('milos_notification_logo'),
+          importance: Importance.high,
+          priority: Priority.high,
+          fullScreenIntent: false,
+          actions: actions,
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentSound: true,
+          categoryIdentifier: 'task_actions',
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      payload: payload,
+    );
+  }
+
+  /// Schedules an immediate snooze notification (+15 min) outside the normal
+  /// reminder window, using a separate ID so it doesn't disrupt the schedule.
+  Future<void> _scheduleSnooze(Task task) async {
+    final at = DateTime.now().add(_snoozeDuration);
+    final tzAt = timezone.TZDateTime.from(at, timezone.local);
+    await _plugin.zonedSchedule(
+      id: _snoozeId(task.id),
+      title: 'Still waiting on you…',
+      body: task.title,
+      scheduledDate: tzAt,
+      notificationDetails: const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'milos_task_reminders',
+          'Task reminders',
+          channelDescription: 'Reminders for your tasks',
+          icon: 'milos_notification_small',
+          importance: Importance.high,
+          priority: Priority.high,
+          actions: [
+            AndroidNotificationAction(
+              _actionDone,
+              '✅ Done',
+              showsUserInterface: false,
+              cancelNotification: true,
+            ),
+            AndroidNotificationAction(
+              _actionWait,
+              '⏰ Wait 15 min',
+              showsUserInterface: false,
+              cancelNotification: true,
+            ),
+          ],
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentSound: true,
+          categoryIdentifier: 'task_actions',
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      payload: '${task.id}:snooze',
+    );
+  }
 
   Future<void> cancel(Task task) async {
     await initialize();
@@ -219,5 +441,6 @@ class ReminderService {
     for (var index = 0; index < 60; index++) {
       await _plugin.cancel(id: task.id * 100 + index);
     }
+    await _plugin.cancel(id: _snoozeId(task.id));
   }
 }

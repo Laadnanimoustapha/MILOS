@@ -27,7 +27,10 @@ const _superReminderIntervals = [5, 10, 15, 30, 60];
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    await ReminderService.instance.initialize();
+    // The foreground response callback is a no-op here: the actual task
+    // mutation (mark done / snooze) runs inside ReminderService._handleResponse.
+    // TodayPage refreshes on the next AppLifecycleState.resumed event.
+    await ReminderService.instance.initialize(onForegroundResponse: (_) {});
   } catch (_) {
     // The task list remains available if device notifications are unavailable.
   }

@@ -20,15 +20,8 @@ MILOS is my personal, mobile-first to-do app, designed and built by me for my ow
 4. Optimize for **release** size (`flutter build appbundle --release`, `apk --release --split-per-abi`, `ipa --release`), NOT debug size.
 5. Dead code, unused imports/assets, duplicate functionality, debug code in release = **STRICT VIOLATION**.
 
-## 1. HARD SIZE BUDGETS (ENFORCED)
 
-- Android App Bundle (.aab universal): **< 25 MB target, 35 MB hard max**
-- Android APK per-ABI (--split-per-abi): **< 15 MB target, 20 MB hard max**
-- iOS IPA: **< 30 MB target, 40 MB hard max**
-- Added Dart code per feature: **< 50 KB** unless approved
-- Added assets per feature: **< 500 KB total, < 100 KB per image**
 
-If your change exceeds budget: STOP, report BEFORE -> AFTER (+DELTA) with `flutter build ... --analyze-size`, propose smaller alternative, wait for explicit approval. Do NOT commit.
 
 ## 2. FORBIDDEN — NEVER DO (WITHOUT EXPLICIT APPROVAL)
 
