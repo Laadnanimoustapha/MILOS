@@ -7,7 +7,8 @@ const _ink = Color(0xFF253533);
 const _paper = Color(0xFFF5F8F7);
 
 class GroqKeysPage extends StatefulWidget {
-  const GroqKeysPage({super.key});
+  const GroqKeysPage({super.key, required this.arabic});
+  final bool arabic;
 
   @override
   State<GroqKeysPage> createState() => _GroqKeysPageState();
@@ -43,13 +44,17 @@ class _GroqKeysPageState extends State<GroqKeysPage> {
       _error = null;
     });
     try {
-      await GroqKeyStore.save(_controllers.map((controller) => controller.text).toList());
+      await GroqKeyStore.save(
+        _controllers.map((controller) => controller.text).toList(),
+      );
       if (mounted) Navigator.pop(context);
     } catch (error) {
       if (mounted) {
         setState(() {
           _saving = false;
-          _error = 'Could not save the API keys: $error';
+          _error = widget.arabic
+              ? 'تعذر حفظ مفاتيح API: $error'
+              : 'Could not save the API keys: $error';
         });
       }
     }
@@ -67,7 +72,7 @@ class _GroqKeysPageState extends State<GroqKeysPage> {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: _paper,
     appBar: AppBar(
-      title: const Text('Groq API keys'),
+      title: Text(widget.arabic ? 'مفاتيح Groq API' : 'Groq API keys'),
       backgroundColor: Colors.white,
       foregroundColor: _ink,
       elevation: 0,
@@ -77,8 +82,10 @@ class _GroqKeysPageState extends State<GroqKeysPage> {
         : ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              const Text(
-                'Add at least one key. If a key is rate-limited or fails, Milos automatically tries the next one.',
+              Text(
+                widget.arabic
+                    ? 'أضف مفتاحاً واحداً على الأقل. إذا تعذر استخدام مفتاح أو تجاوز حد الاستخدام، سيجرب ميلوس المفتاح التالي تلقائياً.'
+                    : 'Add at least one key. If a key is rate-limited or fails, Milos automatically tries the next one.',
                 style: TextStyle(color: Color(0xFF61716D), height: 1.4),
               ),
               const SizedBox(height: 18),
@@ -91,11 +98,15 @@ class _GroqKeysPageState extends State<GroqKeysPage> {
                     autocorrect: false,
                     enableSuggestions: false,
                     decoration: InputDecoration(
-                      labelText: 'Groq API key ${i + 1}',
+                      labelText: widget.arabic
+                          ? 'مفتاح Groq API ${i + 1}'
+                          : 'Groq API key ${i + 1}',
                       border: const OutlineInputBorder(),
                       suffixIcon: _controllers.length > 3
                           ? IconButton(
-                              tooltip: 'Remove key',
+                              tooltip: widget.arabic
+                                  ? 'إزالة المفتاح'
+                                  : 'Remove key',
                               icon: const Icon(Icons.remove_circle_outline),
                               onPressed: () {
                                 final controller = _controllers.removeAt(i);
@@ -108,9 +119,12 @@ class _GroqKeysPageState extends State<GroqKeysPage> {
                   ),
                 ),
               OutlinedButton.icon(
-                onPressed: () => setState(() => _controllers.add(TextEditingController())),
+                onPressed: () =>
+                    setState(() => _controllers.add(TextEditingController())),
                 icon: const Icon(Icons.add),
-                label: const Text('Add another key'),
+                label: Text(
+                  widget.arabic ? 'إضافة مفتاح آخر' : 'Add another key',
+                ),
               ),
               if (_error != null) ...[
                 const SizedBox(height: 14),
@@ -120,7 +134,11 @@ class _GroqKeysPageState extends State<GroqKeysPage> {
               FilledButton(
                 onPressed: _saving ? null : _save,
                 style: FilledButton.styleFrom(backgroundColor: _teal),
-                child: Text(_saving ? 'Saving...' : 'Save keys'),
+                child: Text(
+                  _saving
+                      ? (widget.arabic ? 'جارٍ الحفظ…' : 'Saving...')
+                      : (widget.arabic ? 'حفظ المفاتيح' : 'Save keys'),
+                ),
               ),
             ],
           ),
