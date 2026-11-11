@@ -39,7 +39,6 @@ String _stripMarkdown(String text) {
       .replaceAll(RegExp(r'(?<!\w)\*+(?!\w)'), '')
       .trim();
 }
-
 const _teal = Color(0xFF4CAF9E);
 const _ink = Color(0xFF253533);
 const _muted = Color(0xFF82908D);
@@ -94,11 +93,7 @@ IMPORTANT RULES:
 // ---------------------------------------------------------------------------
 class AiChatPage extends StatefulWidget {
   /// [addTasksCallback] is called when the user approves AI-generated tasks.
-  const AiChatPage({
-    super.key,
-    required this.arabic,
-    required this.addTasksCallback,
-  });
+  const AiChatPage({super.key, required this.arabic, required this.addTasksCallback});
   final bool arabic;
   final Future<void> Function(List<Task> tasks) addTasksCallback;
 
@@ -121,9 +116,9 @@ class _AiChatPageState extends State<AiChatPage> {
   Future<void> _load() async {
     List<ChatSession> sessions = [];
     try {
-      sessions = await _store.loadSessions().timeout(
-        const Duration(seconds: 5),
-      );
+      sessions = await _store
+          .loadSessions()
+          .timeout(const Duration(seconds: 5));
       for (final session in sessions) {
         if (!groqModels.containsKey(session.model)) {
           session.model = defaultGroqModel;
@@ -155,9 +150,7 @@ class _AiChatPageState extends State<AiChatPage> {
   }
 
   Future<void> _openApiKeys() => Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (_) => GroqKeysPage(arabic: widget.arabic),
-    ),
+    MaterialPageRoute<void>(builder: (_) => GroqKeysPage(arabic: widget.arabic)),
   );
 
   Future<void> _openMemory() => Navigator.of(context).push(
@@ -169,13 +162,11 @@ class _AiChatPageState extends State<AiChatPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(_chatText(widget.arabic, 'Delete chat?', 'حذف المحادثة؟')),
-        content: Text(
-          _chatText(
-            widget.arabic,
-            'Delete "${session.title}"?',
-            'هل تريد حذف "${session.title}"؟',
-          ),
-        ),
+        content: Text(_chatText(
+          widget.arabic,
+          'Delete "${session.title}"?',
+          'هل تريد حذف "${session.title}"؟',
+        )),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -183,10 +174,7 @@ class _AiChatPageState extends State<AiChatPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-              _chatText(widget.arabic, 'Delete', 'حذف'),
-              style: const TextStyle(color: Colors.red),
-            ),
+            child: Text(_chatText(widget.arabic, 'Delete', 'حذف'), style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -264,20 +252,20 @@ class _AiChatPageState extends State<AiChatPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: _teal))
           : _active != null
-          ? _ChatView(
-              key: ValueKey(_active!.id),
-              session: _active!,
-              onMessageAdded: () => _onMessageAdded(_active!),
-              addTasksCallback: widget.addTasksCallback,
-              arabic: widget.arabic,
-            )
-          : _SessionList(
-              sessions: _sessions,
-              onSelect: (s) => setState(() => _active = s),
-              onDelete: _deleteSession,
-              onNew: _newChat,
-              arabic: widget.arabic,
-            ),
+              ? _ChatView(
+                  key: ValueKey(_active!.id),
+                  session: _active!,
+                  onMessageAdded: () => _onMessageAdded(_active!),
+                  addTasksCallback: widget.addTasksCallback,
+                  arabic: widget.arabic,
+                )
+              : _SessionList(
+                  sessions: _sessions,
+                  onSelect: (s) => setState(() => _active = s),
+                  onDelete: _deleteSession,
+                  onNew: _newChat,
+                  arabic: widget.arabic,
+                ),
     );
   }
 }
@@ -307,27 +295,15 @@ class _SessionList extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.chat_bubble_outline_rounded,
-              size: 52,
-              color: _teal,
-            ),
+            const Icon(Icons.chat_bubble_outline_rounded, size: 52, color: _teal),
             const SizedBox(height: 16),
             Text(
               _chatText(arabic, 'No chats yet', 'لا توجد محادثات بعد'),
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: _ink,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: _ink),
             ),
             const SizedBox(height: 8),
             Text(
-              _chatText(
-                arabic,
-                'Milos is waiting. Start a conversation.',
-                'ميلوس في انتظارك. ابدأ محادثة.',
-              ),
+              _chatText(arabic, 'Milos is waiting. Start a conversation.', 'ميلوس في انتظارك. ابدأ محادثة.'),
               style: TextStyle(fontSize: 13, color: _muted),
             ),
             const SizedBox(height: 24),
@@ -338,9 +314,7 @@ class _SessionList extends StatelessWidget {
               style: FilledButton.styleFrom(
                 backgroundColor: _teal,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
             ),
           ],
@@ -375,11 +349,7 @@ class _SessionList extends StatelessWidget {
                         color: const Color(0xFFE8F5F2),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
-                        Icons.chat_bubble_rounded,
-                        color: _teal,
-                        size: 20,
-                      ),
+                      child: const Icon(Icons.chat_bubble_rounded, color: _teal, size: 20),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -410,11 +380,7 @@ class _SessionList extends StatelessWidget {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(
-                        Icons.delete_outline_rounded,
-                        size: 18,
-                        color: _muted,
-                      ),
+                      icon: const Icon(Icons.delete_outline_rounded, size: 18, color: _muted),
                       onPressed: () => onDelete(session),
                       tooltip: _chatText(arabic, 'Delete', 'حذف'),
                     ),
@@ -532,13 +498,11 @@ class _ChatViewState extends State<_ChatView> {
       if (mounted) setState(() => _error = e.message);
     } catch (e) {
       if (mounted) {
-        setState(
-          () => _error = _chatText(
-            widget.arabic,
-            'Unexpected error: $e',
-            'حدث خطأ غير متوقع: $e',
-          ),
-        );
+        setState(() => _error = _chatText(
+          widget.arabic,
+          'Unexpected error: $e',
+          'حدث خطأ غير متوقع: $e',
+        ));
       }
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -566,10 +530,7 @@ class _ChatViewState extends State<_ChatView> {
   /// bubble only shows clean human-readable text.
   String _stripSpecialBlocks(String reply) {
     return reply
-        .replaceAll(
-          RegExp(r'<<TASKS_JSON>>.*?<<END_TASKS_JSON>>', dotAll: true),
-          '',
-        )
+        .replaceAll(RegExp(r'<<TASKS_JSON>>.*?<<END_TASKS_JSON>>', dotAll: true), '')
         .replaceAll(RegExp(r'<<MEMORY>>.*?<<END_MEMORY>>', dotAll: true), '')
         .trim();
   }
@@ -631,15 +592,7 @@ class _ChatViewState extends State<_ChatView> {
     if (tasks.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _chatText(
-                widget.arabic,
-                'Could not parse any valid tasks.',
-                'تعذر قراءة المهام.',
-              ),
-            ),
-          ),
+          SnackBar(content: Text(_chatText(widget.arabic, 'Could not parse any valid tasks.', 'تعذر قراءة المهام.'))),
         );
       }
       return;
@@ -657,7 +610,10 @@ class _ChatViewState extends State<_ChatView> {
     widget.session.messages.add(confirmMsg);
 
     final apiMessages = <Map<String, String>>[
-      {'role': 'system', 'content': await _buildSystemContent()},
+      {
+        'role': 'system',
+        'content': await _buildSystemContent(),
+      },
       ...widget.session.messages.map((m) => m.toApiMap()),
     ];
 
@@ -670,13 +626,11 @@ class _ChatViewState extends State<_ChatView> {
       _extractAndSaveMemories(reply);
       final cleanReply = _stripSpecialBlocks(reply);
       if (cleanReply.isNotEmpty) {
-        widget.session.messages.add(
-          ChatMessage(
-            role: 'assistant',
-            content: cleanReply,
-            timestamp: DateTime.now(),
-          ),
-        );
+        widget.session.messages.add(ChatMessage(
+          role: 'assistant',
+          content: cleanReply,
+          timestamp: DateTime.now(),
+        ));
         widget.onMessageAdded();
       }
     } catch (_) {
@@ -689,13 +643,11 @@ class _ChatViewState extends State<_ChatView> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            _chatText(
-              widget.arabic,
-              '${tasks.length} task${tasks.length > 1 ? 's' : ''} added!',
-              'تمت إضافة ${tasks.length} مهمة!',
-            ),
-          ),
+          content: Text(_chatText(
+            widget.arabic,
+            '${tasks.length} task${tasks.length > 1 ? 's' : ''} added!',
+            'تمت إضافة ${tasks.length} مهمة!',
+          )),
           backgroundColor: _teal,
         ),
       );
@@ -714,7 +666,10 @@ class _ChatViewState extends State<_ChatView> {
     widget.session.messages.add(rejectMsg);
 
     final apiMessages = <Map<String, String>>[
-      {'role': 'system', 'content': await _buildSystemContent()},
+      {
+        'role': 'system',
+        'content': await _buildSystemContent(),
+      },
       ...widget.session.messages.map((m) => m.toApiMap()),
     ];
 
@@ -727,13 +682,11 @@ class _ChatViewState extends State<_ChatView> {
       _extractAndSaveMemories(reply);
       final cleanReply = _stripSpecialBlocks(reply);
       if (cleanReply.isNotEmpty) {
-        widget.session.messages.add(
-          ChatMessage(
-            role: 'assistant',
-            content: cleanReply,
-            timestamp: DateTime.now(),
-          ),
-        );
+        widget.session.messages.add(ChatMessage(
+          role: 'assistant',
+          content: cleanReply,
+          timestamp: DateTime.now(),
+        ));
         widget.onMessageAdded();
       }
     } catch (_) {
@@ -760,16 +713,11 @@ class _ChatViewState extends State<_ChatView> {
   Widget build(BuildContext context) {
     // Strip JSON blocks; also hide messages that become empty after stripping
     // (handles old sessions saved before the JSON-stripping fix).
-    final stripRe = RegExp(
-      r'<<TASKS_JSON>>.*?<<END_TASKS_JSON>>',
-      dotAll: true,
-    );
+    final stripRe = RegExp(r'<<TASKS_JSON>>.*?<<END_TASKS_JSON>>', dotAll: true);
     final messages = widget.session.messages
-        .where(
-          (m) =>
-              !m.content.startsWith('[System]') &&
-              m.content.replaceAll(stripRe, '').trim().isNotEmpty,
-        )
+        .where((m) =>
+          !m.content.startsWith('[System]') &&
+          m.content.replaceAll(stripRe, '').trim().isNotEmpty)
         .toList();
 
     return Column(
@@ -777,19 +725,14 @@ class _ChatViewState extends State<_ChatView> {
         // Message list.
         Expanded(
           child: messages.isEmpty
-              ? _EmptyChat(
-                  arabic: widget.arabic,
-                  onSuggestionTap: (s) {
-                    _controller.text = s;
-                    _send();
-                  },
-                )
+              ? _EmptyChat(arabic: widget.arabic, onSuggestionTap: (s) {
+                  _controller.text = s;
+                  _send();
+                })
               : ListView.builder(
                   controller: _scroll,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   itemCount: messages.length + (_sending ? 1 : 0),
                   itemBuilder: (context, index) {
                     if (index == messages.length) {
@@ -847,9 +790,8 @@ class _MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final isUser = message.role == 'user';
     return Row(
-      mainAxisAlignment: isUser
-          ? MainAxisAlignment.end
-          : MainAxisAlignment.start,
+      mainAxisAlignment:
+          isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         if (!isUser) ...[
@@ -884,15 +826,7 @@ class _MessageBubble extends StatelessWidget {
               ),
               child: Text(
                 _stripMarkdown(
-                  message.content
-                      .replaceAll(
-                        RegExp(
-                          r'<<TASKS_JSON>>.*?<<END_TASKS_JSON>>',
-                          dotAll: true,
-                        ),
-                        '',
-                      )
-                      .trim(),
+                  message.content.replaceAll(RegExp(r'<<TASKS_JSON>>.*?<<END_TASKS_JSON>>', dotAll: true), '').trim(),
                 ),
                 style: TextStyle(
                   fontSize: 14,
@@ -961,8 +895,7 @@ class _TypingIndicatorState extends State<_TypingIndicator>
             builder: (context, _) => Row(
               children: List.generate(3, (i) {
                 final phase = ((_ctrl.value * 3) - i).clamp(0.0, 1.0);
-                final opacity = (phase < 0.5 ? phase * 2 : (1 - phase) * 2)
-                    .clamp(0.3, 1.0);
+                final opacity = (phase < 0.5 ? phase * 2 : (1 - phase) * 2).clamp(0.3, 1.0);
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 2),
                   child: Opacity(
@@ -1084,8 +1017,8 @@ class _TaskPreviewRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title =
-        task['title'] as String? ?? _chatText(arabic, 'Untitled', 'بدون عنوان');
+    final title = task['title'] as String? ??
+        _chatText(arabic, 'Untitled', 'بدون عنوان');
     final remindAt = task['remindAt'] as String? ?? '';
     DateTime? dt;
     try {
@@ -1134,15 +1067,11 @@ class _TaskPreviewRow extends StatelessWidget {
             ),
           const SizedBox(width: 6),
           Text(
-            _chatText(
-              arabic,
-              importanceLabels[importance]!,
-              switch (importance) {
-                TaskImportance.normal => 'عادية',
-                TaskImportance.necessary => 'مهمة',
-                TaskImportance.superNecessary => 'مهمة جداً',
-              },
-            ),
+            _chatText(arabic, importanceLabels[importance]!, switch (importance) {
+              TaskImportance.normal => 'عادية',
+              TaskImportance.necessary => 'مهمة',
+              TaskImportance.superNecessary => 'مهمة جداً',
+            }),
             style: TextStyle(
               fontSize: 9,
               fontWeight: FontWeight.w800,
@@ -1201,17 +1130,11 @@ class _InputBar extends StatelessWidget {
                 textCapitalization: TextCapitalization.sentences,
                 style: const TextStyle(fontSize: 14, color: _ink),
                 decoration: InputDecoration(
-                  hintText: _chatText(
-                    arabic,
-                    'Tell me what you want to do…',
-                    'أخبرني ما الذي تريد إنجازه…',
-                  ),
+                  hintText: _chatText(arabic, 'Tell me what you want to do…', 'أخبرني ما الذي تريد إنجازه…'),
                   hintStyle: TextStyle(fontSize: 14, color: _muted),
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 ),
                 onSubmitted: (_) => onSend(),
               ),
@@ -1265,10 +1188,6 @@ class _EmptyChat extends StatelessWidget {
     'Remind me to submit the report on Friday afternoon',
   ];
   static const _arabicSuggestions = [
-    'أحتاج إلى الاتصال بالطبيب صباح الغد',
-    'ذكّرني بإرسال التقرير بعد ظهر الجمعة',
-    'غداً عندي موعد عند الطبيب الساعة 10',
-    'نهار الجمعة كيجي خويا من السفر',
   ];
 
   @override
@@ -1310,15 +1229,11 @@ class _EmptyChat extends StatelessWidget {
           spacing: 8,
           runSpacing: 8,
           alignment: WrapAlignment.center,
-          children: (arabic ? _arabicSuggestions : _suggestions)
-              .map(
-                (s) => _SuggestionChip(
-                  text: s,
-                  arabic: arabic,
-                  onTap: () => onSuggestionTap(s),
-                ),
-              )
-              .toList(),
+          children: (arabic ? _arabicSuggestions : _suggestions).map((s) => _SuggestionChip(
+            text: s,
+            arabic: arabic,
+            onTap: () => onSuggestionTap(s),
+          )).toList(),
         ),
       ],
     ),
@@ -1326,11 +1241,7 @@ class _EmptyChat extends StatelessWidget {
 }
 
 class _SuggestionChip extends StatelessWidget {
-  const _SuggestionChip({
-    required this.text,
-    required this.arabic,
-    required this.onTap,
-  });
+  const _SuggestionChip({required this.text, required this.arabic, required this.onTap});
   final String text;
   final bool arabic;
   final VoidCallback onTap;
@@ -1358,11 +1269,7 @@ class _SuggestionChip extends StatelessWidget {
 // Model selector dropdown in AppBar
 // ---------------------------------------------------------------------------
 class _ModelSelector extends StatelessWidget {
-  const _ModelSelector({
-    required this.selected,
-    required this.onChanged,
-    required this.arabic,
-  });
+  const _ModelSelector({required this.selected, required this.onChanged, required this.arabic});
   final String selected;
   final ValueChanged<String> onChanged;
   final bool arabic;
@@ -1372,24 +1279,20 @@ class _ModelSelector extends StatelessWidget {
     tooltip: _chatText(arabic, 'AI Model', 'نموذج الذكاء الاصطناعي'),
     icon: const Icon(Icons.tune_rounded, size: 20, color: _muted),
     onSelected: onChanged,
-    itemBuilder: (_) => groqModels.entries
-        .map(
-          (e) => PopupMenuItem(
-            value: e.key,
-            child: Row(
-              children: [
-                Icon(
-                  Icons.radio_button_checked,
-                  size: 14,
-                  color: selected == e.key ? _teal : Colors.transparent,
-                ),
-                const SizedBox(width: 8),
-                Text(e.value, style: const TextStyle(fontSize: 13)),
-              ],
-            ),
+    itemBuilder: (_) => groqModels.entries.map((e) => PopupMenuItem(
+      value: e.key,
+      child: Row(
+        children: [
+          Icon(
+            Icons.radio_button_checked,
+            size: 14,
+            color: selected == e.key ? _teal : Colors.transparent,
           ),
-        )
-        .toList(),
+          const SizedBox(width: 8),
+          Text(e.value, style: const TextStyle(fontSize: 13)),
+        ],
+      ),
+    )).toList(),
   );
 }
 
