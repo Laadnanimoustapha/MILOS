@@ -4,11 +4,9 @@
     color: #253533;
     background: #f5f8f7;
 }
-
 * {
     box-sizing: border-box;
 }
-
 body {
     min-height: 100vh;
     margin: 0;
@@ -16,7 +14,6 @@ body {
     place-items: center;
     padding: 24px;
 }
-
 main {
     width: min(100%, 440px);
     padding: 36px;
@@ -25,7 +22,6 @@ main {
     background: #fff;
     box-shadow: 0 18px 55px #2535330d;
 }
-
 .mark {
     display: grid;
     width: 52px;
@@ -37,19 +33,16 @@ main {
     font-size: 25px;
     font-weight: 750;
 }
-
 h1 {
     margin: 24px 0 8px;
     font-size: 34px;
     letter-spacing: -1.4px;
 }
-
 p {
     margin: 0;
     color: #82908d;
     line-height: 1.6;
 }
-
 a {
     display: flex;
     min-height: 54px;
@@ -64,7 +57,6 @@ a {
     text-decoration: none;
     transition: background .2s, transform .2s;
 }
-
 a:hover {
     background: #419d8e;
     transform: translateY(-1px);
@@ -74,13 +66,11 @@ a:focus-visible {
     outline: 3px solid #a3daf5;
     outline-offset: 3px;
 }
-
 .detail {
     margin-top: 14px;
     text-align: center;
     font-size: 12px;
 }
-
 @media (max-width: 480px) {
     main {
         padding: 28px;
