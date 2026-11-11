@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'chat_store.dart';
 import 'groq_keys_page.dart';
 import 'groq_service.dart';
+import 'memory_page.dart';
+import 'memory_store.dart';
 import 'task.dart';
 import 'task_store.dart';
 
