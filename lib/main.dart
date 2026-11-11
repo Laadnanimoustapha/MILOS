@@ -140,6 +140,12 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadTasks();
+    // Re-register the foreground notification callback pointing at this state
+    // so that action taps (Done / Wait / I started) while app is open
+    // immediately reload the task list from storage.
+    ReminderService.instance.initialize(
+      onForegroundResponse: (_) => _reloadFromStorage(),
+    );
   }
 
   @override
@@ -158,6 +164,21 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
       _tasks.addAll(await _store.load());
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
+    await _refreshReminders();
+  }
+
+  /// Reloads tasks from disk and refreshes the UI + reminder schedule.
+  /// Called after any notification action fires while the app is in the foreground.
+  Future<void> _reloadFromStorage() async {
+    try {
+      final fresh = await _store.load();
+      if (!mounted) return;
+      setState(() {
+        _tasks
+          ..clear()
+          ..addAll(fresh);
+      });
+    } catch (_) {}
     await _refreshReminders();
   }
 
