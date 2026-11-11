@@ -49,8 +49,10 @@ String _chatText(bool arabic, String english, String arabicText) =>
 // ---------------------------------------------------------------------------
 // System prompt sent to the AI on every session.
 // Instructs it to extract tasks and return JSON when ready.
+// REPLACE_TODAY  → today's date/time
+// REPLACE_MEMORY → user's stored memories (injected at runtime)
 // ---------------------------------------------------------------------------
-const _systemPrompt = '''
+const _systemPromptTemplate = '''
 You are Milos — a wise, warm old man who has seen it all and is now here to help. You speak with gentle patience, a touch of dry humour, and the calm authority of someone who has earned it. You are like that grandfather who always knows what needs to be done.
 
 Your job is to have a natural, friendly conversation with the user in whatever language they write to you (Arabic, Moroccan Darija, or English), understand their plans and intentions, and help them turn them into tasks. Always reply in the same language the user writes in.
@@ -60,6 +62,9 @@ Personality:
 - Use occasional expressions like "my friend", "yak", "listen to me, my son/daughter", "in my day…" (but don't overdo it).
 - Never rush. If something is unclear, ask gently like an elder would.
 - When things go wrong, be forgiving and kind — "No problem, let's fix it together."
+
+MEMORY — things you already know about this user (use naturally in conversation):
+REPLACE_MEMORY
 
 IMPORTANT RULES:
 1. Converse naturally and warmly in the user's language. Ask clarifying questions if something is unclear (date, time, priority, etc.).
@@ -78,6 +83,9 @@ IMPORTANT RULES:
 11. Keep answers concise but human. Do not add unsolicited advice.
 12. When the user approves the tasks, do NOT output <<TASKS_JSON>> again. Just say a warm, brief word of encouragement or confirmation.
 13. IMPORTANT: Never use markdown formatting (no **, ##, *, _, `, ~~, >). Write plain text only — your messages are shown directly in a chat bubble without any markdown renderer.
+14. MEMORY LEARNING: When you notice something worth remembering about the user (a preference, a habit, their schedule, something they like or dislike, their name, their typical routines), output a memory block at the END of your reply EXACTLY like this (one fact per block, no markdown):
+    <<MEMORY>>The user prefers morning workouts<<END_MEMORY>>
+    Only add a memory block when you learn something genuinely new and useful. Do NOT repeat facts already in the MEMORY section above. Do NOT add trivial or one-off things.
 ''';
 
 // ---------------------------------------------------------------------------
@@ -402,6 +410,7 @@ class _ChatView extends StatefulWidget {
 class _ChatViewState extends State<_ChatView> {
   final _controller = TextEditingController();
   final _scroll = ScrollController();
+  final _memoryStore = MemoryStore();
   bool _sending = false;
   String? _error;
 
@@ -449,7 +458,14 @@ class _ChatViewState extends State<_ChatView> {
 
     // Build message history for the API (system + all messages).
     final today = _todayString();
-    final systemContent = _systemPrompt.replaceFirst('REPLACE_TODAY', today);
+    // Load memories and inject into system prompt.
+    final memories = await _memoryStore.load();
+    final memorySection = memories.isEmpty
+        ? '(nothing yet — you will learn as the conversation unfolds)'
+        : memories.map((m) => '- $m').join('\n');
+    final systemContent = _systemPromptTemplate
+        .replaceFirst('REPLACE_TODAY', today)
+        .replaceFirst('REPLACE_MEMORY', memorySection);
     final apiMessages = <Map<String, String>>[
       {'role': 'system', 'content': systemContent},
       ...widget.session.messages.map((m) => m.toApiMap()),
@@ -461,10 +477,11 @@ class _ChatViewState extends State<_ChatView> {
         messages: apiMessages,
       );
 
-      // Always strip JSON block from stored/displayed reply, even if parsing fails.
-      final cleanReply = reply
-          .replaceAll(RegExp(r'<<TASKS_JSON>>.*?<<END_TASKS_JSON>>', dotAll: true), '')
-          .trim();
+      // Extract and persist any new memory facts before stripping tags.
+      _extractAndSaveMemories(reply);
+
+      // Strip both JSON and memory blocks from stored/displayed reply.
+      final cleanReply = _stripSpecialBlocks(reply);
       final extracted = _extractTasks(reply);
 
       final assistantMsg = ChatMessage(
@@ -507,6 +524,26 @@ class _ChatViewState extends State<_ChatView> {
       return list.cast<Map<String, dynamic>>();
     } catch (_) {
       return null;
+    }
+  }
+
+  /// Strips all special blocks (TASKS_JSON and MEMORY) from the reply so the
+  /// bubble only shows clean human-readable text.
+  String _stripSpecialBlocks(String reply) {
+    return reply
+        .replaceAll(RegExp(r'<<TASKS_JSON>>.*?<<END_TASKS_JSON>>', dotAll: true), '')
+        .replaceAll(RegExp(r'<<MEMORY>>.*?<<END_MEMORY>>', dotAll: true), '')
+        .trim();
+  }
+
+  /// Finds all <<MEMORY>>…<<END_MEMORY>> blocks in the reply and saves them.
+  void _extractAndSaveMemories(String reply) {
+    final pattern = RegExp(r'<<MEMORY>>([\s\S]*?)<<END_MEMORY>>');
+    for (final match in pattern.allMatches(reply)) {
+      final fact = match.group(1)?.trim();
+      if (fact != null && fact.isNotEmpty) {
+        _memoryStore.add(fact); // fire-and-forget; no await needed
+      }
     }
   }
 
@@ -576,7 +613,7 @@ class _ChatViewState extends State<_ChatView> {
     final apiMessages = <Map<String, String>>[
       {
         'role': 'system',
-        'content': _systemPrompt.replaceFirst('REPLACE_TODAY', _todayString()),
+        'content': await _buildSystemContent(),
       },
       ...widget.session.messages.map((m) => m.toApiMap()),
     ];
@@ -587,9 +624,8 @@ class _ChatViewState extends State<_ChatView> {
         model: widget.session.model,
         messages: apiMessages,
       );
-      final cleanReply = reply
-          .replaceAll(RegExp(r'<<TASKS_JSON>>.*<<END_TASKS_JSON>>', dotAll: true), '')
-          .trim();
+      _extractAndSaveMemories(reply);
+      final cleanReply = _stripSpecialBlocks(reply);
       if (cleanReply.isNotEmpty) {
         widget.session.messages.add(ChatMessage(
           role: 'assistant',
@@ -633,7 +669,7 @@ class _ChatViewState extends State<_ChatView> {
     final apiMessages = <Map<String, String>>[
       {
         'role': 'system',
-        'content': _systemPrompt.replaceFirst('REPLACE_TODAY', _todayString()),
+        'content': await _buildSystemContent(),
       },
       ...widget.session.messages.map((m) => m.toApiMap()),
     ];
@@ -644,9 +680,8 @@ class _ChatViewState extends State<_ChatView> {
         model: widget.session.model,
         messages: apiMessages,
       );
-      final cleanReply = reply
-          .replaceAll(RegExp(r'<<TASKS_JSON>>.*<<END_TASKS_JSON>>', dotAll: true), '')
-          .trim();
+      _extractAndSaveMemories(reply);
+      final cleanReply = _stripSpecialBlocks(reply);
       if (cleanReply.isNotEmpty) {
         widget.session.messages.add(ChatMessage(
           role: 'assistant',
@@ -661,6 +696,18 @@ class _ChatViewState extends State<_ChatView> {
       if (mounted) setState(() => _sending = false);
       _scrollToBottom();
     }
+  }
+
+  /// Builds the full system prompt content with today's date and user memories injected.
+  Future<String> _buildSystemContent() async {
+    final today = _todayString();
+    final memories = await _memoryStore.load();
+    final memorySection = memories.isEmpty
+        ? '(nothing yet — you will learn as the conversation unfolds)'
+        : memories.map((m) => '- $m').join('\n');
+    return _systemPromptTemplate
+        .replaceFirst('REPLACE_TODAY', today)
+        .replaceFirst('REPLACE_MEMORY', memorySection);
   }
 
   @override
