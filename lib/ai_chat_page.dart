@@ -805,10 +805,13 @@ class _MessageBubble extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         if (!isUser) ...[
-          const CircleAvatar(
-            radius: 14,
-            backgroundColor: Color(0xFFE8F5F2),
-            child: Icon(Icons.elderly_rounded, size: 15, color: _teal),
+          ClipOval(
+            child: Image.asset(
+              'assets/images/milos_logo.webp',
+              width: 28,
+              height: 28,
+              fit: BoxFit.cover,
+            ),
           ),
           const SizedBox(width: 8),
         ],
@@ -1207,7 +1210,14 @@ class _EmptyChat extends StatelessWidget {
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Icon(Icons.elderly_rounded, size: 56, color: _teal),
+        ClipOval(
+          child: Image.asset(
+            'assets/images/milos_logo.webp',
+            width: 72,
+            height: 72,
+            fit: BoxFit.cover,
+          ),
+        ),
         const SizedBox(height: 14),
         Text(
           _chatText(arabic, 'Milos is here.', 'ميلوس هنا.'),
