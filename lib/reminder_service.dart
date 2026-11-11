@@ -420,6 +420,7 @@ class ReminderService {
           'Task reminders',
           channelDescription: 'Reminders for your tasks',
           icon: 'milos_notification_small',
+          largeIcon: const DrawableResourceAndroidBitmap('milos_notification_logo'),
           importance: Importance.high,
           priority: Priority.high,
           enableVibration: true,
