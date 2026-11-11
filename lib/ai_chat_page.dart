@@ -13,6 +13,30 @@ import 'task_store.dart';
 // ---------------------------------------------------------------------------
 // Colour tokens (match the rest of the app)
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Strips common markdown syntax the AI may emit so it never shows raw symbols.
+// No package needed — a few RegExp replacements cover the common cases.
+// ---------------------------------------------------------------------------
+String _stripMarkdown(String text) {
+  return text
+      // Remove heading markers (# ## ### at line start)
+      .replaceAll(RegExp(r'^#{1,6}\s+', multiLine: true), '')
+      // Remove bold/italic: ***text***, **text**, *text*, ___text___, __text__, _text_
+      .replaceAll(RegExp(r'\*{1,3}([^*\n]+)\*{1,3}'), r'$1')
+      .replaceAll(RegExp(r'_{1,3}([^_\n]+)_{1,3}'), r'$1')
+      // Remove inline code backticks: `code`
+      .replaceAll(RegExp(r'`([^`\n]+)`'), r'$1')
+      // Remove strikethrough: ~~text~~
+      .replaceAll(RegExp(r'~~([^~\n]+)~~'), r'$1')
+      // Remove blockquote markers (> at line start)
+      .replaceAll(RegExp(r'^>\s+', multiLine: true), '')
+      // Remove horizontal rules
+      .replaceAll(RegExp(r'^[-*_]{3,}\s*$', multiLine: true), '')
+      // Clean up any remaining isolated * or _ not part of words
+      .replaceAll(RegExp(r'(?<!\w)\*+(?!\w)'), '')
+      .trim();
+}
 const _teal = Color(0xFF4CAF9E);
 const _ink = Color(0xFF253533);
 const _muted = Color(0xFF82908D);
@@ -51,6 +75,7 @@ IMPORTANT RULES:
 10. Never output the JSON unless you are confident you have enough data to populate ALL required fields. If unsure, ask first.
 11. Keep answers concise but human. Do not add unsolicited advice.
 12. When the user approves the tasks, do NOT output <<TASKS_JSON>> again. Just say a warm, brief word of encouragement or confirmation.
+13. IMPORTANT: Never use markdown formatting (no **, ##, *, _, `, ~~, >). Write plain text only — your messages are shown directly in a chat bubble without any markdown renderer.
 ''';
 
 // ---------------------------------------------------------------------------
@@ -749,7 +774,9 @@ class _MessageBubble extends StatelessWidget {
                     : Border.all(color: const Color(0xFFE9EFED)),
               ),
               child: Text(
-                message.content.replaceAll(RegExp(r'<<TASKS_JSON>>.*?<<END_TASKS_JSON>>', dotAll: true), '').trim(),
+                _stripMarkdown(
+                  message.content.replaceAll(RegExp(r'<<TASKS_JSON>>.*?<<END_TASKS_JSON>>', dotAll: true), '').trim(),
+                ),
                 style: TextStyle(
                   fontSize: 14,
                   color: isUser ? Colors.white : _ink,

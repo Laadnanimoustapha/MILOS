@@ -24,9 +24,15 @@ const _actionStart = 'start';
 const _snoozeDuration = Duration(minutes: 15);
 
 // ─── Background isolate entry-point ──────────────────────────────────────────
-// Called by the OS when the user taps an action while the app is closed.
+// Called by the OS when the user taps an action while the app is killed/closed.
+// IMPORTANT: runs in a NEW isolate — no Flutter engine running.
+// Must call WidgetsFlutterBinding.ensureInitialized() before any plugin use.
 @pragma('vm:entry-point')
-void notificationActionBackground(NotificationResponse response) {
+void notificationActionBackground(NotificationResponse response) async {
+  // Required: initialise Flutter bindings in the background isolate.
+  WidgetsFlutterBinding.ensureInitialized();
+  // Initialise the notification plugin so it can schedule the snooze.
+  await ReminderService.instance.initialize();
   _handleResponse(response);
 }
 
@@ -65,6 +71,7 @@ Future<void> _markTaskDone(int taskId) async {
     }
 
     await store.save(tasks);
+    // Cancel all scheduled notifications for this task; refresh the rest.
     await ReminderService.instance.cancel(task);
     await ReminderService.instance.refresh(tasks);
   } catch (_) {}
@@ -78,8 +85,7 @@ Future<void> _startTask(int taskId) async {
     if (index == -1) return;
     final task = tasks[index];
     if (task.done) return;
-    // Mark inProgress = true and re-schedule reminders so that intermediate
-    // alerts are stopped until the final "Have you finished?" check-in.
+    // Mark inProgress = true and re-schedule so intermediate alerts stop.
     tasks[index] = task.copyWith(inProgress: true);
     await store.save(tasks);
     await ReminderService.instance.refresh(tasks);
@@ -337,13 +343,13 @@ class ReminderService {
     final actions = <AndroidNotificationAction>[
       const AndroidNotificationAction(
         _actionDone,
-        '✅ Done',
+        'Done',
         showsUserInterface: false,
         cancelNotification: true,
       ),
       const AndroidNotificationAction(
         _actionWait,
-        '⏰ Wait 15 min',
+        'Wait 15 min',
         showsUserInterface: false,
         cancelNotification: true,
       ),
@@ -352,7 +358,7 @@ class ReminderService {
           task.scheduleMode == TaskScheduleMode.range)
         const AndroidNotificationAction(
           _actionStart,
-          '🚀 I started doing it',
+          'I started doing it',
           showsUserInterface: false,
           cancelNotification: true,
         ),
