@@ -153,6 +153,10 @@ class _AiChatPageState extends State<AiChatPage> {
     MaterialPageRoute<void>(builder: (_) => GroqKeysPage(arabic: widget.arabic)),
   );
 
+  Future<void> _openMemory() => Navigator.of(context).push(
+    MaterialPageRoute<void>(builder: (_) => MemoryPage(arabic: widget.arabic)),
+  );
+
   Future<void> _deleteSession(ChatSession session) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -218,6 +222,11 @@ class _AiChatPageState extends State<AiChatPage> {
                 onPressed: () => Navigator.of(context).pop(),
               ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.psychology_outlined, color: _muted),
+            tooltip: _chatText(widget.arabic, 'Memory', 'الذاكرة'),
+            onPressed: _openMemory,
+          ),
           IconButton(
             icon: const Icon(Icons.settings_outlined, color: _muted),
             tooltip: _chatText(widget.arabic, 'API keys', 'مفاتيح API'),
@@ -536,7 +545,7 @@ class _ChatViewState extends State<_ChatView> {
         .trim();
   }
 
-  /// Finds all <<MEMORY>>…<<END_MEMORY>> blocks in the reply and saves them.
+  /// Finds all `<<MEMORY>>...<<END_MEMORY>>` blocks in the reply and saves them.
   void _extractAndSaveMemories(String reply) {
     final pattern = RegExp(r'<<MEMORY>>([\s\S]*?)<<END_MEMORY>>');
     for (final match in pattern.allMatches(reply)) {

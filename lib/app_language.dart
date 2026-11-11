@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'memory_page.dart';
+
 enum AppLanguage { english, arabic }
 
 class AppLanguageStore {
@@ -64,6 +66,27 @@ class LanguageSettingsPage extends StatelessWidget {
         ),
         const RadioListTile(value: AppLanguage.english, title: Text('English')),
         const RadioListTile(value: AppLanguage.arabic, title: Text('العربية')),
+        const Divider(height: 32),
+        ListTile(
+          leading: const Icon(Icons.psychology_outlined, color: Color(0xFF4CAF9E)),
+          title: Text(
+            selected == AppLanguage.arabic ? 'ذاكرة ميلوس' : "Milos's Memory",
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            selected == AppLanguage.arabic
+                ? 'عرض وتعديل ما يتذكره المساعد الذكي عنك'
+                : 'View and manage what Milos remembers about you',
+          ),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => MemoryPage(arabic: selected == AppLanguage.arabic),
+              ),
+            );
+          },
+        ),
       ]),
     ),
   );
