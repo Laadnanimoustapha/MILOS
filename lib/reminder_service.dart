@@ -167,15 +167,17 @@ class ReminderService {
             defaultTargetPlatform != TargetPlatform.iOS)) {
       return false;
     }
-    final android = _plugin.resolvePlatformSpecificImplementation<
-      AndroidFlutterLocalNotificationsPlugin
-    >();
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     if (android != null) {
       return await android.requestNotificationsPermission() ?? false;
     }
-    final ios = _plugin.resolvePlatformSpecificImplementation<
-      IOSFlutterLocalNotificationsPlugin
-    >();
+    final ios = _plugin
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
     if (ios != null) {
       return await ios.requestPermissions(alert: true, sound: true) ?? false;
     }
@@ -196,7 +198,12 @@ class ReminderService {
     }
     try {
       for (var index = 0; index < reminders.length; index++) {
-        await _scheduleOne(task, reminders[index], index, isLast: index == reminders.length - 1);
+        await _scheduleOne(
+          task,
+          reminders[index],
+          index,
+          isLast: index == reminders.length - 1,
+        );
       }
     } catch (_) {
       await cancel(task);
@@ -220,10 +227,11 @@ class ReminderService {
               (task.repeat != TaskRepeat.none || task.remindUntil.isAfter(now)),
         )
         .toList();
-    bool belongsToTask(int id) => tasks.any(
-      (task) => id >= task.id * 100 && id < task.id * 100 + 60,
-    );
-    final managed = pending.where((request) => belongsToTask(request.id)).toList();
+    bool belongsToTask(int id) =>
+        tasks.any((task) => id >= task.id * 100 && id < task.id * 100 + 60);
+    final managed = pending
+        .where((request) => belongsToTask(request.id))
+        .toList();
     for (final request in managed) {
       await _plugin.cancel(id: request.id);
     }
@@ -294,8 +302,6 @@ class ReminderService {
     }
     return reminders;
   }
-
-
 
   /// Builds the notification body and title for a given reminder index.
   /// When task.inProgress is true or it's the last check-in, asks if finished.
@@ -385,7 +391,9 @@ class ReminderService {
           'Task reminders',
           channelDescription: 'Reminders for your tasks',
           icon: 'milos_notification_small',
-          largeIcon: const DrawableResourceAndroidBitmap('milos_notification_logo'),
+          largeIcon: const DrawableResourceAndroidBitmap(
+            'milos_notification_logo',
+          ),
           importance: Importance.high,
           priority: Priority.high,
           enableVibration: true,
@@ -420,7 +428,9 @@ class ReminderService {
           'Task reminders',
           channelDescription: 'Reminders for your tasks',
           icon: 'milos_notification_small',
-          largeIcon: const DrawableResourceAndroidBitmap('milos_notification_logo'),
+          largeIcon: const DrawableResourceAndroidBitmap(
+            'milos_notification_logo',
+          ),
           importance: Importance.high,
           priority: Priority.high,
           enableVibration: true,
