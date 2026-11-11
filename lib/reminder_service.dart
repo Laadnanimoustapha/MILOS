@@ -114,14 +114,22 @@ class ReminderService {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   bool _ready = false;
+  // Mutable foreground callback — updated from TodayPage without re-init.
+  void Function(NotificationResponse)? _onForegroundResponse;
 
   // ID range for snooze notifications (outside the task.id*100 range).
   // We use 900000 + taskId so it doesn't collide with normal reminders.
   int _snoozeId(int taskId) => 900000 + taskId;
 
+  /// Initialises the plugin (only once) and optionally registers/updates the
+  /// foreground action callback.  Safe to call multiple times.
   Future<void> initialize({
     void Function(NotificationResponse)? onForegroundResponse,
   }) async {
+    // Always store the latest callback even when already initialized.
+    if (onForegroundResponse != null) {
+      _onForegroundResponse = onForegroundResponse;
+    }
     if (_ready) return;
     if (kIsWeb ||
         (defaultTargetPlatform != TargetPlatform.android &&
@@ -133,16 +141,17 @@ class ReminderService {
     final localZone = await FlutterTimezone.getLocalTimezone();
     timezone.setLocalLocation(timezone.getLocation(localZone.identifier));
     await _plugin.initialize(
-      settings: InitializationSettings(
-        android: const AndroidInitializationSettings('@mipmap/ic_launcher'),
-        iOS: const DarwinInitializationSettings(
+      settings: const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        iOS: DarwinInitializationSettings(
           requestAlertPermission: false,
           requestBadgePermission: false,
           requestSoundPermission: false,
         ),
       ),
       onDidReceiveNotificationResponse: (response) {
-        onForegroundResponse?.call(response);
+        // Use the stored callback so it can be updated after first init.
+        _onForegroundResponse?.call(response);
         _handleResponse(response);
       },
       onDidReceiveBackgroundNotificationResponse: notificationActionBackground,
