@@ -156,7 +156,10 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(_refreshReminders());
+    // When the app comes back to foreground (e.g. after the user tapped a
+    // notification action while the app was in the background), reload tasks
+    // from storage so the UI reflects changes made in the background isolate.
+    if (state == AppLifecycleState.resumed) unawaited(_reloadFromStorage());
   }
 
   Future<void> _loadTasks() async {
