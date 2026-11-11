@@ -1895,18 +1895,25 @@ class _MilosButton extends StatelessWidget {
   Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
     child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: const Color(0xFFE8F5F2),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFCDE8E1)),
       ),
-      child: const Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.elderly_rounded, size: 16, color: _teal),
-          SizedBox(width: 5),
-          Text(
+          ClipOval(
+            child: Image.asset(
+              'assets/images/milos_logo.webp',
+              width: 20,
+              height: 20,
+              fit: BoxFit.cover,
+            ),
+          ),
+          const SizedBox(width: 6),
+          const Text(
             'Milos',
             style: TextStyle(
               fontSize: 12,
