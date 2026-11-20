@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'add_skill_sheet.dart';
 import 'ai_chat_page.dart';
 import 'app_language.dart';
 import 'archive_page.dart';
@@ -366,8 +367,42 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
       repeat: draft.repeat,
       customRepeatEvery: draft.customRepeatEvery,
       customRepeatUnit: draft.customRepeatUnit,
-      category: draft.category,
-      skillProgress: draft.skillProgress,
+      category: TaskCategory.regular,
+      skillProgress: 0,
+    );
+    setState(() => _tasks.add(task));
+    await _saveTasks();
+    try {
+      if (await ReminderService.instance.requestPermission()) {
+        await ReminderService.instance.refresh(_tasks);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _addSkill() async {
+    final draft = await showModalBottomSheet<Task>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AddSkillSheet(arabic: _arabic),
+    );
+    if (draft == null) return;
+
+    final nextId = _tasks.isEmpty
+        ? 1
+        : _tasks.map((t) => t.id).reduce((a, b) => a > b ? a : b) + 1;
+    final task = Task(
+      id: nextId,
+      title: draft.title,
+      remindAt: draft.remindAt,
+      remindUntil: draft.remindUntil,
+      importance: draft.importance,
+      superReminderIntervalMinutes: draft.superReminderIntervalMinutes,
+      scheduleMode: draft.scheduleMode,
+      category: TaskCategory.learning,
+      skillSteps: draft.skillSteps,
+      steps: draft.steps,
+      skillProgress: 0,
     );
     setState(() => _tasks.add(task));
     await _saveTasks();
@@ -658,16 +693,35 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
     final progress = _todayTotal == 0 ? 0.0 : _completed / _todayTotal;
     return Scaffold(
       floatingActionButton: _currentTab == 0
-          ? FloatingActionButton.extended(
-              onPressed: _addTask,
-              backgroundColor: _teal,
-              foregroundColor: Colors.white,
-              elevation: 4,
-              icon: const Icon(Icons.add_rounded),
-              label: Text(
-                _text('New task', 'مهمة جديدة'),
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FloatingActionButton.extended(
+                  heroTag: 'new_skill_fab',
+                  onPressed: _addSkill,
+                  backgroundColor: Colors.white,
+                  foregroundColor: _teal,
+                  elevation: 3,
+                  icon: const Icon(Icons.school_outlined, size: 20),
+                  label: Text(
+                    _text('New skill', 'مهارة جديدة'),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                FloatingActionButton.extended(
+                  heroTag: 'new_task_fab',
+                  onPressed: _addTask,
+                  backgroundColor: _teal,
+                  foregroundColor: Colors.white,
+                  elevation: 4,
+                  icon: const Icon(Icons.add_rounded),
+                  label: Text(
+                    _text('New task', 'مهمة جديدة'),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
             )
           : null,
       bottomNavigationBar: Container(
@@ -905,7 +959,6 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
   TaskRepeat _repeat = TaskRepeat.none;
   int _customRepeatEvery = 1;
   TaskRepeatUnit _customRepeatUnit = TaskRepeatUnit.days;
-  TaskCategory _category = TaskCategory.regular;
   String? _error;
   bool get _arabic => widget.arabic;
   String _text(String english, String arabic) =>
@@ -1021,7 +1074,7 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
           repeat: _repeat,
           customRepeatEvery: _customRepeatEvery,
           customRepeatUnit: _customRepeatUnit,
-          category: _category,
+          category: TaskCategory.regular,
           skillProgress: 0,
         ),
       );
@@ -1089,18 +1142,6 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _FormLabel(_text('CATEGORY', 'التصنيف')),
-                      const SizedBox(height: 7),
-                      _ChoiceRow<TaskCategory>(
-                        values: TaskCategory.values,
-                        selected: _category,
-                        labels: [
-                          _text('To-Do Task', 'مهمة عادية'),
-                          _text('Learning Skill', 'تعلم مهارة'),
-                        ],
-                        onSelected: (cat) => setState(() => _category = cat),
-                      ),
-                      const SizedBox(height: 18),
                       _FormLabel(_text('TASK', 'المهمة')),
                       const SizedBox(height: 7),
                       TextField(

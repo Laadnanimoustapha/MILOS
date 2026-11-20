@@ -34,7 +34,9 @@
 
 ## NEW FEATURES
 - [x] FEAT-1. DONE TASKS DISAPPEAR FROM MAIN SCREEN BUT STAY IN ARCHIVE (new Archive page or collapsible "Completed" drawer) ✅
-- [x] FEAT-2. LIFESTYLE HABITS PAGE — dedicated page for personal habits (praying, no smoking, notes, custom habits), each with its own streak, progress, and history ✅
-- [x] FEAT-3. DEDICATED DASHBOARD & PROGRESS PAGE — visual overview of all tasks + habits + streaks + weekly stats ✅
+- [x] FEAT-2. LIFESTYLE HABITS PAGE — dedicated page for personal habits (praying, custom streak trackers like no-smoking/cold-showers/etc., lifestyle notes, custom daily habits), each with its own streak, progress, and history ✅
+- [x] FEAT-3. DEDICATED DASHBOARD & PROGRESS PAGE — visual overview of all tasks + habits + custom streaks + weekly consistency + learning tracks ✅
 - [x] FEAT-4. AI PROGRESS ANALYSIS — in the Dashboard, an "Analyse" button sends current stats to Milos AI which gives professional advice, remarks, and an honest assessment of progress ✅
-- [x] FEAT-5. LEARNING TASK TYPE — new task category "Learning a Skill" with sub-progress tracking (e.g. "Flutter — 40% mastered"), session logging, and AI coaching ✅
+- [x] FEAT-5. LEARNING TASK TYPE — dedicated "New Skill" creation with per-step milestone dates, priority-based notification scheduling, time range or fixed mode, and interactive checklist progress ✅
+- [x] FEAT-6. TASK INTERVAL CHIPS REFINEMENT — hide interval chips when fixed/one-time mode is selected for super-necessary tasks ✅
+- [x] FEAT-7. NOTIFICATION ACTIONS BROADCAST RECEIVER — added missing ActionBroadcastReceiver in AndroidManifest & robust payload/notification cancellation ✅
