@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'add_skill_sheet.dart';
 import 'ai_chat_page.dart';
 import 'habit_store.dart';
+import 'reminder_service.dart';
 import 'streak_store.dart';
 import 'task.dart';
 import 'task_store.dart';
@@ -34,7 +36,7 @@ class _DashboardPageState extends State<DashboardPage> {
   int _streak = 0;
   List<bool> _weekDots = List.filled(7, false);
   Map<String, bool> _prayers = {};
-  int _smokeCleanDays = 0;
+  List<StreakTracker> _customStreaks = [];
   List<HabitItem> _habits = [];
   bool _loading = true;
 
@@ -50,7 +52,7 @@ class _DashboardPageState extends State<DashboardPage> {
       final streak = await StreakStore.loadStreak();
       final dots = await StreakStore.currentWeekDots();
       final prayers = await HabitStore.loadPrayers();
-      final smoke = await HabitStore.loadSmokingCleanDays();
+      final streaks = await HabitStore.loadCustomStreaks();
       final habits = await HabitStore.loadCustomHabits();
 
       if (mounted) {
@@ -59,7 +61,7 @@ class _DashboardPageState extends State<DashboardPage> {
           _streak = streak;
           _weekDots = dots;
           _prayers = prayers;
-          _smokeCleanDays = smoke;
+          _customStreaks = streaks;
           _habits = habits;
           _loading = false;
         });
@@ -81,7 +83,39 @@ class _DashboardPageState extends State<DashboardPage> {
     return taskDay.isBefore(today);
   }
 
-  void _runAiAnalysis() {
+  Future<void> _addNewSkill() async {
+    final skill = await showModalBottomSheet<Task>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => AddSkillSheet(arabic: _arabic),
+    );
+    if (skill == null) return;
+    final nextId = _tasks.isEmpty
+        ? 1
+        : _tasks.map((t) => t.id).reduce((a, b) => a > b ? a : b) + 1;
+    final toAdd = Task(
+      id: nextId,
+      title: skill.title,
+      remindAt: skill.remindAt,
+      remindUntil: skill.remindUntil,
+      importance: skill.importance,
+      superReminderIntervalMinutes: skill.superReminderIntervalMinutes,
+      scheduleMode: skill.scheduleMode,
+      category: TaskCategory.learning,
+      skillSteps: skill.skillSteps,
+      steps: skill.steps,
+      skillProgress: 0,
+    );
+    _tasks.add(toAdd);
+    await _taskStore.save(_tasks);
+    await _loadData();
+    try {
+      await ReminderService.instance.refresh(_tasks);
+    } catch (_) {}
+  }
+
+  void _runAiAnalysis([String? focusMode]) {
     final todayTasks = _tasks.where((t) => _isToday(t.remindAt)).toList();
     final todayDone = todayTasks.where((t) => t.done).length;
     final overdueCount = _tasks.where((t) => !t.done && _isOverdue(t.remindAt)).length;
@@ -89,31 +123,39 @@ class _DashboardPageState extends State<DashboardPage> {
     final habitsDone = _habits.where((h) => h.isDoneToday()).length;
     final learningTasks = _tasks.where((t) => t.category == TaskCategory.learning).toList();
 
-    final prompt = _arabic
-        ? '''
+    String streakSummary = _customStreaks.map((s) => '${s.titleEn}: ${s.daysCount} days').join(', ');
+    String streakSummaryAr = _customStreaks.map((s) => '${s.titleAr}: ${s.daysCount} يوماً').join('، ');
+
+    String prompt;
+    if (_arabic) {
+      prompt = '''
 مرحباً يا ميلوس، أحتاج تحليلك الصادق والشامل لتقدمي اليوم:
 - المهام المحددة لليوم: $todayDone مكتملة من أصل ${todayTasks.length}
 - المهام المتأخرة: $overdueCount
 - سلسلة الإنجاز اليومية: $_streak يوم
 - الصلوات اليومية: $prayersDone من أصل 5
-- أيام الامتناع عن التدخين: $_smokeCleanDays يوماً
+- سلاسل الالتزام: ${streakSummaryAr.isEmpty ? "لا توجد بعد" : streakSummaryAr}
 - العادات المنجزة اليوم: $habitsDone من أصل ${_habits.length}
-${learningTasks.isNotEmpty ? '- مسار المهارات والتعلم: ${learningTasks.map((t) => "${t.title} (${t.skillProgress}%)").join(", ")}' : ''}
+${learningTasks.isNotEmpty ? '- مسار المهارات والتعلم: ${learningTasks.map((t) => "${t.title} (${t.effectiveSkillProgress}%)").join(", ")}' : ''}
+${focusMode != null ? '- التركيز المطلوب: $focusMode' : ''}
 
 بصفتك حكيماً وموجهاً، قيّم التزامي اليوم وقدم لي نصائح عملية لما يجب التركيز عليه لتحسين وتيرة إنجازي.
-'''
-        : '''
+''';
+    } else {
+      prompt = '''
 Hello Milos, please give me a comprehensive and honest review of my progress today:
 - Today's tasks: $todayDone completed out of ${todayTasks.length}
 - Overdue tasks: $overdueCount
 - Daily streak: $_streak days
 - Daily prayers: $prayersDone of 5
-- Smoke-free streak: $_smokeCleanDays days
+- Custom streaks: ${streakSummary.isEmpty ? "None yet" : streakSummary}
 - Habits completed today: $habitsDone of ${_habits.length}
-${learningTasks.isNotEmpty ? '- Learning skills: ${learningTasks.map((t) => "${t.title} (${t.skillProgress}%)").join(", ")}' : ''}
+${learningTasks.isNotEmpty ? '- Learning skills: ${learningTasks.map((t) => "${t.title} (${t.effectiveSkillProgress}%)").join(", ")}' : ''}
+${focusMode != null ? '- Focus requested: $focusMode' : ''}
 
 As my coach and mentor, evaluate my discipline and give me practical advice on how to improve and stay consistent.
 ''';
+    }
 
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -186,11 +228,9 @@ As my coach and mentor, evaluate my discipline and give me practical advice on h
               _buildLifestyleHighlights(prayersDone),
               const SizedBox(height: 18),
 
-              // ─── LEARNING & SKILLS (FEAT-5) ──────────────────────────────
-              if (learningTasks.isNotEmpty) ...[
-                _buildLearningSection(learningTasks),
-                const SizedBox(height: 18),
-              ],
+              // ─── LEARNING & SKILLS (FEAT-5 & Point 2) ────────────────────
+              _buildLearningSection(learningTasks),
+              const SizedBox(height: 18),
             ],
           ),
         ),
@@ -253,8 +293,8 @@ As my coach and mentor, evaluate my discipline and give me practical advice on h
         const SizedBox(height: 14),
         Text(
           _t(
-            'Tap below to let Milos analyze your current tasks, prayers, habits, and streaks to give you wise, actionable insights.',
-            'اضغط على الزر أدناه ليقوم ميلوس بدراسة مهامك وصلواتك وعاداتك ويقدم لك نصائح مخصصة.',
+            'Ask Milos to review your tasks, prayers, habits, and skill progress to give you wise, actionable insights.',
+            'اطلب من ميلوس مراجعة مهامك وصلواتك وسلاسل التزامك ليعطيك توجيهات حكيمة.',
           ),
           style: const TextStyle(fontSize: 12, color: Color(0xFFD6E8E3), height: 1.4),
         ),
@@ -263,7 +303,7 @@ As my coach and mentor, evaluate my discipline and give me practical advice on h
           width: double.infinity,
           height: 46,
           child: FilledButton.icon(
-            onPressed: _runAiAnalysis,
+            onPressed: () => _runAiAnalysis(),
             icon: const Icon(Icons.auto_awesome_rounded, size: 18),
             label: Text(_t('Analyse My Progress', 'حلل تقدمي الآن')),
             style: FilledButton.styleFrom(
@@ -449,7 +489,7 @@ As my coach and mentor, evaluate my discipline and give me practical advice on h
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          _t('Lifestyle Highlights', 'نمط الحياة والالتزام'),
+          _t('Lifestyle & Streaks', 'نمط الحياة والسلاسل'),
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _ink),
         ),
         const SizedBox(height: 14),
@@ -458,7 +498,7 @@ As my coach and mentor, evaluate my discipline and give me practical advice on h
             Expanded(
               child: _highlightTile(
                 icon: Icons.mosque_rounded,
-                title: _t('Prayers', 'الصلوات'),
+                title: _t('Daily Prayers', 'الصلوات'),
                 subtitle: '$prayersDone / 5',
                 color: _teal,
               ),
@@ -466,14 +506,50 @@ As my coach and mentor, evaluate my discipline and give me practical advice on h
             const SizedBox(width: 12),
             Expanded(
               child: _highlightTile(
-                icon: Icons.smoke_free_rounded,
-                title: _t('No Smoking', 'بدون تدخين'),
-                subtitle: '$_smokeCleanDays ${_t("days", "يوماً")}',
+                icon: Icons.local_fire_department_rounded,
+                title: _t('Task Streak', 'سلسلة المهام'),
+                subtitle: '$_streak ${_t("days", "يوماً")}',
                 color: const Color(0xFFE07A30),
               ),
             ),
           ],
         ),
+        if (_customStreaks.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: Color(0xFFE9EFED)),
+          const SizedBox(height: 10),
+          Text(
+            _t('Active Habit Streaks', 'سلاسل العادات النشطة'),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _muted),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _customStreaks.map((s) {
+              final title = _arabic ? s.titleAr : s.titleEn;
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _paper,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE2EBE8)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.local_fire_department_rounded, size: 14, color: Color(0xFFE07A30)),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$title: ${s.daysCount} ${_t("d", "ي")}',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _ink),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
       ],
     ),
   );
@@ -530,42 +606,94 @@ As my coach and mentor, evaluate my discipline and give me practical advice on h
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Icon(Icons.school_rounded, color: _teal, size: 20),
-            const SizedBox(width: 8),
-            Text(
-              _t('Skill Learning Tracks', 'مسارات تعلم المهارات'),
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _ink),
+            Row(
+              children: [
+                const Icon(Icons.school_rounded, color: _teal, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  _t('Skill Learning Tracks', 'مسارات تعلم المهارات'),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _ink),
+                ),
+              ],
+            ),
+            TextButton.icon(
+              onPressed: _addNewSkill,
+              icon: const Icon(Icons.add_rounded, size: 16, color: _teal),
+              label: Text(
+                _t('New Skill', 'مهارة جديدة'),
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _teal),
+              ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        ...learningTasks.map((t) => Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        if (learningTasks.isEmpty)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                _t('No learning skills yet. Tap "New Skill" to start!', 'لا توجد مسارات مهارات بعد. اضغط "مهارة جديدة" للبدء!'),
+                style: const TextStyle(fontSize: 12, color: _muted),
+              ),
+            ),
+          )
+        else
+          ...learningTasks.map((t) {
+            final progress = t.effectiveSkillProgress;
+            final pendingSteps = t.skillSteps.where((s) => !s.done).toList();
+            final nextStep = pendingSteps.isNotEmpty ? pendingSteps.first : null;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: _paper,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(t.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _ink)),
-                  Text('${t.skillProgress}%', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _teal)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(t.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _ink)),
+                      Text('$progress%', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: _teal)),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: progress / 100.0,
+                      minHeight: 7,
+                      backgroundColor: const Color(0xFFE2EBE8),
+                      valueColor: const AlwaysStoppedAnimation<Color>(_teal),
+                    ),
+                  ),
+                  if (nextStep != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.next_plan_outlined, size: 14, color: _teal),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            '${_t("Next:", "التالي:")} ${nextStep.title}',
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _muted),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
-              const SizedBox(height: 4),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  value: t.skillProgress / 100.0,
-                  minHeight: 6,
-                  backgroundColor: const Color(0xFFEAF1EF),
-                  valueColor: const AlwaysStoppedAnimation<Color>(_teal),
-                ),
-              ),
-            ],
-          ),
-        )),
+            );
+          }),
       ],
     ),
   );
 }
+

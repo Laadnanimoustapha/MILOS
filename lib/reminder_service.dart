@@ -38,18 +38,31 @@ void notificationActionBackground(NotificationResponse response) async {
 }
 
 Future<void> _handleResponse(NotificationResponse response) async {
-  final activeId = response.id;
+  final payload = response.payload;
+  int? activeId = response.id;
+  int? taskId;
+
+  if (payload != null) {
+    final parts = payload.split(':');
+    taskId = int.tryParse(parts[0]);
+    if (parts.length > 1 && taskId != null) {
+      if (parts[1] == 'snooze') {
+        activeId ??= 900000 + taskId;
+      } else {
+        final notifIndex = int.tryParse(parts[1]);
+        if (notifIndex != null) {
+          activeId ??= taskId * 100 + notifIndex;
+        }
+      }
+    }
+  }
+
   if (activeId != null) {
     try {
       await ReminderService.instance._plugin.cancel(id: activeId);
     } catch (_) {}
   }
 
-  final payload = response.payload;
-  if (payload == null) return;
-
-  final parts = payload.split(':');
-  final taskId = int.tryParse(parts[0]);
   if (taskId == null) return;
 
   if (response.actionId == _actionDone) {
@@ -231,7 +244,12 @@ class ReminderService {
         .where(
           (task) =>
               !task.done &&
-              (task.repeat != TaskRepeat.none || task.remindUntil.isAfter(now)),
+              (task.repeat != TaskRepeat.none ||
+                  task.remindUntil.isAfter(now) ||
+                  (task.category == TaskCategory.learning &&
+                      task.skillSteps.any((s) =>
+                          !s.done &&
+                          s.date.isAfter(now.subtract(const Duration(days: 1)))))),
         )
         .toList();
     bool belongsToTask(int id) => tasks.any(
@@ -256,6 +274,47 @@ class ReminderService {
 
   List<DateTime> _upcomingReminders(Task task, DateTime now, int limit) {
     final reminders = <DateTime>[];
+
+    // Specialized schedule for Learning Skills with individual step dates
+    if (task.category == TaskCategory.learning && task.skillSteps.isNotEmpty) {
+      final pendingSteps = task.skillSteps.where((s) => !s.done).toList();
+      for (final step in pendingSteps) {
+        final start = DateTime(
+          step.date.year,
+          step.date.month,
+          step.date.day,
+          task.remindAt.hour,
+          task.remindAt.minute,
+        );
+        if (task.scheduleMode == TaskScheduleMode.fixed) {
+          if (start.isAfter(now) && reminders.length < limit) {
+            reminders.add(start);
+          }
+        } else {
+          final end = DateTime(
+            step.date.year,
+            step.date.month,
+            step.date.day,
+            task.remindUntil.hour,
+            task.remindUntil.minute,
+          );
+          final interval = Duration(minutes: task.reminderIntervalMinutes);
+          var at = start;
+          while (!at.isAfter(end) && reminders.length < limit) {
+            if (at.isAfter(now)) reminders.add(at);
+            at = at.add(interval);
+          }
+          if (end.isAfter(now) &&
+              !reminders.contains(end) &&
+              start.isBefore(end) &&
+              reminders.length < limit) {
+            reminders.add(end);
+          }
+        }
+      }
+      return reminders;
+    }
+
     var occurrence = DateTime(
       task.remindAt.year,
       task.remindAt.month,
@@ -325,6 +384,18 @@ class ReminderService {
         body: 'Have you finished this task?',
         isFinalCheck: true,
       );
+    }
+
+    if (task.category == TaskCategory.learning && task.skillSteps.isNotEmpty) {
+      final pending = task.skillSteps.where((s) => !s.done).toList();
+      final currentStep = pending.isNotEmpty ? pending.first : null;
+      if (currentStep != null) {
+        return (
+          title: 'Skill Practice: ${task.title}',
+          body: 'Step: ${currentStep.title}',
+          isFinalCheck: false,
+        );
+      }
     }
 
     if (task.steps.isEmpty) {

@@ -20,7 +20,7 @@ class _HabitsPageState extends State<HabitsPage> {
   String _t(String en, String ar) => _arabic ? ar : en;
 
   Map<String, bool> _prayers = {};
-  int _smokeFreeDays = 0;
+  List<StreakTracker> _customStreaks = [];
   List<HabitItem> _habits = [];
   List<HabitNote> _notes = [];
   bool _loading = true;
@@ -41,13 +41,13 @@ class _HabitsPageState extends State<HabitsPage> {
 
   Future<void> _loadAll() async {
     final prayers = await HabitStore.loadPrayers();
-    final smokeDays = await HabitStore.loadSmokingCleanDays();
+    final streaks = await HabitStore.loadCustomStreaks();
     final habits = await HabitStore.loadCustomHabits();
     final notes = await HabitStore.loadNotes();
     if (mounted) {
       setState(() {
         _prayers = prayers;
-        _smokeFreeDays = smokeDays;
+        _customStreaks = streaks;
         _habits = habits;
         _notes = notes;
         _loading = false;
@@ -61,15 +61,49 @@ class _HabitsPageState extends State<HabitsPage> {
     if (mounted) setState(() => _prayers = fresh);
   }
 
-  Future<void> _resetSmoking() async {
+  Future<void> _addStreakDialog() async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_t('New streak tracker', 'إضافة سلسلة جديدة')),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: _t('e.g. No Smoking, Cold Shower, No Sugar', 'مثال: الامتناع عن التدخين، الاستحمام بماء بارد'),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(_t('Cancel', 'إلغاء')),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: _teal),
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: Text(_t('Add', 'إضافة')),
+          ),
+        ],
+      ),
+    );
+    if (result != null && result.isNotEmpty) {
+      await HabitStore.addCustomStreak(result, result);
+      final fresh = await HabitStore.loadCustomStreaks();
+      if (mounted) setState(() => _customStreaks = fresh);
+    }
+  }
+
+  Future<void> _resetStreak(StreakTracker streak) async {
+    final title = _arabic ? streak.titleAr : streak.titleEn;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(_t('Reset streak?', 'إعادة تعيين السلسلة؟')),
         content: Text(
           _t(
-            'Are you sure you want to reset your smoke-free streak?',
-            'هل أنت متأكد من رغبتك في إعادة تعيين سلسلة الامتناع عن التدخين؟',
+            'Are you sure you want to reset "$title"?',
+            'هل أنت متأكد من رغبتك في إعادة تعيين سلسلة "$title"؟',
           ),
         ),
         actions: [
@@ -86,10 +120,16 @@ class _HabitsPageState extends State<HabitsPage> {
       ),
     );
     if (confirmed == true) {
-      await HabitStore.startOrResetSmokingTracker(reset: true);
-      final days = await HabitStore.loadSmokingCleanDays();
-      if (mounted) setState(() => _smokeFreeDays = days);
+      await HabitStore.resetCustomStreak(streak.id);
+      final fresh = await HabitStore.loadCustomStreaks();
+      if (mounted) setState(() => _customStreaks = fresh);
     }
+  }
+
+  Future<void> _deleteStreak(String id) async {
+    await HabitStore.deleteCustomStreak(id);
+    final fresh = await HabitStore.loadCustomStreaks();
+    if (mounted) setState(() => _customStreaks = fresh);
   }
 
   Future<void> _toggleHabit(String id) async {
@@ -194,8 +234,8 @@ class _HabitsPageState extends State<HabitsPage> {
               _buildPrayerCard(),
               const SizedBox(height: 18),
 
-              // ─── NO SMOKING TRACKER ──────────────────────────────────────
-              _buildSmokingCard(),
+              // ─── CUSTOM STREAK TRACKERS ──────────────────────────────────
+              _buildCustomStreaksSection(),
               const SizedBox(height: 18),
 
               // ─── CUSTOM HABITS ───────────────────────────────────────────
@@ -334,62 +374,120 @@ class _HabitsPageState extends State<HabitsPage> {
     ),
   );
 
-  Widget _buildSmokingCard() => Container(
-    padding: const EdgeInsets.all(18),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: const Color(0xFFE9EFED)),
-    ),
-    child: Row(
-      children: [
+  Widget _buildCustomStreaksSection() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            _t('Streak Trackers', 'سلاسل الالتزام'),
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: _ink,
+            ),
+          ),
+          TextButton.icon(
+            onPressed: _addStreakDialog,
+            icon: const Icon(Icons.add_rounded, size: 16, color: _teal),
+            label: Text(
+              _t('Add Streak', 'إضافة سلسلة'),
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: _teal,
+              ),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      if (_customStreaks.isEmpty)
         Container(
-          width: 52,
-          height: 52,
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF4EC),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE9EFED)),
           ),
-          child: const Icon(
-            Icons.smoke_free_rounded,
-            color: Color(0xFFE07A30),
-            size: 26,
+          child: Center(
+            child: Text(
+              _t('No streak trackers yet. Tap "Add Streak" to create one!', 'لا توجد سلاسل بعد. اضغط "إضافة سلسلة" لإنشاء واحدة!'),
+              style: const TextStyle(fontSize: 12, color: _muted),
+            ),
           ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _t('No Smoking Streak', 'سلسلة الإقلاع عن التدخين'),
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: _ink,
+        )
+      else
+        ..._customStreaks.map((streak) {
+          final title = _arabic ? streak.titleAr : streak.titleEn;
+          final count = streak.daysCount;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE9EFED)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF4EC),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(
+                    Icons.local_fire_department_rounded,
+                    color: Color(0xFFE07A30),
+                    size: 26,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                _smokeFreeDays == 0
-                    ? _t('Day 0 — every journey starts now!', 'اليوم الأول — البداية تصنع الفارق!')
-                    : _t('$_smokeFreeDays days clean and strong 🔥', '$_smokeFreeDays يوماً بدون تدخين 🔥'),
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFFE07A30),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: _ink,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        count == 0
+                            ? _t('Day 0 — every journey starts today!', 'اليوم 0 — البداية تصنع الفارق!')
+                            : _t('$count days clean and strong 🔥', '$count يوماً من الالتزام القوي 🔥'),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFE07A30),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ),
-        IconButton(
-          tooltip: _t('Reset counter', 'إعادة تعيين'),
-          icon: const Icon(Icons.refresh_rounded, size: 20, color: _muted),
-          onPressed: _resetSmoking,
-        ),
-      ],
-    ),
+                IconButton(
+                  tooltip: _t('Reset streak', 'إعادة تعيين'),
+                  icon: const Icon(Icons.refresh_rounded, size: 20, color: _muted),
+                  onPressed: () => _resetStreak(streak),
+                ),
+                IconButton(
+                  tooltip: _t('Delete', 'حذف'),
+                  icon: const Icon(Icons.close_rounded, size: 18, color: _muted),
+                  onPressed: () => _deleteStreak(streak.id),
+                ),
+              ],
+            ),
+          );
+        }),
+    ],
   );
 
   Widget _buildHabitsSection() => Column(

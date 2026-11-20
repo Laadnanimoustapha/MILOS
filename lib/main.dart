@@ -1193,7 +1193,8 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
                           ],
                         ),
                       ),
-                      if (_importance == TaskImportance.superNecessary) ...[
+                      if (_importance == TaskImportance.superNecessary &&
+                          _scheduleMode == TaskScheduleMode.range) ...[
                         const SizedBox(height: 14),
                         _FormLabel(_text('REMIND ME EVERY', 'ذكّرني كل')),
                         const SizedBox(height: 6),

@@ -3,13 +3,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Manages data for personal lifestyle habits:
 /// 1. Daily 5 Prayers (Fajr, Dhuhr, Asr, Maghrib, Isha)
-/// 2. No Smoking tracker & streak
+/// 2. User-defined custom streaks (e.g. No Smoking, Cold Showers, Workout)
 /// 3. Custom habits with daily check-ins
 /// 4. Daily lifestyle notes / reflections
 class HabitStore {
   static const _keyPrayers = 'milos.habits.prayers';
-  static const _keySmokingStart = 'milos.habits.smoking.start';
-  static const _keySmokingCleanDays = 'milos.habits.smoking.clean_days';
+  static const _keyCustomStreaks = 'milos.habits.custom_streaks.v2';
   static const _keyCustomHabits = 'milos.habits.custom';
   static const _keyNotes = 'milos.habits.notes';
 
@@ -48,26 +47,61 @@ class HabitStore {
     await prefs.setString('$_keyPrayers.$key', jsonEncode(current));
   }
 
-  // ─── No Smoking Tracker ──────────────────────────────────────────────────
-  static Future<int> loadSmokingCleanDays() async {
+  // ─── Custom Streaks (User defined: No Smoking, Cold Shower, etc.) ─────────
+  static Future<List<StreakTracker>> loadCustomStreaks() async {
     final prefs = await SharedPreferences.getInstance();
-    final startRaw = prefs.getString(_keySmokingStart);
-    if (startRaw == null) return 0;
+    final raw = prefs.getString(_keyCustomStreaks);
+    if (raw == null) {
+      // Default initial streaks the user can customize or delete
+      return [
+        StreakTracker(
+          id: 'default_nosmoke',
+          titleEn: 'No Smoking',
+          titleAr: 'الامتناع عن التدخين',
+          startDate: DateTime.now(),
+        ),
+      ];
+    }
     try {
-      final start = DateTime.parse(startRaw);
-      final diff = DateTime.now().difference(start).inDays;
-      return diff < 0 ? 0 : diff;
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list.map((e) => StreakTracker.fromJson(e as Map<String, dynamic>)).toList();
     } catch (_) {
-      return prefs.getInt(_keySmokingCleanDays) ?? 0;
+      return [];
     }
   }
 
-  static Future<void> startOrResetSmokingTracker({bool reset = false}) async {
+  static Future<void> saveCustomStreaks(List<StreakTracker> streaks) async {
     final prefs = await SharedPreferences.getInstance();
-    if (reset || prefs.getString(_keySmokingStart) == null) {
-      await prefs.setString(_keySmokingStart, DateTime.now().toIso8601String());
-      await prefs.setInt(_keySmokingCleanDays, 0);
+    await prefs.setString(
+      _keyCustomStreaks,
+      jsonEncode(streaks.map((s) => s.toJson()).toList()),
+    );
+  }
+
+  static Future<void> addCustomStreak(String titleEn, String titleAr, [DateTime? startDate]) async {
+    final streaks = await loadCustomStreaks();
+    streaks.add(StreakTracker(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      titleEn: titleEn,
+      titleAr: titleAr,
+      startDate: startDate ?? DateTime.now(),
+    ));
+    await saveCustomStreaks(streaks);
+  }
+
+  static Future<void> resetCustomStreak(String id) async {
+    final streaks = await loadCustomStreaks();
+    final idx = streaks.indexWhere((s) => s.id == id);
+    if (idx != -1) {
+      streaks[idx] = streaks[idx].copyWith(lastResetDate: DateTime.now());
+      await saveCustomStreaks(streaks);
     }
+  }
+
+  static Future<void> deleteCustomStreak(String id) async {
+    final streaks = await loadCustomStreaks();
+    streaks.removeWhere((s) => s.id == id);
+    await saveCustomStreaks(streaks);
   }
 
   // ─── Custom Habits ───────────────────────────────────────────────────────
@@ -248,5 +282,62 @@ class HabitNote {
     id: json['id'] as String,
     text: json['text'] as String,
     date: DateTime.parse(json['date'] as String),
+  );
+}
+
+class StreakTracker {
+  const StreakTracker({
+    required this.id,
+    required this.titleEn,
+    required this.titleAr,
+    required this.startDate,
+    this.lastResetDate,
+  });
+
+  final String id;
+  final String titleEn;
+  final String titleAr;
+  final DateTime startDate;
+  final DateTime? lastResetDate;
+
+  /// Current active days count since start (or last reset)
+  int get daysCount {
+    final base = lastResetDate ?? startDate;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final baseDay = DateTime(base.year, base.month, base.day);
+    final diff = today.difference(baseDay).inDays;
+    return diff < 0 ? 0 : diff;
+  }
+
+  StreakTracker copyWith({
+    String? titleEn,
+    String? titleAr,
+    DateTime? startDate,
+    DateTime? lastResetDate,
+  }) => StreakTracker(
+    id: id,
+    titleEn: titleEn ?? this.titleEn,
+    titleAr: titleAr ?? this.titleAr,
+    startDate: startDate ?? this.startDate,
+    lastResetDate: lastResetDate ?? this.lastResetDate,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'titleEn': titleEn,
+    'titleAr': titleAr,
+    'startDate': startDate.toIso8601String(),
+    if (lastResetDate != null) 'lastResetDate': lastResetDate!.toIso8601String(),
+  };
+
+  factory StreakTracker.fromJson(Map<String, dynamic> json) => StreakTracker(
+    id: json['id'] as String,
+    titleEn: json['titleEn'] as String? ?? '',
+    titleAr: json['titleAr'] as String? ?? '',
+    startDate: DateTime.parse(json['startDate'] as String),
+    lastResetDate: json['lastResetDate'] != null
+        ? DateTime.parse(json['lastResetDate'] as String)
+        : null,
   );
 }

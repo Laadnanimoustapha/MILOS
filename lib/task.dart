@@ -4,6 +4,40 @@ enum TaskRepeat { none, daily, weekly, monthly, custom }
 enum TaskRepeatUnit { days, weeks, months }
 enum TaskCategory { regular, learning }
 
+class SkillStep {
+  const SkillStep({
+    required this.title,
+    required this.date,
+    this.done = false,
+  });
+
+  final String title;
+  final DateTime date;
+  final bool done;
+
+  SkillStep copyWith({
+    String? title,
+    DateTime? date,
+    bool? done,
+  }) => SkillStep(
+    title: title ?? this.title,
+    date: date ?? this.date,
+    done: done ?? this.done,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'title': title,
+    'date': date.toIso8601String(),
+    'done': done,
+  };
+
+  factory SkillStep.fromJson(Map<String, dynamic> json) => SkillStep(
+    title: json['title'] as String,
+    date: DateTime.parse(json['date'] as String),
+    done: json['done'] as bool? ?? false,
+  );
+}
+
 class Task {
   const Task({
     required this.id,
@@ -19,6 +53,7 @@ class Task {
     this.customRepeatUnit = TaskRepeatUnit.days,
     this.steps = const [],
     this.completedSteps = const [],
+    this.skillSteps = const [],
     this.inProgress = false,
     this.category = TaskCategory.regular,
     this.skillProgress = 0,
@@ -39,12 +74,22 @@ class Task {
   final List<String> steps;
   /// Indices of steps marked as completed.
   final List<int> completedSteps;
+  /// Steps with dates specifically for Learning Skill tasks.
+  final List<SkillStep> skillSteps;
   /// Whether the user has tapped "I started doing it" / in progress.
   final bool inProgress;
   /// Regular to-do vs. Long-term Skill learning.
   final TaskCategory category;
   /// Progress percentage for learning tasks (0..100).
   final int skillProgress;
+
+  int get effectiveSkillProgress {
+    if (skillSteps.isNotEmpty) {
+      final doneCount = skillSteps.where((s) => s.done).length;
+      return ((doneCount / skillSteps.length) * 100).round();
+    }
+    return skillProgress;
+  }
 
   int get reminderIntervalMinutes => switch (importance) {
     TaskImportance.normal => 60,
@@ -64,6 +109,7 @@ class Task {
     DateTime? remindUntil,
     List<String>? steps,
     List<int>? completedSteps,
+    List<SkillStep>? skillSteps,
     bool? inProgress,
     TaskCategory? category,
     int? skillProgress,
@@ -82,6 +128,7 @@ class Task {
     customRepeatUnit: customRepeatUnit ?? this.customRepeatUnit,
     steps: steps ?? this.steps,
     completedSteps: completedSteps ?? this.completedSteps,
+    skillSteps: skillSteps ?? this.skillSteps,
     inProgress: inProgress ?? this.inProgress,
     category: category ?? this.category,
     skillProgress: skillProgress ?? this.skillProgress,
@@ -137,6 +184,7 @@ class Task {
       customRepeatUnit: customRepeatUnit,
       steps: steps,
       completedSteps: const [],
+      skillSteps: skillSteps.map((s) => s.copyWith(done: false)).toList(),
       inProgress: false,
       category: category,
       skillProgress: skillProgress,
@@ -157,6 +205,8 @@ class Task {
     'customRepeatUnit': customRepeatUnit.name,
     if (steps.isNotEmpty) 'steps': steps,
     if (completedSteps.isNotEmpty) 'completedSteps': completedSteps,
+    if (skillSteps.isNotEmpty)
+      'skillSteps': skillSteps.map((s) => s.toJson()).toList(),
     if (inProgress) 'inProgress': inProgress,
     if (category != TaskCategory.regular) 'category': category.name,
     if (skillProgress > 0) 'skillProgress': skillProgress,
@@ -190,6 +240,10 @@ class Task {
     steps: (json['steps'] as List<dynamic>?)?.cast<String>() ?? const [],
     completedSteps:
         (json['completedSteps'] as List<dynamic>?)?.cast<int>() ?? const [],
+    skillSteps: (json['skillSteps'] as List<dynamic>?)
+            ?.map((e) => SkillStep.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        const [],
     inProgress: json['inProgress'] as bool? ?? false,
     category: TaskCategory.values.firstWhere(
       (value) => value.name == json['category'],
