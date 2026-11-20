@@ -24,7 +24,7 @@ class _AddSkillSheetState extends State<AddSkillSheet> {
   TimeOfDay _until = const TimeOfDay(hour: 10, minute: 30);
   TaskScheduleMode _scheduleMode = TaskScheduleMode.range;
   TaskImportance _importance = TaskImportance.necessary;
-  int _superReminderIntervalMinutes = 15;
+  final int _superReminderIntervalMinutes = 15;
 
   final List<SkillStep> _steps = [];
   String? _error;
