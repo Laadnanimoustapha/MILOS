@@ -93,9 +93,17 @@ IMPORTANT RULES:
 // ---------------------------------------------------------------------------
 class AiChatPage extends StatefulWidget {
   /// [addTasksCallback] is called when the user approves AI-generated tasks.
-  const AiChatPage({super.key, required this.arabic, required this.addTasksCallback});
+  const AiChatPage({
+    super.key,
+    required this.arabic,
+    required this.addTasksCallback,
+    this.initialPrompt,
+    this.autoSend = false,
+  });
   final bool arabic;
   final Future<void> Function(List<Task> tasks) addTasksCallback;
+  final String? initialPrompt;
+  final bool autoSend;
 
   @override
   State<AiChatPage> createState() => _AiChatPageState();
@@ -126,6 +134,20 @@ class _AiChatPageState extends State<AiChatPage> {
       }
     } catch (_) {
       // A storage failure must not block access to the chat screen.
+    }
+    if (widget.initialPrompt != null) {
+      final session = ChatSession(
+        id: _store.nextId(sessions),
+        title: widget.arabic ? 'تحليل التقدم' : 'Progress Analysis',
+        model: defaultGroqModel,
+        createdAt: DateTime.now(),
+        messages: [],
+      );
+      sessions.insert(0, session);
+      try {
+        await _store.saveSessions(sessions);
+      } catch (_) {}
+      _active = session;
     }
     if (!mounted) return;
     setState(() {
@@ -258,6 +280,8 @@ class _AiChatPageState extends State<AiChatPage> {
                   onMessageAdded: () => _onMessageAdded(_active!),
                   addTasksCallback: widget.addTasksCallback,
                   arabic: widget.arabic,
+                  initialPrompt: widget.initialPrompt,
+                  autoSend: widget.autoSend,
                 )
               : _SessionList(
                   sessions: _sessions,
@@ -405,12 +429,16 @@ class _ChatView extends StatefulWidget {
     required this.onMessageAdded,
     required this.addTasksCallback,
     required this.arabic,
+    this.initialPrompt,
+    this.autoSend = false,
   });
 
   final ChatSession session;
   final VoidCallback onMessageAdded;
   final Future<void> Function(List<Task> tasks) addTasksCallback;
   final bool arabic;
+  final String? initialPrompt;
+  final bool autoSend;
 
   @override
   State<_ChatView> createState() => _ChatViewState();
@@ -425,6 +453,19 @@ class _ChatViewState extends State<_ChatView> {
 
   // Pending tasks parsed from AI response waiting for user approval.
   List<Map<String, dynamic>>? _pendingTasks;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialPrompt != null && widget.session.messages.isEmpty) {
+      _controller.text = widget.initialPrompt!;
+      if (widget.autoSend) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _send();
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {

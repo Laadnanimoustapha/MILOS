@@ -12,7 +12,29 @@
 3-ADD A WAY TO SEE THE DETAILS OF A TASK AFTER CREATING IT  ✅
 4-FIXE THE JSON THAT SENT TO THE CHAT AFTER THE AI SENT THE TSKS AND THE USERS APPROVE ✅
 5-MAKE THE OPTION OF RPEAT EVRY DAY OR MONTH ... WORK BY WHEN MARKING A TASKS DONE IT CREATED AGAIN WI THE SAME CONFIG TMOROW OR NEXT MONTH.... AND ENBELNG THIS OPTION FOR THE AI ✅
-6- MAKE THE VEBRATION SOUND DEFRENT OF THE STANDERED ONE ✅
+6-MAKE THE VEBRATION SOUND DEFRENT OF THE STANDERED ONE ✅
 
 ## GIHUBE 
 1-MAKE THE AUTOMATION BUILED THE APK AND PUT IT IN THE RELES NOT IN THE REPO AND MAKE THE HTML TAKES IT FROME THER ✅
+
+## DAILY MANAGEMENT & PROGRESS TRACKING (See PLAN.md)
+- [x] 1. DYNAMIC TIME-OF-DAY GREETING & CONTEXTUAL SUBTEXT ✅
+- [x] 2. ISOLATE PROGRESS RING TO TODAY'S TASKS ONLY ✅
+- [x] 3. DAILY STREAK ENGINE & FLAME BADGE (🔥) ✅
+- [x] 4. 7-DAY MINI CONSISTENCY DOTS ✅
+- [x] 5. "FOCUS NEXT" ACTIVE TASK HIGHLIGHT ✅
+- [x] 6. COLLAPSIBLE "COMPLETED TODAY" SECTION & ARCHIVE ✅
+- [x] 7. ONE-TAP OVERDUE ROLLOVER TO TODAY ✅
+- [x] 8. INTERACTIVE STEP-BY-STEP CHECKLIST IN TASK DETAILS ✅
+
+## BUG FIXES
+- [x] FIX-1. DONE/WAIT-15 NOTIFICATION BUTTONS DON'T ACTUALLY WORK — make them fire the correct action (mark done, reschedule snooze) and cancel ALL notifications for the same task on success ✅
+- [x] FIX-2. KEYBOARD OPENS AUTOMATICALLY WHEN CREATING A TASK (should only open when user taps the title field) ✅
+- [x] FIX-3. KEYBOARD RE-OPENS AFTER CLOSING THE TIME PICKER WINDOW ✅
+
+## NEW FEATURES
+- [x] FEAT-1. DONE TASKS DISAPPEAR FROM MAIN SCREEN BUT STAY IN ARCHIVE (new Archive page or collapsible "Completed" drawer) ✅
+- [x] FEAT-2. LIFESTYLE HABITS PAGE — dedicated page for personal habits (praying, no smoking, notes, custom habits), each with its own streak, progress, and history ✅
+- [x] FEAT-3. DEDICATED DASHBOARD & PROGRESS PAGE — visual overview of all tasks + habits + streaks + weekly stats ✅
+- [x] FEAT-4. AI PROGRESS ANALYSIS — in the Dashboard, an "Analyse" button sends current stats to Milos AI which gives professional advice, remarks, and an honest assessment of progress ✅
+- [x] FEAT-5. LEARNING TASK TYPE — new task category "Learning a Skill" with sub-progress tracking (e.g. "Flutter — 40% mastered"), session logging, and AI coaching ✅

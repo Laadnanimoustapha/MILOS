@@ -4,7 +4,11 @@ import 'package:flutter/material.dart';
 
 import 'ai_chat_page.dart';
 import 'app_language.dart';
+import 'archive_page.dart';
+import 'dashboard_page.dart';
+import 'habits_page.dart';
 import 'reminder_service.dart';
+import 'streak_store.dart';
 import 'task.dart';
 import 'task_store.dart';
 
@@ -131,6 +135,9 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
   final _store = TaskStore();
   final List<Task> _tasks = [];
   bool _loading = true;
+  int _streakCount = 0;
+  List<bool> _weekDots = List.filled(7, false);
+  int _currentTab = 0;
 
   bool get _arabic => widget.language == AppLanguage.arabic;
   String _text(String english, String arabic) => _arabic ? arabic : english;
@@ -140,6 +147,7 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadTasks();
+    _loadStreak();
     // Re-register the foreground notification callback pointing at this state
     // so that action taps (Done / Wait / I started) while app is open
     // immediately reload the task list from storage.
@@ -191,13 +199,35 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
     } catch (_) {}
   }
 
+  Future<void> _loadStreak() async {
+    final count = await StreakStore.loadStreak();
+    final dots = await StreakStore.currentWeekDots();
+    if (mounted) setState(() { _streakCount = count; _weekDots = dots; });
+  }
+
+  /// Called whenever a task is toggled done to potentially credit the streak.
+  Future<void> _maybeUpdateStreak() async {
+    final todayTasks = _tasks.where((t) => _isToday(t.remindAt)).toList();
+    if (todayTasks.isNotEmpty && todayTasks.every((t) => t.done)) {
+      final count = await StreakStore.creditToday();
+      final dots = await StreakStore.currentWeekDots();
+      if (mounted) setState(() { _streakCount = count; _weekDots = dots; });
+    }
+  }
+
   Future<void> _saveTasks() async {
     try {
       await _store.save(_tasks);
     } catch (_) {}
   }
 
-  int get _completed => _tasks.where((task) => task.done).length;
+  bool _isToday(DateTime d) {
+    final now = DateTime.now();
+    return d.year == now.year && d.month == now.month && d.day == now.day;
+  }
+
+  int get _todayTotal => _tasks.where((t) => _isToday(t.remindAt)).length;
+  int get _completed => _tasks.where((t) => _isToday(t.remindAt) && t.done).length;
 
   String get _todayLabel {
     final now = DateTime.now();
@@ -253,6 +283,14 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
     return '${weekdays[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}';
   }
 
+  Future<void> _openArchive() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ArchivePage(tasks: List.from(_tasks), arabic: _arabic),
+      ),
+    );
+  }
+
   Future<void> _openMilos() async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -294,6 +332,8 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
             repeat: d.repeat,
             customRepeatEvery: d.customRepeatEvery,
             customRepeatUnit: d.customRepeatUnit,
+            category: d.category,
+            skillProgress: d.skillProgress,
           ),
         )
         .toList();
@@ -326,6 +366,8 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
       repeat: draft.repeat,
       customRepeatEvery: draft.customRepeatEvery,
       customRepeatUnit: draft.customRepeatUnit,
+      category: draft.category,
+      skillProgress: draft.skillProgress,
     );
     setState(() => _tasks.add(task));
     await _saveTasks();
@@ -363,6 +405,7 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
       }
       await ReminderService.instance.refresh(_tasks);
     } catch (_) {}
+    if (isDone) await _maybeUpdateStreak();
   }
 
   Future<void> _deleteTask(Task task) async {
@@ -409,6 +452,13 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
       builder: (context) => _TaskDetailsSheet(
         task: task,
         arabic: _arabic,
+        onUpdate: (updated) {
+          final idx = _tasks.indexWhere((t) => t.id == updated.id);
+          if (idx != -1) {
+            setState(() => _tasks[idx] = updated);
+            _saveTasks();
+          }
+        },
         onDelete: () {
           Navigator.pop(context);
           _deleteTask(task);
@@ -437,14 +487,43 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
     } catch (_) {}
   }
 
+  /// Moves all overdue (not done) tasks to today's equivalent time.
+  Future<void> _rolloverOverdue(List<Task> overdueTasks) async {
+    final now = DateTime.now();
+    for (final task in overdueTasks) {
+      if (task.done) continue;
+      final newAt = DateTime(now.year, now.month, now.day,
+          task.remindAt.hour, task.remindAt.minute);
+      final duration = task.remindUntil.difference(task.remindAt);
+      final newUntil = task.scheduleMode == TaskScheduleMode.fixed
+          ? newAt
+          : newAt.add(duration);
+      final idx = _tasks.indexOf(task);
+      if (idx != -1) {
+        setState(() => _tasks[idx] = task.copyWith(
+          remindAt: newAt, remindUntil: newUntil));
+      }
+    }
+    await _saveTasks();
+    try {
+      await ReminderService.instance.refresh(_tasks);
+    } catch (_) {}
+  }
+
   List<Widget> _buildGroupedTaskList() {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final tomorrow = today.add(const Duration(days: 1));
 
-    // Sort tasks chronologically by remindAt
-    final sorted = List<Task>.from(_tasks)
+    // Sort tasks chronologically by remindAt; exclude done tasks from main list.
+    final sorted = List<Task>.from(_tasks.where((t) => !t.done))
       ..sort((a, b) => a.remindAt.compareTo(b.remindAt));
+
+    // Find the "Focus Next": earliest pending today task.
+    final focusNext = sorted.cast<Task?>().firstWhere(
+      (t) => _isToday(t!.remindAt),
+      orElse: () => null,
+    );
 
     // Group tasks by day (year, month, day)
     final groups = <DateTime, List<Task>>{};
@@ -463,10 +542,11 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
     for (final entry in groups.entries) {
       final date = entry.key;
       final tasks = entry.value;
+      final isOverdue = date.isBefore(today);
 
       String sectionTitle;
       Color? accentColor;
-      if (date.isBefore(today)) {
+      if (isOverdue) {
         sectionTitle = _text('Overdue', 'متأخرة');
         accentColor = const Color(0xFFC36E36);
       } else if (date == today) {
@@ -528,6 +608,11 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
           count: tasks.length,
           showDivider: !isFirstSection,
           accentColor: accentColor,
+          // For overdue sections, offer a one-tap rollover to today.
+          onRollover: isOverdue
+              ? () => _rolloverOverdue(tasks)
+              : null,
+          rolloverLabel: _text('Move to Today', 'نقل إلى اليوم'),
         ),
       );
       isFirstSection = false;
@@ -539,6 +624,7 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
             child: _TaskTile(
               task: task,
               arabic: _arabic,
+              isFocusNext: task == focusNext,
               onTap: () => _showTaskDetails(task),
               onChanged: (value) => _toggleTask(task, value),
               onRemindTomorrow: () => _remindTomorrow(task),
@@ -552,182 +638,250 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
     return widgets;
   }
 
+  /// Returns a dynamic time-of-day greeting.
+  String get _greeting {
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      return _text('Good morning,', 'صباح الخير،');
+    } else if (hour < 17) {
+      return _text('Good afternoon,', 'مساء الخير،');
+    } else if (hour < 21) {
+      return _text('Good evening,', 'مساء النور،');
+    } else {
+      return _text('Good night,', 'تصبح على خير،');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final progress = _tasks.isEmpty ? 0.0 : _completed / _tasks.length;
+    final pendingToday = _tasks.where((t) => _isToday(t.remindAt) && !t.done).length;
+    final progress = _todayTotal == 0 ? 0.0 : _completed / _todayTotal;
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addTask,
-        backgroundColor: _teal,
-        foregroundColor: Colors.white,
-        elevation: 4,
-        icon: const Icon(Icons.add_rounded),
-        label: Text(
-          _text('New task', 'مهمة جديدة'),
-          style: const TextStyle(fontWeight: FontWeight.w700),
+      floatingActionButton: _currentTab == 0
+          ? FloatingActionButton.extended(
+              onPressed: _addTask,
+              backgroundColor: _teal,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              icon: const Icon(Icons.add_rounded),
+              label: Text(
+                _text('New task', 'مهمة جديدة'),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            )
+          : null,
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Color(0xFFE9EFED))),
+        ),
+        child: NavigationBar(
+          selectedIndex: _currentTab,
+          onDestinationSelected: (index) {
+            setState(() => _currentTab = index);
+            if (index == 0) _loadTasks();
+          },
+          backgroundColor: Colors.white,
+          indicatorColor: const Color(0xFFDDF2ED),
+          destinations: [
+            NavigationDestination(
+              icon: const Icon(Icons.check_circle_outline_rounded, color: _muted),
+              selectedIcon: const Icon(Icons.check_circle_rounded, color: _teal),
+              label: _text('Tasks', 'المهام'),
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.self_improvement_rounded, color: _muted),
+              selectedIcon: const Icon(Icons.self_improvement_rounded, color: _teal),
+              label: _text('Habits', 'العادات'),
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.insights_rounded, color: _muted),
+              selectedIcon: const Icon(Icons.insights_rounded, color: _teal),
+              label: _text('Dashboard', 'التقدم'),
+            ),
+          ],
         ),
       ),
-      body: SafeArea(
-        bottom: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 110),
-          child: Column(
-            children: [
-              SizedBox(
-                height: 174,
-                width: double.infinity,
-                child: ClipPath(
-                  clipper: _NotchClipper(),
-                  child: Container(
-                    color: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 25),
+      body: _currentTab == 1
+          ? HabitsPage(arabic: _arabic)
+          : _currentTab == 2
+              ? DashboardPage(arabic: _arabic, addTasksCallback: _addAiTasks)
+              : SafeArea(
+                  bottom: false,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.only(bottom: 110),
                     child: Column(
                       children: [
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _todayLabel,
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    letterSpacing: 1.4,
-                                    fontWeight: FontWeight.w700,
-                                    color: _muted,
-                                  ),
-                                ),
-                                SizedBox(height: 5),
-                                Text(
-                                  _text('Good morning,', 'صباح الخير،'),
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    color: _ink,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const Spacer(),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.settings_outlined,
-                                color: _muted,
-                              ),
-                              onPressed: _openSettings,
-                            ),
-                            _MilosButton(onTap: _openMilos),
-                          ],
-                        ),
-                        const Spacer(),
-                        Text(
-                          _text('Today', 'اليوم'),
-                          style: const TextStyle(
-                            fontSize: 40,
-                            height: 1,
-                            letterSpacing: -1.6,
-                            fontWeight: FontWeight.w800,
-                            color: _ink,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _text(
-                            'A fresh page, at your own pace.',
-                            'يوم جديد، على مهل.',
-                          ),
-                          style: const TextStyle(fontSize: 13, color: _muted),
-                        ),
-                        const SizedBox(height: 22),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(22, 3, 22, 0),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 560),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _ProgressPanel(
-                          completed: _completed,
-                          total: _tasks.length,
-                          progress: progress,
-                          arabic: _arabic,
-                        ),
-                        const SizedBox(height: 25),
-                        Row(
-                          children: [
-                            Text(
-                              _text('Your tasks', 'مهامك'),
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -.4,
-                                color: _ink,
-                              ),
-                            ),
-                            const SizedBox(width: 9),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 9,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFE8F5F2),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                _tasks.isEmpty
-                                    ? _text('Start fresh', 'ابدأ الآن')
-                                    : _text(
-                                        '${_tasks.length - _completed} left',
-                                        '${_tasks.length - _completed} متبقية',
+                        SizedBox(
+                          height: 174,
+                          width: double.infinity,
+                          child: ClipPath(
+                            clipper: _NotchClipper(),
+                            child: Container(
+                              color: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 25),
+                              child: Column(
+                                children: [
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _todayLabel,
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              letterSpacing: 1.4,
+                                              fontWeight: FontWeight.w700,
+                                              color: _muted,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 5),
+                                          Text(
+                                            _greeting,
+                                            style: const TextStyle(
+                                              fontSize: 15,
+                                              color: _ink,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: _teal,
-                                ),
+                                      const Spacer(),
+                                      // Archive button
+                                      IconButton(
+                                        tooltip: _text('Archive', 'الأرشيف'),
+                                        icon: const Icon(
+                                          Icons.inventory_2_outlined,
+                                          color: _muted,
+                                        ),
+                                        onPressed: _openArchive,
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.settings_outlined,
+                                          color: _muted,
+                                        ),
+                                        onPressed: _openSettings,
+                                      ),
+                                      _MilosButton(onTap: _openMilos),
+                                    ],
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    _text('Today', 'اليوم'),
+                                    style: const TextStyle(
+                                      fontSize: 40,
+                                      height: 1,
+                                      letterSpacing: -1.6,
+                                      fontWeight: FontWeight.w800,
+                                      color: _ink,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _text(
+                                      'A fresh page, at your own pace.',
+                                      'يوم جديد، على مهل.',
+                                    ),
+                                    style: const TextStyle(fontSize: 13, color: _muted),
+                                  ),
+                                  const SizedBox(height: 22),
+                                ],
                               ),
                             ),
-                            const Spacer(),
-                            Text(
-                              _text('See all', 'عرض الكل'),
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: _muted,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                        const SizedBox(height: 13),
-                        if (_loading)
-                          const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(24),
-                              child: CircularProgressIndicator(color: _teal),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(22, 3, 22, 0),
+                          child: Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 560),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _ProgressPanel(
+                                    completed: _completed,
+                                    total: _todayTotal,
+                                    progress: progress,
+                                    arabic: _arabic,
+                                    streakCount: _streakCount,
+                                    weekDots: _weekDots,
+                                  ),
+                                  const SizedBox(height: 25),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        _text('Your tasks', 'مهامك'),
+                                        style: const TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: -.4,
+                                          color: _ink,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 9),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 9,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFE8F5F2),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Text(
+                                          _tasks.isEmpty
+                                              ? _text('Start fresh', 'ابدأ الآن')
+                                              : _text(
+                                                  '$pendingToday left',
+                                                  '$pendingToday متبقية',
+                                                ),
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: _teal,
+                                          ),
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      // "See archive" button
+                                      GestureDetector(
+                                        onTap: _openArchive,
+                                        child: Text(
+                                          _text('Archive', 'الأرشيف'),
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: _muted,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 13),
+                                  if (_loading)
+                                    const Center(
+                                      child: Padding(
+                                        padding: EdgeInsets.all(24),
+                                        child: CircularProgressIndicator(color: _teal),
+                                      ),
+                                    )
+                                  else if (_tasks.where((t) => !t.done).isEmpty)
+                                    _EmptyTasks(arabic: _arabic)
+                                  else
+                                    ..._buildGroupedTaskList(),
+                                  const SizedBox(height: 5),
+                                  _GentleNote(arabic: _arabic),
+                                ],
+                              ),
                             ),
-                          )
-                        else if (_tasks.isEmpty)
-                          _EmptyTasks(arabic: _arabic)
-                        else
-                          ..._buildGroupedTaskList(),
-                        const SizedBox(height: 5),
-                        _GentleNote(arabic: _arabic),
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
@@ -751,6 +905,7 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
   TaskRepeat _repeat = TaskRepeat.none;
   int _customRepeatEvery = 1;
   TaskRepeatUnit _customRepeatUnit = TaskRepeatUnit.days;
+  TaskCategory _category = TaskCategory.regular;
   String? _error;
   bool get _arabic => widget.arabic;
   String _text(String english, String arabic) =>
@@ -783,6 +938,7 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
   }
 
   Future<void> _pickTime({required bool start}) async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final selected = await showTimePicker(
       context: context,
       initialTime: start || _scheduleMode == TaskScheduleMode.fixed
@@ -800,6 +956,8 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
         _error = null;
       });
     }
+    // Prevent keyboard re-opening after time picker closes.
+    FocusManager.instance.primaryFocus?.unfocus();
   }
 
   void _save() {
@@ -863,6 +1021,8 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
           repeat: _repeat,
           customRepeatEvery: _customRepeatEvery,
           customRepeatUnit: _customRepeatUnit,
+          category: _category,
+          skillProgress: 0,
         ),
       );
     }
@@ -929,11 +1089,23 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      _FormLabel(_text('CATEGORY', 'التصنيف')),
+                      const SizedBox(height: 7),
+                      _ChoiceRow<TaskCategory>(
+                        values: TaskCategory.values,
+                        selected: _category,
+                        labels: [
+                          _text('To-Do Task', 'مهمة عادية'),
+                          _text('Learning Skill', 'تعلم مهارة'),
+                        ],
+                        onSelected: (cat) => setState(() => _category = cat),
+                      ),
+                      const SizedBox(height: 18),
                       _FormLabel(_text('TASK', 'المهمة')),
                       const SizedBox(height: 7),
                       TextField(
                         controller: _controller,
-                        autofocus: true,
+                        autofocus: false,
                         textCapitalization: TextCapitalization.sentences,
                         decoration: InputDecoration(
                           hintText: _text(
@@ -1430,11 +1602,15 @@ class _ProgressPanel extends StatelessWidget {
     required this.total,
     required this.progress,
     required this.arabic,
+    required this.streakCount,
+    required this.weekDots,
   });
   final int completed;
   final int total;
   final double progress;
   final bool arabic;
+  final int streakCount;
+  final List<bool> weekDots;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -1444,88 +1620,150 @@ class _ProgressPanel extends StatelessWidget {
       borderRadius: BorderRadius.circular(20),
       border: Border.all(color: const Color(0xFFE9EFED)),
     ),
-    child: Row(
+    child: Column(
       children: [
-        SizedBox(
-          width: 54,
-          height: 54,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              SizedBox(
-                width: 50,
-                height: 50,
-                child: CircularProgressIndicator(
-                  value: progress,
-                  strokeWidth: 4,
-                  backgroundColor: const Color(0xFFEAF1EF),
-                  valueColor: const AlwaysStoppedAnimation<Color>(_teal),
-                ),
+        Row(
+          children: [
+            SizedBox(
+              width: 54,
+              height: 54,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  SizedBox(
+                    width: 50,
+                    height: 50,
+                    child: CircularProgressIndicator(
+                      value: progress,
+                      strokeWidth: 4,
+                      backgroundColor: const Color(0xFFEAF1EF),
+                      valueColor: const AlwaysStoppedAnimation<Color>(_teal),
+                    ),
+                  ),
+                  Text(
+                    '${(progress * 100).round()}%',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: _ink,
+                    ),
+                  ),
+                ],
               ),
-              Text(
-                '${(progress * 100).round()}%',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: _ink,
-                ),
+            ),
+            const SizedBox(width: 15),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    total == 0
+                        ? _localized(
+                            arabic,
+                            'No tasks added yet',
+                            'لم تتم إضافة مهام بعد',
+                          )
+                        : _localized(
+                            arabic,
+                            '$completed of $total tasks complete',
+                            'اكتملت $completed من أصل $total مهام',
+                          ),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: _ink,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    total == 0
+                        ? _localized(
+                            arabic,
+                            'Add a task to start your progress.',
+                            'أضف مهمة لبدء التقدم.',
+                          )
+                        : _localized(
+                            arabic,
+                            'Small steps still move you forward.',
+                            'الخطوات الصغيرة تقرّبك من هدفك.',
+                          ),
+                    style: const TextStyle(fontSize: 11, color: _muted),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 15),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                total == 0
-                    ? _localized(
-                        arabic,
-                        'No tasks added yet',
-                        'لم تتم إضافة مهام بعد',
-                      )
-                    : _localized(
-                        arabic,
-                        '$completed of $total tasks complete',
-                        'اكتملت $completed من أصل $total مهام',
+            ),
+            // Streak flame badge
+            if (streakCount > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF4EC),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.local_fire_department_rounded,
+                        size: 16, color: Color(0xFFE07A30)),
+                    const SizedBox(width: 3),
+                    Text(
+                      '$streakCount',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFFE07A30),
                       ),
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: _ink,
+                    ),
+                  ],
+                ),
+              )
+            else
+              Container(
+                width: 35,
+                height: 35,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAF7FC),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.spa_outlined,
+                  size: 18,
+                  color: Color(0xFF65B8D8),
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                total == 0
-                    ? _localized(
-                        arabic,
-                        'Add a task to start your progress.',
-                        'أضف مهمة لبدء التقدم.',
-                      )
-                    : _localized(
-                        arabic,
-                        'Small steps still move you forward.',
-                        'الخطوات الصغيرة تقرّبك من هدفك.',
-                      ),
-                style: const TextStyle(fontSize: 11, color: _muted),
-              ),
-            ],
-          ),
+          ],
         ),
-        Container(
-          width: 35,
-          height: 35,
-          decoration: BoxDecoration(
-            color: const Color(0xFFEAF7FC),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(
-            Icons.spa_outlined,
-            size: 18,
-            color: Color(0xFF65B8D8),
-          ),
+        // 7-day consistency dots (Mon–Sun)
+        const SizedBox(height: 14),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: List.generate(7, (i) {
+            const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+            const dayLabelsAr = ['ن', 'ث', 'ر', 'خ', 'ج', 'س', 'أ'];
+            final filled = i < weekDots.length && weekDots[i];
+            return Column(
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: filled ? _teal : const Color(0xFFEAF1EF),
+                  ),
+                  child: filled
+                      ? const Icon(Icons.check_rounded,
+                          size: 14, color: Colors.white)
+                      : null,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  arabic ? dayLabelsAr[i] : dayLabels[i],
+                  style: const TextStyle(fontSize: 9, color: _muted,
+                      fontWeight: FontWeight.w700),
+                ),
+              ],
+            );
+          }),
         ),
       ],
     ),
@@ -1540,6 +1778,7 @@ class _TaskTile extends StatelessWidget {
     required this.onChanged,
     required this.onRemindTomorrow,
     required this.onDelete,
+    this.isFocusNext = false,
   });
   final Task task;
   final bool arabic;
@@ -1547,6 +1786,7 @@ class _TaskTile extends StatelessWidget {
   final ValueChanged<bool?> onChanged;
   final VoidCallback onRemindTomorrow;
   final VoidCallback onDelete;
+  final bool isFocusNext;
 
   @override
   Widget build(BuildContext context) {
@@ -1569,10 +1809,25 @@ class _TaskTile extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(17),
-            border: Border.all(color: const Color(0xFFE9EFED)),
+            border: Border.all(
+              color: isFocusNext
+                  ? _teal.withValues(alpha: 0.6)
+                  : const Color(0xFFE9EFED),
+              width: isFocusNext ? 1.5 : 1,
+            ),
           ),
           child: Row(
             children: [
+              if (isFocusNext)
+                Container(
+                  width: 3,
+                  height: 36,
+                  margin: const EdgeInsets.only(right: 10),
+                  decoration: BoxDecoration(
+                    color: _teal,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
               SizedBox(
                 width: 27,
                 height: 27,
@@ -1603,6 +1858,31 @@ class _TaskTile extends StatelessWidget {
                             : null,
                       ),
                     ),
+                    if (task.category == TaskCategory.learning) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8F5F2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '📚 ${_localized(arabic, "Skill: ", "مهارة: ")}${task.skillProgress}%',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: _teal,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 7),
                     Row(
                       children: [
@@ -1743,12 +2023,16 @@ class _DateSectionHeader extends StatelessWidget {
     required this.count,
     this.showDivider = true,
     this.accentColor,
+    this.onRollover,
+    this.rolloverLabel,
   });
 
   final String title;
   final int count;
   final bool showDivider;
   final Color? accentColor;
+  final VoidCallback? onRollover;
+  final String? rolloverLabel;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -1788,6 +2072,35 @@ class _DateSectionHeader extends StatelessWidget {
                 ),
               ),
             ),
+            if (onRollover != null) ...[
+              const Spacer(),
+              GestureDetector(
+                onTap: onRollover,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF4EC),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.redo_rounded,
+                          size: 12, color: Color(0xFFC36E36)),
+                      const SizedBox(width: 4),
+                      Text(
+                        rolloverLabel ?? 'Move to Today',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFC36E36),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ],
@@ -1927,32 +2240,65 @@ class _MilosButton extends StatelessWidget {
   );
 }
 
-class _TaskDetailsSheet extends StatelessWidget {
+class _TaskDetailsSheet extends StatefulWidget {
   const _TaskDetailsSheet({
     required this.task,
     required this.arabic,
     required this.onDelete,
+    this.onUpdate,
   });
 
   final Task task;
   final bool arabic;
   final VoidCallback onDelete;
+  final ValueChanged<Task>? onUpdate;
 
-  String _t(String en, String ar) => arabic ? ar : en;
+  @override
+  State<_TaskDetailsSheet> createState() => _TaskDetailsSheetState();
+}
+
+class _TaskDetailsSheetState extends State<_TaskDetailsSheet> {
+  late Task _task;
+
+  @override
+  void initState() {
+    super.initState();
+    _task = widget.task;
+  }
+
+  String _t(String en, String ar) => widget.arabic ? ar : en;
+
+  void _toggleStep(int stepIndex) {
+    final list = List<int>.from(_task.completedSteps);
+    if (list.contains(stepIndex)) {
+      list.remove(stepIndex);
+    } else {
+      list.add(stepIndex);
+    }
+    final updated = _task.copyWith(completedSteps: list);
+    setState(() => _task = updated);
+    widget.onUpdate?.call(updated);
+  }
+
+  void _updateSkillProgress(int val) {
+    final updated = _task.copyWith(skillProgress: val);
+    setState(() => _task = updated);
+    widget.onUpdate?.call(updated);
+  }
 
   @override
   Widget build(BuildContext context) {
     final localizations = MaterialLocalizations.of(context);
     final startTime = localizations.formatTimeOfDay(
-      TimeOfDay.fromDateTime(task.remindAt),
+      TimeOfDay.fromDateTime(_task.remindAt),
     );
     final endTime = localizations.formatTimeOfDay(
-      TimeOfDay.fromDateTime(task.remindUntil),
+      TimeOfDay.fromDateTime(_task.remindUntil),
     );
-    final dateStr = _dateLabel(context, task.remindAt, arabic);
+    final dateStr = _dateLabel(context, _task.remindAt, widget.arabic);
 
     return FractionallySizedBox(
-      heightFactor: .78,
+      heightFactor: .85,
       child: Container(
         decoration: const BoxDecoration(
           color: Colors.white,
@@ -1995,21 +2341,21 @@ class _TaskDetailsSheet extends StatelessWidget {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: task.done
+                            color: _task.done
                                 ? const Color(0xFFE8F5F2)
                                 : const Color(0xFFFFF4EC),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            task.done
+                            _task.done
                                 ? _t('Completed', 'مكتملة')
-                                : (task.inProgress
+                                : (_task.inProgress
                                       ? _t('In progress', 'قيد التنفيذ')
                                       : _t('Pending', 'قيد الانتظار')),
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
-                              color: task.done
+                              color: _task.done
                                   ? _teal
                                   : const Color(0xFFC36E36),
                             ),
@@ -2028,7 +2374,7 @@ class _TaskDetailsSheet extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        task.title,
+                        _task.title,
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
@@ -2036,18 +2382,58 @@ class _TaskDetailsSheet extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 18),
+                      if (_task.category == TaskCategory.learning) ...[
+                        _detailRow(
+                          Icons.school_rounded,
+                          _t('Category', 'التصنيف'),
+                          _t('Skill Learning', 'تعلم مهارة'),
+                          color: _teal,
+                        ),
+                        const SizedBox(height: 14),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _t('Skill Mastery', 'إتقان المهارة'),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: _muted,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Text(
+                              '${_task.skillProgress}%',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: _teal,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Slider(
+                          value: _task.skillProgress.toDouble(),
+                          min: 0,
+                          max: 100,
+                          divisions: 20,
+                          activeColor: _teal,
+                          inactiveColor: const Color(0xFFEAF1EF),
+                          onChanged: (val) => _updateSkillProgress(val.round()),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
                       _detailRow(
                         Icons.flag_rounded,
                         _t('Priority', 'الأولوية'),
                         _t(
-                          _importanceLabels[task.importance]!,
-                          switch (task.importance) {
+                          _importanceLabels[_task.importance]!,
+                          switch (_task.importance) {
                             TaskImportance.normal => 'عادية',
                             TaskImportance.necessary => 'مهمة',
                             TaskImportance.superNecessary => 'مهمة جداً',
                           },
                         ),
-                        color: _importanceColors[task.importance],
+                        color: _importanceColors[_task.importance],
                       ),
                       const SizedBox(height: 14),
                       _detailRow(
@@ -2059,7 +2445,7 @@ class _TaskDetailsSheet extends StatelessWidget {
                       _detailRow(
                         Icons.access_time_rounded,
                         _t('Schedule', 'الوقت'),
-                        task.scheduleMode == TaskScheduleMode.fixed
+                        _task.scheduleMode == TaskScheduleMode.fixed
                             ? '${_t("At", "عند")} $startTime'
                             : '$startTime – $endTime',
                       ),
@@ -2069,43 +2455,72 @@ class _TaskDetailsSheet extends StatelessWidget {
                         _t('Repeat', 'التكرار'),
                         _repeatText(),
                       ),
-                      if (task.steps.isNotEmpty) ...[
+                      if (_task.steps.isNotEmpty) ...[
                         const SizedBox(height: 20),
-                        Text(
-                          _t('Steps', 'الخطوات'),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.1,
-                            color: _muted,
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _t('Steps Checklist', 'خطوات الإنجاز'),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.1,
+                                color: _muted,
+                              ),
+                            ),
+                            Text(
+                              '${_task.completedSteps.length}/${_task.steps.length}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: _teal,
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 8),
-                        for (var i = 0; i < task.steps.length; i++)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${i + 1}. ',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: _teal,
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Text(
-                                    task.steps[i],
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      color: _ink,
+                        for (var i = 0; i < _task.steps.length; i++) ...[
+                          InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: () => _toggleStep(i),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: Checkbox(
+                                      value: _task.completedSteps.contains(i),
+                                      onChanged: (_) => _toggleStep(i),
+                                      activeColor: _teal,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      _task.steps[i],
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: _task.completedSteps.contains(i)
+                                            ? _muted
+                                            : _ink,
+                                        decoration:
+                                            _task.completedSteps.contains(i)
+                                                ? TextDecoration.lineThrough
+                                                : null,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
+                        ],
                       ],
                     ],
                   ),
@@ -2121,7 +2536,7 @@ class _TaskDetailsSheet extends StatelessWidget {
                   width: double.infinity,
                   height: 48,
                   child: OutlinedButton.icon(
-                    onPressed: onDelete,
+                    onPressed: widget.onDelete,
                     icon: const Icon(
                       Icons.delete_outline_rounded,
                       color: Color(0xFFC36E36),
@@ -2178,14 +2593,14 @@ class _TaskDetailsSheet extends StatelessWidget {
     ],
   );
 
-  String _repeatText() => switch (task.repeat) {
+  String _repeatText() => switch (_task.repeat) {
     TaskRepeat.none => _t('Does not repeat', 'لا يتكرر'),
     TaskRepeat.daily => _t('Daily', 'يومياً'),
     TaskRepeat.weekly => _t('Weekly', 'أسبوعياً'),
     TaskRepeat.monthly => _t('Monthly', 'شهرياً'),
     TaskRepeat.custom => _t(
-      'Every ${task.customRepeatEvery} ${task.customRepeatUnit.name}',
-      'كل ${task.customRepeatEvery} ${switch (task.customRepeatUnit) {
+      'Every ${_task.customRepeatEvery} ${_task.customRepeatUnit.name}',
+      'كل ${_task.customRepeatEvery} ${switch (_task.customRepeatUnit) {
         TaskRepeatUnit.days => 'أيام',
         TaskRepeatUnit.weeks => 'أسابيع',
         TaskRepeatUnit.months => 'أشهر',

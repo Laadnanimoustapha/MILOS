@@ -1,0 +1,252 @@
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// Manages data for personal lifestyle habits:
+/// 1. Daily 5 Prayers (Fajr, Dhuhr, Asr, Maghrib, Isha)
+/// 2. No Smoking tracker & streak
+/// 3. Custom habits with daily check-ins
+/// 4. Daily lifestyle notes / reflections
+class HabitStore {
+  static const _keyPrayers = 'milos.habits.prayers';
+  static const _keySmokingStart = 'milos.habits.smoking.start';
+  static const _keySmokingCleanDays = 'milos.habits.smoking.clean_days';
+  static const _keyCustomHabits = 'milos.habits.custom';
+  static const _keyNotes = 'milos.habits.notes';
+
+  static String todayKey() {
+    final now = DateTime.now();
+    return '${now.year.toString().padLeft(4, '0')}-'
+        '${now.month.toString().padLeft(2, '0')}-'
+        '${now.day.toString().padLeft(2, '0')}';
+  }
+
+  // ─── Prayers ─────────────────────────────────────────────────────────────
+  static const prayerNames = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+  static const prayerNamesAr = ['الفجر', 'الظهر', 'العصر', 'المغرب', 'العشاء'];
+
+  /// Returns map of prayer name -> bool completed for given date key
+  static Future<Map<String, bool>> loadPrayers([String? dateKey]) async {
+    final key = dateKey ?? todayKey();
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('$_keyPrayers.$key');
+    if (raw == null) {
+      return {for (var p in prayerNames) p: false};
+    }
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return {for (var p in prayerNames) p: decoded[p] == true};
+    } catch (_) {
+      return {for (var p in prayerNames) p: false};
+    }
+  }
+
+  static Future<void> togglePrayer(String prayer, [String? dateKey]) async {
+    final key = dateKey ?? todayKey();
+    final current = await loadPrayers(key);
+    current[prayer] = !(current[prayer] ?? false);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('$_keyPrayers.$key', jsonEncode(current));
+  }
+
+  // ─── No Smoking Tracker ──────────────────────────────────────────────────
+  static Future<int> loadSmokingCleanDays() async {
+    final prefs = await SharedPreferences.getInstance();
+    final startRaw = prefs.getString(_keySmokingStart);
+    if (startRaw == null) return 0;
+    try {
+      final start = DateTime.parse(startRaw);
+      final diff = DateTime.now().difference(start).inDays;
+      return diff < 0 ? 0 : diff;
+    } catch (_) {
+      return prefs.getInt(_keySmokingCleanDays) ?? 0;
+    }
+  }
+
+  static Future<void> startOrResetSmokingTracker({bool reset = false}) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (reset || prefs.getString(_keySmokingStart) == null) {
+      await prefs.setString(_keySmokingStart, DateTime.now().toIso8601String());
+      await prefs.setInt(_keySmokingCleanDays, 0);
+    }
+  }
+
+  // ─── Custom Habits ───────────────────────────────────────────────────────
+  static Future<List<HabitItem>> loadCustomHabits() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keyCustomHabits);
+    if (raw == null) {
+      // Default initial habits
+      return [
+        HabitItem(id: 'read', titleEn: 'Reading Quran / Book', titleAr: 'قراءة القرآن / كتاب'),
+        HabitItem(id: 'workout', titleEn: 'Exercise / Walk', titleAr: 'رياضة / مشي'),
+        HabitItem(id: 'water', titleEn: 'Drink 2L Water', titleAr: 'شرب ليترين ماء'),
+      ];
+    }
+    try {
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list.map((e) => HabitItem.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  static Future<void> saveCustomHabits(List<HabitItem> habits) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonList = habits.map((h) => h.toJson()).toList();
+    await prefs.setString(_keyCustomHabits, jsonEncode(jsonList));
+  }
+
+  static Future<void> toggleHabitDone(String habitId, [String? dateKey]) async {
+    final key = dateKey ?? todayKey();
+    final habits = await loadCustomHabits();
+    final index = habits.indexWhere((h) => h.id == habitId);
+    if (index == -1) return;
+
+    final habit = habits[index];
+    final history = Map<String, bool>.from(habit.history);
+    final isDone = history[key] == true;
+    if (isDone) {
+      history.remove(key);
+    } else {
+      history[key] = true;
+    }
+
+    // Recompute streak
+    var streak = 0;
+    var checkDate = DateTime.now();
+    while (true) {
+      final ck = '${checkDate.year.toString().padLeft(4, '0')}-'
+          '${checkDate.month.toString().padLeft(2, '0')}-'
+          '${checkDate.day.toString().padLeft(2, '0')}';
+      if (history[ck] == true) {
+        streak++;
+        checkDate = checkDate.subtract(const Duration(days: 1));
+      } else {
+        break;
+      }
+    }
+
+    habits[index] = habit.copyWith(history: history, streak: streak);
+    await saveCustomHabits(habits);
+  }
+
+  static Future<void> addCustomHabit(String titleEn, String titleAr) async {
+    final habits = await loadCustomHabits();
+    habits.add(HabitItem(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      titleEn: titleEn,
+      titleAr: titleAr,
+    ));
+    await saveCustomHabits(habits);
+  }
+
+  static Future<void> deleteCustomHabit(String id) async {
+    final habits = await loadCustomHabits();
+    habits.removeWhere((h) => h.id == id);
+    await saveCustomHabits(habits);
+  }
+
+  // ─── Lifestyle Notes / Reflections ───────────────────────────────────────
+  static Future<List<HabitNote>> loadNotes() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keyNotes);
+    if (raw == null) return [];
+    try {
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list.map((e) => HabitNote.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  static Future<void> addNote(String text) async {
+    final notes = await loadNotes();
+    notes.insert(0, HabitNote(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      text: text,
+      date: DateTime.now(),
+    ));
+    // Keep max 50 notes to save space
+    if (notes.length > 50) notes.removeRange(50, notes.length);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyNotes, jsonEncode(notes.map((n) => n.toJson()).toList()));
+  }
+
+  static Future<void> deleteNote(String id) async {
+    final notes = await loadNotes();
+    notes.removeWhere((n) => n.id == id);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyNotes, jsonEncode(notes.map((n) => n.toJson()).toList()));
+  }
+}
+
+class HabitItem {
+  const HabitItem({
+    required this.id,
+    required this.titleEn,
+    required this.titleAr,
+    this.streak = 0,
+    this.history = const {},
+  });
+
+  final String id;
+  final String titleEn;
+  final String titleAr;
+  final int streak;
+  final Map<String, bool> history;
+
+  bool isDoneToday() => history[HabitStore.todayKey()] == true;
+
+  HabitItem copyWith({
+    int? streak,
+    Map<String, bool>? history,
+  }) => HabitItem(
+    id: id,
+    titleEn: titleEn,
+    titleAr: titleAr,
+    streak: streak ?? this.streak,
+    history: history ?? this.history,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'titleEn': titleEn,
+    'titleAr': titleAr,
+    'streak': streak,
+    'history': history,
+  };
+
+  factory HabitItem.fromJson(Map<String, dynamic> json) => HabitItem(
+    id: json['id'] as String,
+    titleEn: json['titleEn'] as String? ?? '',
+    titleAr: json['titleAr'] as String? ?? '',
+    streak: json['streak'] as int? ?? 0,
+    history: (json['history'] as Map<String, dynamic>?)?.map(
+      (k, v) => MapEntry(k, v as bool),
+    ) ?? {},
+  );
+}
+
+class HabitNote {
+  const HabitNote({
+    required this.id,
+    required this.text,
+    required this.date,
+  });
+
+  final String id;
+  final String text;
+  final DateTime date;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'text': text,
+    'date': date.toIso8601String(),
+  };
+
+  factory HabitNote.fromJson(Map<String, dynamic> json) => HabitNote(
+    id: json['id'] as String,
+    text: json['text'] as String,
+    date: DateTime.parse(json['date'] as String),
+  );
+}

@@ -34,10 +34,17 @@ void notificationActionBackground(NotificationResponse response) async {
   WidgetsFlutterBinding.ensureInitialized();
   // Initialise the notification plugin so it can schedule the snooze.
   await ReminderService.instance.initialize();
-  _handleResponse(response);
+  await _handleResponse(response);
 }
 
-void _handleResponse(NotificationResponse response) {
+Future<void> _handleResponse(NotificationResponse response) async {
+  final activeId = response.id;
+  if (activeId != null) {
+    try {
+      await ReminderService.instance._plugin.cancel(id: activeId);
+    } catch (_) {}
+  }
+
   final payload = response.payload;
   if (payload == null) return;
 
@@ -46,39 +53,42 @@ void _handleResponse(NotificationResponse response) {
   if (taskId == null) return;
 
   if (response.actionId == _actionDone) {
-    _markTaskDone(taskId);
+    await _markTaskDone(taskId, activeNotificationId: activeId);
   } else if (response.actionId == _actionWait) {
-    _snoozeTask(taskId);
+    await _snoozeTask(taskId, activeNotificationId: activeId);
   } else if (response.actionId == _actionStart) {
-    _startTask(taskId);
+    await _startTask(taskId, activeNotificationId: activeId);
   }
 }
 
-Future<void> _markTaskDone(int taskId) async {
+Future<void> _markTaskDone(int taskId, {int? activeNotificationId}) async {
   try {
     final store = TaskStore();
     final tasks = await store.load();
     final index = tasks.indexWhere((t) => t.id == taskId);
-    if (index == -1) return;
-    final task = tasks[index];
-    tasks[index] = task.copyWith(done: true, inProgress: false);
+    if (index != -1) {
+      final task = tasks[index];
+      tasks[index] = task.copyWith(done: true, inProgress: false);
 
-    // If the task repeats, spawn the next occurrence for tomorrow / next month etc.
-    if (task.repeat != TaskRepeat.none) {
-      final nextId = tasks.isEmpty
-          ? 1
-          : tasks.map((t) => t.id).reduce((a, b) => a > b ? a : b) + 1;
-      tasks.add(task.nextRecurrence(nextId));
+      // If the task repeats, spawn the next occurrence for tomorrow / next month etc.
+      if (task.repeat != TaskRepeat.none) {
+        final nextId = tasks.isEmpty
+            ? 1
+            : tasks.map((t) => t.id).reduce((a, b) => a > b ? a : b) + 1;
+        tasks.add(task.nextRecurrence(nextId));
+      }
+
+      await store.save(tasks);
     }
-
-    await store.save(tasks);
     // Cancel all scheduled notifications for this task; refresh the rest.
-    await ReminderService.instance.cancel(task);
-    await ReminderService.instance.refresh(tasks);
+    await ReminderService.instance.cancelById(taskId, activeNotificationId);
+    if (index != -1) {
+      await ReminderService.instance.refresh(tasks);
+    }
   } catch (_) {}
 }
 
-Future<void> _startTask(int taskId) async {
+Future<void> _startTask(int taskId, {int? activeNotificationId}) async {
   try {
     final store = TaskStore();
     final tasks = await store.load();
@@ -89,11 +99,14 @@ Future<void> _startTask(int taskId) async {
     // Mark inProgress = true and re-schedule so intermediate alerts stop.
     tasks[index] = task.copyWith(inProgress: true);
     await store.save(tasks);
+    if (activeNotificationId != null) {
+      await ReminderService.instance._plugin.cancel(id: activeNotificationId);
+    }
     await ReminderService.instance.refresh(tasks);
   } catch (_) {}
 }
 
-Future<void> _snoozeTask(int taskId) async {
+Future<void> _snoozeTask(int taskId, {int? activeNotificationId}) async {
   try {
     final store = TaskStore();
     final tasks = await store.load();
@@ -102,6 +115,8 @@ Future<void> _snoozeTask(int taskId) async {
       orElse: () => throw StateError('not found'),
     );
     if (task.done) return;
+    // Cancel existing notifications for this task first to clear the shade
+    await ReminderService.instance.cancelById(taskId, activeNotificationId);
     await ReminderService.instance._scheduleSnooze(task);
   } catch (_) {}
 }
@@ -150,10 +165,9 @@ class ReminderService {
           requestSoundPermission: false,
         ),
       ),
-      onDidReceiveNotificationResponse: (response) {
-        // Use the stored callback so it can be updated after first init.
+      onDidReceiveNotificationResponse: (response) async {
+        await _handleResponse(response);
         _onForegroundResponse?.call(response);
-        _handleResponse(response);
       },
       onDidReceiveBackgroundNotificationResponse: notificationActionBackground,
     );
@@ -451,16 +465,23 @@ class ReminderService {
     );
   }
 
-  Future<void> cancel(Task task) async {
+  Future<void> cancelById(int taskId, [int? activeNotificationId]) async {
     await initialize();
     if (kIsWeb ||
         (defaultTargetPlatform != TargetPlatform.android &&
             defaultTargetPlatform != TargetPlatform.iOS)) {
       return;
     }
-    for (var index = 0; index < 60; index++) {
-      await _plugin.cancel(id: task.id * 100 + index);
+    if (activeNotificationId != null) {
+      try {
+        await _plugin.cancel(id: activeNotificationId);
+      } catch (_) {}
     }
-    await _plugin.cancel(id: _snoozeId(task.id));
+    for (var index = 0; index < 60; index++) {
+      await _plugin.cancel(id: taskId * 100 + index);
+    }
+    await _plugin.cancel(id: _snoozeId(taskId));
   }
+
+  Future<void> cancel(Task task) => cancelById(task.id);
 }

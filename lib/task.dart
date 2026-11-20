@@ -2,6 +2,7 @@ enum TaskImportance { normal, necessary, superNecessary }
 enum TaskScheduleMode { range, fixed }
 enum TaskRepeat { none, daily, weekly, monthly, custom }
 enum TaskRepeatUnit { days, weeks, months }
+enum TaskCategory { regular, learning }
 
 class Task {
   const Task({
@@ -17,7 +18,10 @@ class Task {
     this.customRepeatEvery = 1,
     this.customRepeatUnit = TaskRepeatUnit.days,
     this.steps = const [],
+    this.completedSteps = const [],
     this.inProgress = false,
+    this.category = TaskCategory.regular,
+    this.skillProgress = 0,
   });
 
   final int id;
@@ -33,8 +37,14 @@ class Task {
   final TaskRepeatUnit customRepeatUnit;
   /// Optional ordered steps. When non-empty each notification shows one step.
   final List<String> steps;
+  /// Indices of steps marked as completed.
+  final List<int> completedSteps;
   /// Whether the user has tapped "I started doing it" / in progress.
   final bool inProgress;
+  /// Regular to-do vs. Long-term Skill learning.
+  final TaskCategory category;
+  /// Progress percentage for learning tasks (0..100).
+  final int skillProgress;
 
   int get reminderIntervalMinutes => switch (importance) {
     TaskImportance.normal => 60,
@@ -53,7 +63,10 @@ class Task {
     DateTime? remindAt,
     DateTime? remindUntil,
     List<String>? steps,
+    List<int>? completedSteps,
     bool? inProgress,
+    TaskCategory? category,
+    int? skillProgress,
   }) => Task(
     id: id,
     title: title,
@@ -68,7 +81,10 @@ class Task {
     customRepeatEvery: customRepeatEvery ?? this.customRepeatEvery,
     customRepeatUnit: customRepeatUnit ?? this.customRepeatUnit,
     steps: steps ?? this.steps,
+    completedSteps: completedSteps ?? this.completedSteps,
     inProgress: inProgress ?? this.inProgress,
+    category: category ?? this.category,
+    skillProgress: skillProgress ?? this.skillProgress,
   );
 
   /// Calculates the next occurrence date for a repeating task.
@@ -120,7 +136,10 @@ class Task {
       customRepeatEvery: customRepeatEvery,
       customRepeatUnit: customRepeatUnit,
       steps: steps,
+      completedSteps: const [],
       inProgress: false,
+      category: category,
+      skillProgress: skillProgress,
     );
   }
 
@@ -137,7 +156,10 @@ class Task {
     'customRepeatEvery': customRepeatEvery,
     'customRepeatUnit': customRepeatUnit.name,
     if (steps.isNotEmpty) 'steps': steps,
+    if (completedSteps.isNotEmpty) 'completedSteps': completedSteps,
     if (inProgress) 'inProgress': inProgress,
+    if (category != TaskCategory.regular) 'category': category.name,
+    if (skillProgress > 0) 'skillProgress': skillProgress,
   };
 
   factory Task.fromJson(Map<String, dynamic> json) => Task(
@@ -166,6 +188,13 @@ class Task {
       orElse: () => TaskRepeatUnit.days,
     ),
     steps: (json['steps'] as List<dynamic>?)?.cast<String>() ?? const [],
+    completedSteps:
+        (json['completedSteps'] as List<dynamic>?)?.cast<int>() ?? const [],
     inProgress: json['inProgress'] as bool? ?? false,
+    category: TaskCategory.values.firstWhere(
+      (value) => value.name == json['category'],
+      orElse: () => TaskCategory.regular,
+    ),
+    skillProgress: json['skillProgress'] as int? ?? 0,
   );
 }
