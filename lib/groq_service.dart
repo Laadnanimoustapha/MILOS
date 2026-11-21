@@ -95,17 +95,25 @@ Future<String> groqChat({
   var allRateLimited = true;
   for (var attempt = 0; attempt < keys.length; attempt++) {
     final index = _keyIndex % keys.length;
-    try {
-      final result = await _doRequest(
-        key: keys[index],
-        model: model,
-        messages: messages,
-      );
-      if (!result.rateLimited) return result.content;
-      lastError = GroqException(result.content);
-    } on GroqException catch (error) {
-      allRateLimited = false;
-      lastError = error;
+    // Try up to 2 attempts per key (retry once if transient or tool_use_failed occurs)
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        final result = await _doRequest(
+          key: keys[index],
+          model: model,
+          messages: messages,
+        );
+        if (!result.rateLimited) return result.content;
+        lastError = GroqException(result.content);
+        break; // Rate limited, move to next key immediately
+      } on GroqException catch (error) {
+        allRateLimited = false;
+        lastError = error;
+        // If it's a tool_use_failed error, retrying might succeed, otherwise break to next key
+        if (!error.message.contains('tool_use_failed')) {
+          break;
+        }
+      }
     }
     _keyIndex = (index + 1) % keys.length;
   }

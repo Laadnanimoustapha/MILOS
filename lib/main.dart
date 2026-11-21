@@ -173,9 +173,17 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
 
   Future<void> _loadTasks() async {
     try {
-      _tasks.addAll(await _store.load());
-    } catch (_) {}
-    if (mounted) setState(() => _loading = false);
+      final fresh = await _store.load();
+      if (!mounted) return;
+      setState(() {
+        _tasks
+          ..clear()
+          ..addAll(fresh);
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
     await _refreshReminders();
   }
 
@@ -333,6 +341,9 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
             repeat: d.repeat,
             customRepeatEvery: d.customRepeatEvery,
             customRepeatUnit: d.customRepeatUnit,
+            steps: d.steps,
+            completedSteps: d.completedSteps,
+            skillSteps: d.skillSteps,
             category: d.category,
             skillProgress: d.skillProgress,
           ),

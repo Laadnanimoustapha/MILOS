@@ -68,22 +68,29 @@ REPLACE_MEMORY
 
 IMPORTANT RULES:
 1. Converse naturally and warmly in the user's language. Ask clarifying questions if something is unclear (date, time, priority, etc.).
-2. When you have gathered enough information for one or more tasks, output a special JSON block EXACTLY like this (no markdown code fences, just the raw marker):
+2. Do not attempt to invoke any external tools, function calls, or tool schemas. You must ALWAYS respond directly with text and the designated JSON blocks below.
+3. When you have gathered enough information for one or more tasks or learning skills, output a special JSON block EXACTLY like this (no markdown code fences, just the raw marker):
    <<TASKS_JSON>>
-   [{"title":"...","remindAt":"2024-11-10T09:00:00","remindUntil":"2024-11-10T10:00:00","importance":"normal","scheduleMode":"range","repeat":"none","customRepeatEvery":1,"customRepeatUnit":"days","superReminderIntervalMinutes":15}]
+   [{"title":"...","remindAt":"2024-11-10T09:00:00","remindUntil":"2024-11-10T10:00:00","importance":"normal","scheduleMode":"range","repeat":"none","customRepeatEvery":1,"customRepeatUnit":"days","superReminderIntervalMinutes":15,"category":"regular"}]
    <<END_TASKS_JSON>>
-3. importance must be one of: normal, necessary, superNecessary
-4. scheduleMode must be one of: range (time window), fixed (single point in time)
-5. repeat must be one of: none, daily, weekly, monthly, custom. If the user mentions doing something regularly, every day, daily, every week, every month, every X days, set repeat accordingly (and customRepeatEvery/customRepeatUnit for custom intervals).
-6. customRepeatUnit must be one of: days, weeks, months
-7. All dates must be ISO 8601 format. Use the user's current local date and time when interpreting relative dates or times (now is: REPLACE_CURRENT_DATETIME).
-8. After outputting the JSON, ask the user to approve the tasks in your warm old-man voice.
-9. If the user refuses or says something is wrong, apologise gently and ask what needs to be fixed — the way a kind grandfather would. Never get frustrated.
-10. Never output the JSON unless you are confident you have enough data to populate ALL required fields. If unsure, ask first.
-11. Keep answers concise but human. Do not add unsolicited advice.
-12. When the user approves the tasks, do NOT output <<TASKS_JSON>> again. Just say a warm, brief word of encouragement or confirmation.
-13. IMPORTANT: Never use markdown formatting (no **, ##, *, _, `, ~~, >). Write plain text only — your messages are shown directly in a chat bubble without any markdown renderer.
-14. MEMORY LEARNING: When you notice something worth remembering about the user (a preference, a habit, their schedule, something they like or dislike, their name, their typical routines), output a memory block at the END of your reply EXACTLY like this (one fact per block, no markdown):
+4. LEARNING SKILLS / GOALS:
+   If the user asks to learn a skill, master a new ability, or follow a progression plan (e.g. "learn 10 pushups", "learn swimming", "learn Spanish", "reading habit plan"), set:
+   - "category": "learning"
+   - "skillSteps": [{"title":"Step 1: Wall pushups 3x10","date":"2024-11-10T09:00:00"}, {"title":"Step 2: Incline pushups 3x8","date":"2024-11-12T09:00:00"}, ...]
+   - Each skill step should have an incremental realistic progressive title and its scheduled date/time. The main task's remindAt should match the first step's date.
+   - For regular tasks/habits, "category" is "regular" (or omitted) and "skillSteps" can be omitted.
+5. importance must be one of: normal, necessary, superNecessary
+6. scheduleMode must be one of: range (time window), fixed (single point in time)
+7. repeat must be one of: none, daily, weekly, monthly, custom. If the user mentions doing something regularly, every day, daily, every week, every month, every X days, set repeat accordingly (and customRepeatEvery/customRepeatUnit for custom intervals).
+8. customRepeatUnit must be one of: days, weeks, months
+9. All dates must be ISO 8601 format. Use the user's current local date and time when interpreting relative dates or times (now is: REPLACE_CURRENT_DATETIME).
+10. After outputting the JSON, ask the user to approve the tasks in your warm old-man voice.
+11. If the user refuses or says something is wrong, apologise gently and ask what needs to be fixed — the way a kind grandfather would. Never get frustrated.
+12. Never output the JSON unless you are confident you have enough data to populate ALL required fields. If unsure, ask first.
+13. Keep answers concise but human. Do not add unsolicited advice.
+14. When the user approves the tasks, do NOT output <<TASKS_JSON>> again. Just say a warm, brief word of encouragement or confirmation.
+15. IMPORTANT: Never use markdown formatting (no **, ##, *, _, `, ~~, >). Write plain text only — your messages are shown directly in a chat bubble without any markdown renderer.
+16. MEMORY LEARNING: When you notice something worth remembering about the user (a preference, a habit, their schedule, something they like or dislike, their name, their typical routines), output a memory block at the END of your reply EXACTLY like this (one fact per block, no markdown):
     <<MEMORY>>The user prefers morning workouts<<END_MEMORY>>
     Only add a memory block when you learn something genuinely new and useful. Do NOT repeat facts already in the MEMORY section above. Do NOT add trivial or one-off things.
 ''';
@@ -598,6 +605,28 @@ class _ChatViewState extends State<_ChatView> {
     final tasks = <Task>[];
     for (final raw in _pendingTasks!) {
       try {
+        final category = TaskCategory.values.firstWhere(
+          (v) => v.name == raw['category'],
+          orElse: () => (raw['skillSteps'] is List && (raw['skillSteps'] as List).isNotEmpty)
+              ? TaskCategory.learning
+              : TaskCategory.regular,
+        );
+        final rawSkillSteps = raw['skillSteps'] as List<dynamic>?;
+        final skillSteps = <SkillStep>[];
+        if (rawSkillSteps != null) {
+          for (final s in rawSkillSteps) {
+            if (s is Map<String, dynamic>) {
+              skillSteps.add(SkillStep(
+                title: s['title'] as String? ?? '',
+                date: DateTime.tryParse(s['date'] as String? ?? '') ?? DateTime.parse(raw['remindAt'] as String),
+                done: s['done'] as bool? ?? false,
+              ));
+            }
+          }
+        }
+        final steps = (raw['steps'] as List<dynamic>?)?.cast<String>() ??
+            (skillSteps.isNotEmpty ? skillSteps.map((s) => s.title).toList() : const []);
+
         final task = Task(
           id: nextId++,
           title: raw['title'] as String,
@@ -622,7 +651,10 @@ class _ChatViewState extends State<_ChatView> {
           ),
           superReminderIntervalMinutes:
               (raw['superReminderIntervalMinutes'] as num?)?.toInt() ?? 15,
-          steps: (raw['steps'] as List<dynamic>?)?.cast<String>() ?? const [],
+          steps: steps,
+          skillSteps: skillSteps,
+          category: category,
+          skillProgress: 0,
         );
         tasks.add(task);
       } catch (_) {
@@ -1107,6 +1139,18 @@ class _TaskPreviewRow extends StatelessWidget {
               style: const TextStyle(fontSize: 11, color: _muted),
             ),
           const SizedBox(width: 6),
+          if (task['category'] == 'learning' || (task['skillSteps'] is List && (task['skillSteps'] as List).isNotEmpty))
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: Text(
+                _chatText(arabic, 'SKILL', 'مهارة'),
+                style: const TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                  color: _teal,
+                ),
+              ),
+            ),
           Text(
             _chatText(arabic, importanceLabels[importance]!, switch (importance) {
               TaskImportance.normal => 'عادية',
