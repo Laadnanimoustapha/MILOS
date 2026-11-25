@@ -6,8 +6,9 @@ const _teal = Color(0xFF4CAF9E);
 const _ink = Color(0xFF253533);
 const _muted = Color(0xFF82908D);
 const _paper = Color(0xFFF5F8F7);
+const _red = Color(0xFFE74C3C);
 
-/// Displays all tasks where task.done == true.
+/// Displays all tasks where task.done == true or task.failed == true.
 /// Reached via Navigator.push from TodayPage.
 class ArchivePage extends StatelessWidget {
   const ArchivePage({super.key, required this.tasks, required this.arabic});
@@ -21,6 +22,10 @@ class ArchivePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final done = tasks.where((t) => t.done).toList()
       ..sort((a, b) => b.remindAt.compareTo(a.remindAt));
+    final failed = tasks.where((t) => t.failed).toList()
+      ..sort((a, b) => b.remindAt.compareTo(a.remindAt));
+
+    final isEmpty = done.isEmpty && failed.isEmpty;
 
     return Scaffold(
       backgroundColor: _paper,
@@ -45,7 +50,7 @@ class ArchivePage extends StatelessWidget {
           child: Container(height: 1, color: const Color(0xFFE9EFED)),
         ),
       ),
-      body: done.isEmpty
+      body: isEmpty
           ? Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -74,24 +79,99 @@ class ArchivePage extends StatelessWidget {
                 ],
               ),
             )
-          : ListView.separated(
+          : ListView(
               padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
-              itemCount: done.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (_, i) => _ArchivedTaskCard(
-                task: done[i],
-                arabic: arabic,
-              ),
+              children: [
+                // ── Done section ──
+                if (done.isNotEmpty) ...[
+                  _SectionHeader(
+                    icon: Icons.check_circle_rounded,
+                    label: _t('Completed', 'مكتملة'),
+                    count: done.length,
+                    color: _teal,
+                  ),
+                  const SizedBox(height: 8),
+                  ...done.map((t) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _ArchivedTaskCard(task: t, arabic: arabic),
+                      )),
+                ],
+                // ── Failed section ──
+                if (failed.isNotEmpty) ...[
+                  if (done.isNotEmpty) const SizedBox(height: 10),
+                  _SectionHeader(
+                    icon: Icons.cancel_rounded,
+                    label: _t('Failed', 'فشلت'),
+                    count: failed.length,
+                    color: _red,
+                  ),
+                  const SizedBox(height: 8),
+                  ...failed.map((t) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _ArchivedTaskCard(task: t, arabic: arabic, failed: true),
+                      )),
+                ],
+              ],
             ),
     );
   }
 }
 
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.icon,
+    required this.label,
+    required this.count,
+    required this.color,
+  });
+  final IconData icon;
+  final String label;
+  final int count;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Icon(icon, size: 16, color: color),
+      const SizedBox(width: 6),
+      Text(
+        label,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
+      ),
+      const SizedBox(width: 8),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          '$count',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
 class _ArchivedTaskCard extends StatelessWidget {
-  const _ArchivedTaskCard({required this.task, required this.arabic});
+  const _ArchivedTaskCard({
+    required this.task,
+    required this.arabic,
+    this.failed = false,
+  });
 
   final Task task;
   final bool arabic;
+  final bool failed;
 
   @override
   Widget build(BuildContext context) {
@@ -100,21 +180,24 @@ class _ArchivedTaskCard extends StatelessWidget {
       TimeOfDay.fromDateTime(task.remindAt),
     );
     final dateStr = _dateLabel(context, task.remindAt);
+    final color = failed ? _red : _teal;
+    final icon = failed ? Icons.cancel_rounded : Icons.check_circle_rounded;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE9EFED)),
+        border: Border(
+          left: BorderSide(color: color, width: 3),
+          right: BorderSide(color: const Color(0xFFE9EFED)),
+          top: BorderSide(color: const Color(0xFFE9EFED)),
+          bottom: BorderSide(color: const Color(0xFFE9EFED)),
+        ),
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.check_circle_rounded,
-            color: _teal,
-            size: 22,
-          ),
+          Icon(icon, color: color, size: 22),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -124,11 +207,12 @@ class _ArchivedTaskCard extends StatelessWidget {
                   task.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: _muted,
                     decoration: TextDecoration.lineThrough,
+                    decorationColor: failed ? _red : _muted,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -155,3 +239,4 @@ class _ArchivedTaskCard extends StatelessWidget {
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 }
+

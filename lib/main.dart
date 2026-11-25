@@ -12,6 +12,7 @@ import 'reminder_service.dart';
 import 'streak_store.dart';
 import 'task.dart';
 import 'task_store.dart';
+import 'update_service.dart';
 
 const _teal = Color(0xFF4CAF9E);
 const _ink = Color(0xFF253533);
@@ -139,6 +140,7 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
   int _streakCount = 0;
   List<bool> _weekDots = List.filled(7, false);
   int _currentTab = 0;
+  UpdateInfo? _pendingUpdate;
 
   bool get _arabic => widget.language == AppLanguage.arabic;
   String _text(String english, String arabic) => _arabic ? arabic : english;
@@ -155,6 +157,8 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
     ReminderService.instance.initialize(
       onForegroundResponse: (_) => _reloadFromStorage(),
     );
+    // Check for update once per day (non-blocking)
+    _checkForUpdateOnce();
   }
 
   @override
@@ -217,7 +221,8 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
   /// Called whenever a task is toggled done to potentially credit the streak.
   Future<void> _maybeUpdateStreak() async {
     final todayTasks = _tasks.where((t) => _isToday(t.remindAt)).toList();
-    if (todayTasks.isNotEmpty && todayTasks.every((t) => t.done)) {
+    // Credit streak when all today's tasks are either done or failed (tried)
+    if (todayTasks.isNotEmpty && todayTasks.every((t) => t.done || t.failed)) {
       final count = await StreakStore.creditToday();
       final dots = await StreakStore.currentWeekDots();
       if (mounted) setState(() { _streakCount = count; _weekDots = dots; });
@@ -228,6 +233,18 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
     try {
       await _store.save(_tasks);
     } catch (_) {}
+  }
+
+  Future<void> _markFailed(Task task) async {
+    final idx = _tasks.indexOf(task);
+    if (idx == -1) return;
+    setState(() => _tasks[idx] = task.copyWith(failed: true, inProgress: false));
+    await _saveTasks();
+    try {
+      await ReminderService.instance.cancel(task);
+      await ReminderService.instance.refresh(_tasks);
+    } catch (_) {}
+    await _maybeUpdateStreak();
   }
 
   bool _isToday(DateTime d) {
@@ -562,7 +579,7 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
     final tomorrow = today.add(const Duration(days: 1));
 
     // Sort tasks chronologically by remindAt; exclude done tasks from main list.
-    final sorted = List<Task>.from(_tasks.where((t) => !t.done))
+    final sorted = List<Task>.from(_tasks.where((t) => !t.done && !t.failed))
       ..sort((a, b) => a.remindAt.compareTo(b.remindAt));
 
     // Find the "Focus Next": earliest pending today task.
