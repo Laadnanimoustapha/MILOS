@@ -180,8 +180,9 @@ As my coach and mentor, evaluate my discipline and give me practical advice on h
 
     final todayTasks = _tasks.where((t) => _isToday(t.remindAt)).toList();
     final todayDone = todayTasks.where((t) => t.done).length;
+    final todayFailed = todayTasks.where((t) => t.failed).length;
     final todayTotal = todayTasks.length;
-    final overdueCount = _tasks.where((t) => !t.done && _isOverdue(t.remindAt)).length;
+    final overdueCount = _tasks.where((t) => !t.done && !t.failed && _isOverdue(t.remindAt)).length;
     final prayersDone = _prayers.values.where((v) => v).length;
     final learningTasks = _tasks.where((t) => t.category == TaskCategory.learning).toList();
     final progressPct = todayTotal == 0 ? 0 : ((todayDone / todayTotal) * 100).round();

@@ -2048,6 +2048,24 @@ class _TaskTile extends StatelessWidget {
                         ],
                       ),
                     ),
+                  if (!task.done)
+                    PopupMenuItem<String>(
+                      value: 'failed',
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.cancel_outlined,
+                            size: 18,
+                            color: Color(0xFFE74C3C),
+                          ),
+                          const SizedBox(width: 9),
+                          Text(
+                            _localized(arabic, 'Mark as Failed', 'وضع علامة فاشل'),
+                            style: const TextStyle(color: Color(0xFFE74C3C)),
+                          ),
+                        ],
+                      ),
+                    ),
                   PopupMenuItem<String>(
                     value: 'delete',
                     child: Row(
