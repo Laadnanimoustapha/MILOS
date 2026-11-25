@@ -45,6 +45,7 @@ class Task {
     required this.remindAt,
     required this.remindUntil,
     this.done = false,
+    this.failed = false,
     this.importance = TaskImportance.normal,
     this.superReminderIntervalMinutes = 15,
     this.scheduleMode = TaskScheduleMode.range,
@@ -64,6 +65,7 @@ class Task {
   final DateTime remindAt;
   final DateTime remindUntil;
   final bool done;
+  final bool failed;
   final TaskImportance importance;
   final int superReminderIntervalMinutes;
   final TaskScheduleMode scheduleMode;
@@ -99,6 +101,7 @@ class Task {
 
   Task copyWith({
     bool? done,
+    bool? failed,
     TaskImportance? importance,
     int? superReminderIntervalMinutes,
     TaskScheduleMode? scheduleMode,
@@ -119,6 +122,7 @@ class Task {
     remindAt: remindAt ?? this.remindAt,
     remindUntil: remindUntil ?? this.remindUntil,
     done: done ?? this.done,
+    failed: failed ?? this.failed,
     importance: importance ?? this.importance,
     superReminderIntervalMinutes:
         superReminderIntervalMinutes ?? this.superReminderIntervalMinutes,
@@ -176,6 +180,7 @@ class Task {
       remindAt: nextStart,
       remindUntil: nextEnd,
       done: false,
+      failed: false,
       importance: importance,
       superReminderIntervalMinutes: superReminderIntervalMinutes,
       scheduleMode: scheduleMode,
@@ -197,6 +202,7 @@ class Task {
     'remindAt': remindAt.toIso8601String(),
     'remindUntil': remindUntil.toIso8601String(),
     'done': done,
+    if (failed) 'failed': failed,
     'importance': importance.name,
     'superReminderIntervalMinutes': superReminderIntervalMinutes,
     'scheduleMode': scheduleMode.name,
@@ -218,6 +224,7 @@ class Task {
     remindAt: DateTime.parse(json['remindAt'] as String),
     remindUntil: DateTime.parse(json['remindUntil'] as String),
     done: json['done'] as bool? ?? false,
+    failed: json['failed'] as bool? ?? false,
     importance: TaskImportance.values.firstWhere(
       (value) => value.name == json['importance'],
       orElse: () => TaskImportance.normal,
