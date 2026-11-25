@@ -23,28 +23,63 @@ class HabitStore {
   static const prayerNames = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
   static const prayerNamesAr = ['الفجر', 'الظهر', 'العصر', 'المغرب', 'العشاء'];
 
-  /// Returns map of prayer name -> bool completed for given date key
-  static Future<Map<String, bool>> loadPrayers([String? dateKey]) async {
+  /// Returns map of prayer name -> prayer count (times prayed) for given date.
+  /// Backwards compatible: old bool values are read as 0/1.
+  static Future<Map<String, int>> loadPrayerCounts([String? dateKey]) async {
     final key = dateKey ?? todayKey();
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString('$_keyPrayers.$key');
     if (raw == null) {
-      return {for (var p in prayerNames) p: false};
+      return {for (var p in prayerNames) p: 0};
     }
     try {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      return {for (var p in prayerNames) p: decoded[p] == true};
+      return {
+        for (var p in prayerNames)
+          p: switch (decoded[p]) {
+            final int v => v,
+            true => 1,   // legacy bool true
+            _ => 0,      // legacy bool false or missing
+          },
+      };
     } catch (_) {
-      return {for (var p in prayerNames) p: false};
+      return {for (var p in prayerNames) p: 0};
     }
   }
 
+  /// Returns map of prayer name -> bool (prayed ≥ 1 time) for compatibility.
+  static Future<Map<String, bool>> loadPrayers([String? dateKey]) async {
+    final counts = await loadPrayerCounts(dateKey);
+    return counts.map((k, v) => MapEntry(k, v > 0));
+  }
+
+  /// Increment count for a specific prayer (tap +).
+  static Future<void> incrementPrayer(String prayer, [String? dateKey]) async {
+    final key = dateKey ?? todayKey();
+    final counts = await loadPrayerCounts(key);
+    counts[prayer] = (counts[prayer] ?? 0) + 1;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('$_keyPrayers.$key', jsonEncode(counts));
+  }
+
+  /// Decrement count for a specific prayer (tap −), floor at 0.
+  static Future<void> decrementPrayer(String prayer, [String? dateKey]) async {
+    final key = dateKey ?? todayKey();
+    final counts = await loadPrayerCounts(key);
+    final cur = counts[prayer] ?? 0;
+    counts[prayer] = cur > 0 ? cur - 1 : 0;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('$_keyPrayers.$key', jsonEncode(counts));
+  }
+
+  /// Legacy toggle — now increments if 0, decrements if ≥1. Kept for compat.
   static Future<void> togglePrayer(String prayer, [String? dateKey]) async {
     final key = dateKey ?? todayKey();
-    final current = await loadPrayers(key);
-    current[prayer] = !(current[prayer] ?? false);
+    final counts = await loadPrayerCounts(key);
+    final cur = counts[prayer] ?? 0;
+    counts[prayer] = cur == 0 ? 1 : 0;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('$_keyPrayers.$key', jsonEncode(current));
+    await prefs.setString('$_keyPrayers.$key', jsonEncode(counts));
   }
 
   // ─── Custom Streaks (User defined: No Smoking, Cold Shower, etc.) ─────────

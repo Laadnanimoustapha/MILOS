@@ -19,7 +19,7 @@ class _HabitsPageState extends State<HabitsPage> {
   bool get _arabic => widget.arabic;
   String _t(String en, String ar) => _arabic ? ar : en;
 
-  Map<String, bool> _prayers = {};
+  Map<String, int> _prayerCounts = {};
   List<StreakTracker> _customStreaks = [];
   List<HabitItem> _habits = [];
   List<HabitNote> _notes = [];
@@ -40,13 +40,13 @@ class _HabitsPageState extends State<HabitsPage> {
   }
 
   Future<void> _loadAll() async {
-    final prayers = await HabitStore.loadPrayers();
+    final prayerCounts = await HabitStore.loadPrayerCounts();
     final streaks = await HabitStore.loadCustomStreaks();
     final habits = await HabitStore.loadCustomHabits();
     final notes = await HabitStore.loadNotes();
     if (mounted) {
       setState(() {
-        _prayers = prayers;
+        _prayerCounts = prayerCounts;
         _customStreaks = streaks;
         _habits = habits;
         _notes = notes;
@@ -55,10 +55,16 @@ class _HabitsPageState extends State<HabitsPage> {
     }
   }
 
-  Future<void> _togglePrayer(String prayer) async {
-    await HabitStore.togglePrayer(prayer);
-    final fresh = await HabitStore.loadPrayers();
-    if (mounted) setState(() => _prayers = fresh);
+  Future<void> _incrementPrayer(String prayer) async {
+    await HabitStore.incrementPrayer(prayer);
+    final fresh = await HabitStore.loadPrayerCounts();
+    if (mounted) setState(() => _prayerCounts = fresh);
+  }
+
+  Future<void> _decrementPrayer(String prayer) async {
+    await HabitStore.decrementPrayer(prayer);
+    final fresh = await HabitStore.loadPrayerCounts();
+    if (mounted) setState(() => _prayerCounts = fresh);
   }
 
   Future<void> _addStreakDialog() async {
@@ -193,7 +199,7 @@ class _HabitsPageState extends State<HabitsPage> {
     if (mounted) setState(() => _notes = notes);
   }
 
-  int get _prayersCompleted => _prayers.values.where((v) => v).length;
+  int get _prayersCompleted => _prayerCounts.values.where((v) => v > 0).length;
 
   @override
   Widget build(BuildContext context) {
@@ -285,7 +291,7 @@ class _HabitsPageState extends State<HabitsPage> {
                     ),
                   ),
                   Text(
-                    '$_prayersCompleted / 5 ${_t('completed today', 'مكتملة اليوم')}',
+                    '$_prayersCompleted / 5 ${_t('prayed today', 'مُصلَّاة اليوم')}',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -321,54 +327,124 @@ class _HabitsPageState extends State<HabitsPage> {
           ],
         ),
         const SizedBox(height: 16),
-        Row(
-          children: List.generate(5, (i) {
-            final name = HabitStore.prayerNames[i];
-            final nameAr = HabitStore.prayerNamesAr[i];
-            final done = _prayers[name] == true;
-            return Expanded(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  right: i == 4 ? 0 : 6,
-                  left: i == 0 ? 0 : 6,
-                ),
-                child: GestureDetector(
-                  onTap: () => _togglePrayer(name),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      color: done ? _teal : _paper,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: done ? _teal : const Color(0xFFE2EBE8),
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Icon(
-                          done ? Icons.check_circle_rounded : Icons.circle_outlined,
-                          size: 16,
-                          color: done ? Colors.white : _muted,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _arabic ? nameAr : name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: done ? Colors.white : _ink,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+        // Counter rows for each prayer
+        ...List.generate(5, (i) {
+          final name = HabitStore.prayerNames[i];
+          final nameAr = HabitStore.prayerNamesAr[i];
+          final count = _prayerCounts[name] ?? 0;
+          final prayed = count > 0;
+          final isExtra = count >= 2;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: prayed ? const Color(0xFFE8F5F2) : const Color(0xFFF5F8F7),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: prayed ? _teal.withValues(alpha: 0.4) : const Color(0xFFE2EBE8),
                 ),
               ),
-            );
-          }),
+              child: Row(
+                children: [
+                  Icon(
+                    prayed ? Icons.check_circle_rounded : Icons.circle_outlined,
+                    size: 18,
+                    color: prayed ? _teal : _muted,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _arabic ? nameAr : name,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: prayed ? _ink : _muted,
+                      ),
+                    ),
+                  ),
+                  // Extra badge when prayed more than once
+                  if (isExtra)
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF4EC),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFE07A30).withValues(alpha: 0.4)),
+                      ),
+                      child: Text(
+                        '×$count',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFE07A30),
+                        ),
+                      ),
+                    ),
+                  // Decrement button
+                  GestureDetector(
+                    onTap: count > 0 ? () => _decrementPrayer(name) : null,
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: count > 0
+                            ? const Color(0xFFE74C3C).withValues(alpha: 0.1)
+                            : const Color(0xFFE9EFED),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.remove_rounded,
+                        size: 16,
+                        color: count > 0 ? const Color(0xFFE74C3C) : _muted,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Count display
+                  SizedBox(
+                    width: 20,
+                    child: Text(
+                      '$count',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: prayed ? _teal : _muted,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Increment button
+                  GestureDetector(
+                    onTap: () => _incrementPrayer(name),
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8F5F2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.add_rounded,
+                        size: 16,
+                        color: _teal,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+        const SizedBox(height: 4),
+        Text(
+          _t(
+            'Tap + to record each prayer. Tap again to count extra (قضاء/sunnah).',
+            'اضغط + لتسجيل كل صلاة. اضغط مرة أخرى لحساب القضاء أو السنة.',
+          ),
+          style: const TextStyle(fontSize: 10, color: _muted),
         ),
       ],
     ),
