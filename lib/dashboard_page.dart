@@ -118,7 +118,8 @@ class _DashboardPageState extends State<DashboardPage> {
   void _runAiAnalysis([String? focusMode]) {
     final todayTasks = _tasks.where((t) => _isToday(t.remindAt)).toList();
     final todayDone = todayTasks.where((t) => t.done).length;
-    final overdueCount = _tasks.where((t) => !t.done && _isOverdue(t.remindAt)).length;
+    final todayFailed = todayTasks.where((t) => t.failed).length;
+    final overdueCount = _tasks.where((t) => !t.done && !t.failed && _isOverdue(t.remindAt)).length;
     final prayersDone = _prayers.values.where((v) => v).length;
     final habitsDone = _habits.where((h) => h.isDoneToday()).length;
     final learningTasks = _tasks.where((t) => t.category == TaskCategory.learning).toList();
@@ -130,7 +131,7 @@ class _DashboardPageState extends State<DashboardPage> {
     if (_arabic) {
       prompt = '''
 مرحباً يا ميلوس، أحتاج تحليلك الصادق والشامل لتقدمي اليوم:
-- المهام المحددة لليوم: $todayDone مكتملة من أصل ${todayTasks.length}
+- المهام المحددة لليوم: $todayDone مكتملة، $todayFailed فاشلة، من أصل ${todayTasks.length}
 - المهام المتأخرة: $overdueCount
 - سلسلة الإنجاز اليومية: $_streak يوم
 - الصلوات اليومية: $prayersDone من أصل 5
@@ -144,7 +145,7 @@ ${focusMode != null ? '- التركيز المطلوب: $focusMode' : ''}
     } else {
       prompt = '''
 Hello Milos, please give me a comprehensive and honest review of my progress today:
-- Today's tasks: $todayDone completed out of ${todayTasks.length}
+- Today's tasks: $todayDone completed, $todayFailed failed, out of ${todayTasks.length}
 - Overdue tasks: $overdueCount
 - Daily streak: $_streak days
 - Daily prayers: $prayersDone of 5
@@ -218,7 +219,7 @@ As my coach and mentor, evaluate my discipline and give me practical advice on h
               const SizedBox(height: 18),
 
               // ─── TODAY'S METRICS ─────────────────────────────────────────
-              _buildMetricsOverview(todayDone, todayTotal, overdueCount, progressPct),
+              _buildMetricsOverview(todayDone, todayTotal, todayFailed, overdueCount, progressPct),
               const SizedBox(height: 18),
 
               // ─── 7-DAY CONSISTENCY CHART ─────────────────────────────────
@@ -318,7 +319,7 @@ As my coach and mentor, evaluate my discipline and give me practical advice on h
     ),
   );
 
-  Widget _buildMetricsOverview(int done, int total, int overdue, int pct) => Container(
+  Widget _buildMetricsOverview(int done, int total, int failed, int overdue, int pct) => Container(
     padding: const EdgeInsets.all(18),
     decoration: BoxDecoration(
       color: Colors.white,
@@ -341,6 +342,15 @@ As my coach and mentor, evaluate my discipline and give me practical advice on h
                 value: '$done / $total',
                 color: _teal,
                 icon: Icons.task_alt_rounded,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _metricBox(
+                title: _t('Failed', 'فشلت'),
+                value: '$failed',
+                color: failed > 0 ? const Color(0xFFE74C3C) : _muted,
+                icon: Icons.cancel_rounded,
               ),
             ),
             const SizedBox(width: 10),
