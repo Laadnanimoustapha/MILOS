@@ -692,6 +692,7 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
               onChanged: (value) => _toggleTask(task, value),
               onRemindTomorrow: () => _remindTomorrow(task),
               onDelete: () => _deleteTask(task),
+              onMarkFailed: () => _markFailed(task),
             ),
           ),
         );
@@ -949,7 +950,7 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
                                         child: CircularProgressIndicator(color: _teal),
                                       ),
                                     )
-                                  else if (_tasks.where((t) => !t.done).isEmpty)
+                                  else if (_tasks.where((t) => !t.done && !t.failed).isEmpty)
                                     _EmptyTasks(arabic: _arabic)
                                   else
                                     ..._buildGroupedTaskList(),
@@ -1848,6 +1849,7 @@ class _TaskTile extends StatelessWidget {
     required this.onChanged,
     required this.onRemindTomorrow,
     required this.onDelete,
+    required this.onMarkFailed,
     this.isFocusNext = false,
   });
   final Task task;
@@ -1856,6 +1858,7 @@ class _TaskTile extends StatelessWidget {
   final ValueChanged<bool?> onChanged;
   final VoidCallback onRemindTomorrow;
   final VoidCallback onDelete;
+  final VoidCallback onMarkFailed;
   final bool isFocusNext;
 
   @override
@@ -2007,6 +2010,7 @@ class _TaskTile extends StatelessWidget {
                   if (value == 'tomorrow') onRemindTomorrow();
                   if (value == 'details') onTap();
                   if (value == 'delete') onDelete();
+                  if (value == 'failed') onMarkFailed();
                 },
                 itemBuilder: (context) => [
                   PopupMenuItem<String>(
