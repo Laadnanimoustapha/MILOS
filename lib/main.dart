@@ -218,6 +218,13 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
     if (mounted) setState(() { _streakCount = count; _weekDots = dots; });
   }
 
+  Future<void> _checkForUpdateOnce() async {
+    final info = await UpdateService.checkOncePerDay();
+    if (info != null && mounted) {
+      setState(() => _pendingUpdate = info);
+    }
+  }
+
   /// Called whenever a task is toggled done to potentially credit the streak.
   Future<void> _maybeUpdateStreak() async {
     final todayTasks = _tasks.where((t) => _isToday(t.remindAt)).toList();
@@ -445,6 +452,7 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
     final isDone = value ?? false;
     final updated = task.copyWith(
       done: isDone,
+      failed: isDone ? false : task.failed,
       inProgress: isDone ? false : task.inProgress,
     );
     final taskIndex = _tasks.indexOf(task);
@@ -526,6 +534,12 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
           Navigator.pop(context);
           _deleteTask(task);
         },
+        onMarkFailed: (!task.done && !task.failed)
+            ? () {
+                Navigator.pop(context);
+                _markFailed(task);
+              }
+            : null,
       ),
     );
   }
@@ -550,11 +564,11 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
     } catch (_) {}
   }
 
-  /// Moves all overdue (not done) tasks to today's equivalent time.
+  /// Moves all overdue (not done or failed) tasks to today's equivalent time.
   Future<void> _rolloverOverdue(List<Task> overdueTasks) async {
     final now = DateTime.now();
     for (final task in overdueTasks) {
-      if (task.done) continue;
+      if (task.done || task.failed) continue;
       final newAt = DateTime(now.year, now.month, now.day,
           task.remindAt.hour, task.remindAt.minute);
       final duration = task.remindUntil.difference(task.remindAt);
@@ -718,7 +732,7 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final pendingToday = _tasks.where((t) => _isToday(t.remindAt) && !t.done).length;
+    final pendingToday = _tasks.where((t) => _isToday(t.remindAt) && !t.done && !t.failed).length;
     final progress = _todayTotal == 0 ? 0.0 : _completed / _todayTotal;
     return Scaffold(
       floatingActionButton: _currentTab == 0
@@ -883,6 +897,64 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  if (_pendingUpdate != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 12),
+                                      child: Material(
+                                        color: const Color(0xFFFFF4EC),
+                                        borderRadius: BorderRadius.circular(14),
+                                        child: InkWell(
+                                          onTap: _openSettings,
+                                          borderRadius: BorderRadius.circular(14),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 14,
+                                              vertical: 10,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              borderRadius: BorderRadius.circular(14),
+                                              border: Border.all(
+                                                color: const Color(0xFFE07A30)
+                                                    .withValues(alpha: 0.4),
+                                              ),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                const Icon(
+                                                  Icons.system_update_rounded,
+                                                  size: 18,
+                                                  color: Color(0xFFC36E36),
+                                                ),
+                                                const SizedBox(width: 10),
+                                                Expanded(
+                                                  child: Text(
+                                                    _text(
+                                                      'MILOS v${_pendingUpdate!.version} is available → Settings',
+                                                      'يتوفر MILOS v${_pendingUpdate!.version} ← الإعدادات',
+                                                    ),
+                                                    style: const TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w700,
+                                                      color: Color(0xFFC36E36),
+                                                    ),
+                                                  ),
+                                                ),
+                                                GestureDetector(
+                                                  onTap: () => setState(
+                                                    () => _pendingUpdate = null,
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.close_rounded,
+                                                    size: 16,
+                                                    color: _muted,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                                   _ProgressPanel(
                                     completed: _completed,
                                     total: _todayTotal,
@@ -2338,12 +2410,14 @@ class _TaskDetailsSheet extends StatefulWidget {
     required this.arabic,
     required this.onDelete,
     this.onUpdate,
+    this.onMarkFailed,
   });
 
   final Task task;
   final bool arabic;
   final VoidCallback onDelete;
   final ValueChanged<Task>? onUpdate;
+  final VoidCallback? onMarkFailed;
 
   @override
   State<_TaskDetailsSheet> createState() => _TaskDetailsSheetState();
@@ -2435,21 +2509,27 @@ class _TaskDetailsSheetState extends State<_TaskDetailsSheet> {
                           decoration: BoxDecoration(
                             color: _task.done
                                 ? const Color(0xFFE8F5F2)
-                                : const Color(0xFFFFF4EC),
+                                : (_task.failed
+                                      ? const Color(0xFFFDECEC)
+                                      : const Color(0xFFFFF4EC)),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
                             _task.done
                                 ? _t('Completed', 'مكتملة')
-                                : (_task.inProgress
-                                      ? _t('In progress', 'قيد التنفيذ')
-                                      : _t('Pending', 'قيد الانتظار')),
+                                : (_task.failed
+                                      ? _t('Failed', 'فشلت')
+                                      : (_task.inProgress
+                                            ? _t('In progress', 'قيد التنفيذ')
+                                            : _t('Pending', 'قيد الانتظار'))),
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
                               color: _task.done
                                   ? _teal
-                                  : const Color(0xFFC36E36),
+                                  : (_task.failed
+                                        ? const Color(0xFFE74C3C)
+                                        : const Color(0xFFC36E36)),
                             ),
                           ),
                         ),
@@ -2624,29 +2704,62 @@ class _TaskDetailsSheetState extends State<_TaskDetailsSheet> {
                   color: Colors.white,
                   border: Border(top: BorderSide(color: Color(0xFFE9EFED))),
                 ),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: OutlinedButton.icon(
-                    onPressed: widget.onDelete,
-                    icon: const Icon(
-                      Icons.delete_outline_rounded,
-                      color: Color(0xFFC36E36),
-                    ),
-                    label: Text(
-                      _t('Delete task', 'حذف المهمة'),
-                      style: const TextStyle(
-                        color: Color(0xFFC36E36),
-                        fontWeight: FontWeight.w700,
+                child: Row(
+                  children: [
+                    if (widget.onMarkFailed != null) ...[
+                      Expanded(
+                        child: SizedBox(
+                          height: 48,
+                          child: OutlinedButton.icon(
+                            onPressed: widget.onMarkFailed,
+                            icon: const Icon(
+                              Icons.cancel_outlined,
+                              color: Color(0xFFE74C3C),
+                            ),
+                            label: Text(
+                              _t('Failed', 'فشلت'),
+                              style: const TextStyle(
+                                color: Color(0xFFE74C3C),
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFFFAD2CE)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: OutlinedButton.icon(
+                          onPressed: widget.onDelete,
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            color: Color(0xFFC36E36),
+                          ),
+                          label: Text(
+                            _t('Delete', 'حذف'),
+                            style: const TextStyle(
+                              color: Color(0xFFC36E36),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFFFFD4C2)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFFFFD4C2)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                  ),
+                  ],
                 ),
               ),
             ],

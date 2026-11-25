@@ -108,7 +108,7 @@ Future<void> _startTask(int taskId, {int? activeNotificationId}) async {
     final index = tasks.indexWhere((t) => t.id == taskId);
     if (index == -1) return;
     final task = tasks[index];
-    if (task.done) return;
+    if (task.done || task.failed) return;
     // Mark inProgress = true and re-schedule so intermediate alerts stop.
     tasks[index] = task.copyWith(inProgress: true);
     await store.save(tasks);
@@ -127,7 +127,7 @@ Future<void> _snoozeTask(int taskId, {int? activeNotificationId}) async {
       (t) => t.id == taskId,
       orElse: () => throw StateError('not found'),
     );
-    if (task.done) return;
+    if (task.done || task.failed) return;
     // Cancel existing notifications for this task first to clear the shade
     await ReminderService.instance.cancelById(taskId, activeNotificationId);
     await ReminderService.instance._scheduleSnooze(task);
@@ -244,6 +244,7 @@ class ReminderService {
         .where(
           (task) =>
               !task.done &&
+              !task.failed &&
               (task.repeat != TaskRepeat.none ||
                   task.remindUntil.isAfter(now) ||
                   (task.category == TaskCategory.learning &&

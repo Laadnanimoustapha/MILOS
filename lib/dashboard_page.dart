@@ -35,7 +35,9 @@ class _DashboardPageState extends State<DashboardPage> {
   List<Task> _tasks = [];
   int _streak = 0;
   List<bool> _weekDots = List.filled(7, false);
-  Map<String, bool> _prayers = {};
+  Map<String, int> _prayerCounts = {};
+  Map<String, int> _weekPrayerTotals = {};
+  Map<String, int> _allPrayerTotals = {};
   List<StreakTracker> _customStreaks = [];
   List<HabitItem> _habits = [];
   bool _loading = true;
@@ -51,7 +53,9 @@ class _DashboardPageState extends State<DashboardPage> {
       final tasks = await _taskStore.load();
       final streak = await StreakStore.loadStreak();
       final dots = await StreakStore.currentWeekDots();
-      final prayers = await HabitStore.loadPrayers();
+      final prayerCounts = await HabitStore.loadPrayerCounts();
+      final weekPrayerTotals = await HabitStore.loadPrayerTotals(lastDays: 7);
+      final allPrayerTotals = await HabitStore.loadPrayerTotals();
       final streaks = await HabitStore.loadCustomStreaks();
       final habits = await HabitStore.loadCustomHabits();
 
@@ -60,7 +64,9 @@ class _DashboardPageState extends State<DashboardPage> {
           _tasks = tasks;
           _streak = streak;
           _weekDots = dots;
-          _prayers = prayers;
+          _prayerCounts = prayerCounts;
+          _weekPrayerTotals = weekPrayerTotals;
+          _allPrayerTotals = allPrayerTotals;
           _customStreaks = streaks;
           _habits = habits;
           _loading = false;
@@ -119,8 +125,12 @@ class _DashboardPageState extends State<DashboardPage> {
     final todayTasks = _tasks.where((t) => _isToday(t.remindAt)).toList();
     final todayDone = todayTasks.where((t) => t.done).length;
     final todayFailed = todayTasks.where((t) => t.failed).length;
+    final totalFailed = TaskStore.countFailed(_tasks);
     final overdueCount = _tasks.where((t) => !t.done && !t.failed && _isOverdue(t.remindAt)).length;
-    final prayersDone = _prayers.values.where((v) => v).length;
+    final prayersDone = _prayerCounts.values.where((v) => v > 0).length;
+    final prayerSummary = HabitStore.prayerNames
+        .map((p) => '$p: ${_allPrayerTotals[p] ?? 0}')
+        .join(', ');
     final habitsDone = _habits.where((h) => h.isDoneToday()).length;
     final learningTasks = _tasks.where((t) => t.category == TaskCategory.learning).toList();
 
@@ -131,10 +141,10 @@ class _DashboardPageState extends State<DashboardPage> {
     if (_arabic) {
       prompt = '''
 مرحباً يا ميلوس، أحتاج تحليلك الصادق والشامل لتقدمي اليوم:
-- المهام المحددة لليوم: $todayDone مكتملة، $todayFailed فاشلة، من أصل ${todayTasks.length}
+- المهام المحددة لليوم: $todayDone مكتملة، $todayFailed فاشلة، من أصل ${todayTasks.length} (إجمالي الفاشلة: $totalFailed)
 - المهام المتأخرة: $overdueCount
 - سلسلة الإنجاز اليومية: $_streak يوم
-- الصلوات اليومية: $prayersDone من أصل 5
+- الصلوات اليومية: $prayersDone من أصل 5 (الإجمالي المسجل: $prayerSummary)
 - سلاسل الالتزام: ${streakSummaryAr.isEmpty ? "لا توجد بعد" : streakSummaryAr}
 - العادات المنجزة اليوم: $habitsDone من أصل ${_habits.length}
 ${learningTasks.isNotEmpty ? '- مسار المهارات والتعلم: ${learningTasks.map((t) => "${t.title} (${t.effectiveSkillProgress}%)").join(", ")}' : ''}
@@ -145,10 +155,10 @@ ${focusMode != null ? '- التركيز المطلوب: $focusMode' : ''}
     } else {
       prompt = '''
 Hello Milos, please give me a comprehensive and honest review of my progress today:
-- Today's tasks: $todayDone completed, $todayFailed failed, out of ${todayTasks.length}
+- Today's tasks: $todayDone completed, $todayFailed failed, out of ${todayTasks.length} (all-time failed: $totalFailed)
 - Overdue tasks: $overdueCount
 - Daily streak: $_streak days
-- Daily prayers: $prayersDone of 5
+- Daily prayers: $prayersDone of 5 (recorded totals: $prayerSummary)
 - Custom streaks: ${streakSummary.isEmpty ? "None yet" : streakSummary}
 - Habits completed today: $habitsDone of ${_habits.length}
 ${learningTasks.isNotEmpty ? '- Learning skills: ${learningTasks.map((t) => "${t.title} (${t.effectiveSkillProgress}%)").join(", ")}' : ''}
@@ -184,7 +194,7 @@ As my coach and mentor, evaluate my discipline and give me practical advice on h
     final todayFailed = todayTasks.where((t) => t.failed).length;
     final todayTotal = todayTasks.length;
     final overdueCount = _tasks.where((t) => !t.done && !t.failed && _isOverdue(t.remindAt)).length;
-    final prayersDone = _prayers.values.where((v) => v).length;
+    final prayersDone = _prayerCounts.values.where((v) => v > 0).length;
     final learningTasks = _tasks.where((t) => t.category == TaskCategory.learning).toList();
     final progressPct = todayTotal == 0 ? 0 : ((todayDone / todayTotal) * 100).round();
 
@@ -228,6 +238,10 @@ As my coach and mentor, evaluate my discipline and give me practical advice on h
 
               // ─── LIFESTYLE & DISCIPLINE HIGHLIGHTS ───────────────────────
               _buildLifestyleHighlights(prayersDone),
+              const SizedBox(height: 18),
+
+              // ─── PRAYERS COUNT BREAKDOWN ─────────────────────────────────
+              _buildPrayersSummaryCard(),
               const SizedBox(height: 18),
 
               // ─── LEARNING & SKILLS (FEAT-5 & Point 2) ────────────────────
@@ -433,6 +447,32 @@ As my coach and mentor, evaluate my discipline and give me practical advice on h
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const daysAr = ['اثن', 'ثلا', 'أرب', 'خمي', 'جمع', 'سبت', 'أحد'];
 
+    final now = DateTime.now();
+    final monday = DateTime(now.year, now.month, now.day)
+        .subtract(Duration(days: now.weekday - 1));
+    final dayCounts = List.generate(7, (i) {
+      final d = monday.add(Duration(days: i));
+      final dayTasks = _tasks.where(
+        (t) => t.remindAt.year == d.year && t.remindAt.month == d.month && t.remindAt.day == d.day,
+      );
+      var done = 0;
+      var failed = 0;
+      var pending = 0;
+      for (final t in dayTasks) {
+        if (t.done) {
+          done++;
+        } else if (t.failed) {
+          failed++;
+        } else {
+          pending++;
+        }
+      }
+      return (done: done, failed: failed, pending: pending);
+    });
+    final weekDone = dayCounts.fold(0, (s, c) => s + c.done);
+    final weekFailed = dayCounts.fold(0, (s, c) => s + c.failed);
+    final weekPending = dayCounts.fold(0, (s, c) => s + c.pending);
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -465,7 +505,7 @@ As my coach and mentor, evaluate my discipline and give me practical advice on h
                 children: [
                   Container(
                     width: 32,
-                    height: 52,
+                    height: 38,
                     decoration: BoxDecoration(
                       color: active ? _teal : const Color(0xFFEFF4F2),
                       borderRadius: BorderRadius.circular(10),
@@ -484,10 +524,102 @@ As my coach and mentor, evaluate my discipline and give me practical advice on h
               );
             }),
           ),
+          const SizedBox(height: 16),
+          const Divider(height: 1, color: Color(0xFFE9EFED)),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 68,
+            width: double.infinity,
+            child: CustomPaint(
+              painter: _WeeklyTasksPainter(dayCounts),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _t(
+              'This week: $weekDone done · $weekFailed failed · $weekPending pending',
+              'هذا الأسبوع: $weekDone مكتملة · $weekFailed فاشلة · $weekPending قيد الانتظار',
+            ),
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _muted),
+          ),
         ],
       ),
     );
   }
+
+  Widget _buildPrayersSummaryCard() => Container(
+    padding: const EdgeInsets.all(18),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: const Color(0xFFE9EFED)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.mosque_rounded, color: _teal, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              _t('Prayers Count', 'إحصائيات الصلوات'),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _ink),
+            ),
+            const Spacer(),
+            Text(
+              _t('7d / Total', '٧ أيام / الإجمالي'),
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _muted),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        for (var i = 0; i < HabitStore.prayerNames.length; i++) ...[
+          Builder(builder: (_) {
+            final name = HabitStore.prayerNames[i];
+            final label = _arabic ? HabitStore.prayerNamesAr[i] : name;
+            final week = _weekPrayerTotals[name] ?? 0;
+            final total = _allPrayerTotals[name] ?? 0;
+            final ratio = (week / 7).clamp(0.0, 1.0);
+            final extra = week > 7 ? week - 7 : 0;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 68,
+                    child: Text(
+                      label,
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _ink),
+                    ),
+                  ),
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: ratio,
+                        minHeight: 8,
+                        backgroundColor: const Color(0xFFEFF4F2),
+                        valueColor: const AlwaysStoppedAnimation<Color>(_teal),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    '$week/7${extra > 0 ? " (+$extra)" : ""} · ×$total',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: extra > 0 ? const Color(0xFFE07A30) : _muted,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ],
+    ),
+  );
 
   Widget _buildLifestyleHighlights(int prayersDone) => Container(
     padding: const EdgeInsets.all(18),
@@ -706,5 +838,54 @@ As my coach and mentor, evaluate my discipline and give me practical advice on h
       ],
     ),
   );
+}
+
+class _WeeklyTasksPainter extends CustomPainter {
+  _WeeklyTasksPainter(this.days);
+  final List<({int done, int failed, int pending})> days;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final maxTotal = days.fold<int>(1, (m, d) {
+      final sum = d.done + d.failed + d.pending;
+      return sum > m ? sum : m;
+    });
+    final slotW = size.width / 7;
+    final barW = (slotW * 0.48).clamp(12.0, 26.0);
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    for (var i = 0; i < 7; i++) {
+      final d = days[i];
+      final total = d.done + d.failed + d.pending;
+      final x = i * slotW + (slotW - barW) / 2;
+      if (total == 0) {
+        paint.color = const Color(0xFFEFF4F2);
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(x, size.height - 6, barW, 6),
+            const Radius.circular(3),
+          ),
+          paint,
+        );
+        continue;
+      }
+
+      var bottom = size.height;
+      void drawSegment(int count, Color color) {
+        if (count <= 0) return;
+        final h = (count / maxTotal) * size.height;
+        paint.color = color;
+        canvas.drawRect(Rect.fromLTWH(x, bottom - h, barW, h), paint);
+        bottom -= h;
+      }
+
+      drawSegment(d.done, _teal);
+      drawSegment(d.failed, const Color(0xFFE74C3C));
+      drawSegment(d.pending, const Color(0xFFDCE5E2));
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _WeeklyTasksPainter old) => old.days != days;
 }
 

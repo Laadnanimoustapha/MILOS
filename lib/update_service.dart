@@ -6,9 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Checks GitHub Releases for a newer version of Milos.
 /// Uses only dart:io + dart:convert — zero additional packages.
 class UpdateService {
-  // ← Replace with your actual GitHub username/repo before releasing
-  static const _owner = 'YOUR_GITHUB_USERNAME';
-  static const _repo = 'milos';
+  static const _owner = 'Laadnanimoustapha';
+  static const _repo = 'MILOS';
   static const _apiUrl =
       'https://api.github.com/repos/$_owner/$_repo/releases/latest';
   static const _keyLastCheck = 'milos.update.last_check';
@@ -92,7 +91,9 @@ class UpdateService {
 
   static List<int> _parse(String ver) {
     final parts = ver.split('.').map((p) => int.tryParse(p) ?? 0).toList();
-    while (parts.length < 3) parts.add(0);
+    while (parts.length < 3) {
+      parts.add(0);
+    }
     return parts;
   }
 }

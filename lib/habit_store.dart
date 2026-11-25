@@ -12,39 +12,77 @@ class HabitStore {
   static const _keyCustomHabits = 'milos.habits.custom';
   static const _keyNotes = 'milos.habits.notes';
 
-  static String todayKey() {
-    final now = DateTime.now();
-    return '${now.year.toString().padLeft(4, '0')}-'
-        '${now.month.toString().padLeft(2, '0')}-'
-        '${now.day.toString().padLeft(2, '0')}';
-  }
+  static String _dateKeyFor(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
+
+  static String todayKey() => _dateKeyFor(DateTime.now());
 
   // ─── Prayers ─────────────────────────────────────────────────────────────
   static const prayerNames = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
   static const prayerNamesAr = ['الفجر', 'الظهر', 'العصر', 'المغرب', 'العشاء'];
+
+  static Map<String, int> _decodePrayerMap(String? raw) {
+    final empty = {for (var p in prayerNames) p: 0};
+    if (raw == null) return empty;
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return {
+        for (var p in prayerNames)
+          p: switch (decoded[p]) {
+            final int v => v < 0 ? 0 : v,
+            true => 1, // legacy bool true
+            _ => 0,
+          },
+      };
+    } catch (_) {
+      return empty;
+    }
+  }
 
   /// Returns map of prayer name -> prayer count (times prayed) for given date.
   /// Backwards compatible: old bool values are read as 0/1.
   static Future<Map<String, int>> loadPrayerCounts([String? dateKey]) async {
     final key = dateKey ?? todayKey();
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString('$_keyPrayers.$key');
-    if (raw == null) {
-      return {for (var p in prayerNames) p: 0};
-    }
-    try {
-      final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      return {
-        for (var p in prayerNames)
-          p: switch (decoded[p]) {
-            final int v => v,
-            true => 1,   // legacy bool true
-            _ => 0,      // legacy bool false or missing
-          },
+    return _decodePrayerMap(prefs.getString('$_keyPrayers.$key'));
+  }
+
+  /// Sums prayer counts across all recorded days, or only the last [lastDays] days.
+  static Future<Map<String, int>> loadPrayerTotals({int? lastDays}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final totals = {for (var p in prayerNames) p: 0};
+    Set<String>? allowedKeys;
+    if (lastDays != null) {
+      final now = DateTime.now();
+      allowedKeys = {
+        for (var i = 0; i < lastDays; i++)
+          '$_keyPrayers.${_dateKeyFor(now.subtract(Duration(days: i)))}',
       };
-    } catch (_) {
-      return {for (var p in prayerNames) p: 0};
     }
+    for (final k in prefs.getKeys()) {
+      if (!k.startsWith('$_keyPrayers.')) continue;
+      if (allowedKeys != null && !allowedKeys.contains(k)) continue;
+      final dayCounts = _decodePrayerMap(prefs.getString(k));
+      for (final p in prayerNames) {
+        totals[p] = totals[p]! + (dayCounts[p] ?? 0);
+      }
+    }
+    return totals;
+  }
+
+  /// Loads daily prayer counts for the last [days] days (oldest first).
+  static Future<List<MapEntry<DateTime, Map<String, int>>>> loadRecentPrayerHistory({
+    int days = 7,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    return List.generate(days, (i) {
+      final date = now.subtract(Duration(days: days - 1 - i));
+      final raw = prefs.getString('$_keyPrayers.${_dateKeyFor(date)}');
+      return MapEntry(date, _decodePrayerMap(raw));
+    });
   }
 
   /// Returns map of prayer name -> bool (prayed ≥ 1 time) for compatibility.

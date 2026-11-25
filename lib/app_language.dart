@@ -59,7 +59,6 @@ class LanguageSettingsPage extends StatefulWidget {
 }
 
 class _LanguageSettingsPageState extends State<LanguageSettingsPage> {
-  bool _ar(String ar, String en) => widget.selected == AppLanguage.arabic;
   String _t(String en, String ar) => widget.selected == AppLanguage.arabic ? ar : en;
 
   UpdateInfo? _updateInfo;

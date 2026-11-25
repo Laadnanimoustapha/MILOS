@@ -20,6 +20,9 @@ class _HabitsPageState extends State<HabitsPage> {
   String _t(String en, String ar) => _arabic ? ar : en;
 
   Map<String, int> _prayerCounts = {};
+  Map<String, int> _prayerTotals = {};
+  List<MapEntry<DateTime, Map<String, int>>> _prayerHistory = [];
+  bool _showPrayerHistory = false;
   List<StreakTracker> _customStreaks = [];
   List<HabitItem> _habits = [];
   List<HabitNote> _notes = [];
@@ -41,12 +44,16 @@ class _HabitsPageState extends State<HabitsPage> {
 
   Future<void> _loadAll() async {
     final prayerCounts = await HabitStore.loadPrayerCounts();
+    final prayerTotals = await HabitStore.loadPrayerTotals();
+    final prayerHistory = await HabitStore.loadRecentPrayerHistory(days: 7);
     final streaks = await HabitStore.loadCustomStreaks();
     final habits = await HabitStore.loadCustomHabits();
     final notes = await HabitStore.loadNotes();
     if (mounted) {
       setState(() {
         _prayerCounts = prayerCounts;
+        _prayerTotals = prayerTotals;
+        _prayerHistory = prayerHistory;
         _customStreaks = streaks;
         _habits = habits;
         _notes = notes;
@@ -55,16 +62,27 @@ class _HabitsPageState extends State<HabitsPage> {
     }
   }
 
+  Future<void> _refreshPrayers() async {
+    final fresh = await HabitStore.loadPrayerCounts();
+    final totals = await HabitStore.loadPrayerTotals();
+    final history = await HabitStore.loadRecentPrayerHistory(days: 7);
+    if (mounted) {
+      setState(() {
+        _prayerCounts = fresh;
+        _prayerTotals = totals;
+        _prayerHistory = history;
+      });
+    }
+  }
+
   Future<void> _incrementPrayer(String prayer) async {
     await HabitStore.incrementPrayer(prayer);
-    final fresh = await HabitStore.loadPrayerCounts();
-    if (mounted) setState(() => _prayerCounts = fresh);
+    await _refreshPrayers();
   }
 
   Future<void> _decrementPrayer(String prayer) async {
     await HabitStore.decrementPrayer(prayer);
-    final fresh = await HabitStore.loadPrayerCounts();
-    if (mounted) setState(() => _prayerCounts = fresh);
+    await _refreshPrayers();
   }
 
   Future<void> _addStreakDialog() async {
@@ -332,6 +350,7 @@ class _HabitsPageState extends State<HabitsPage> {
           final name = HabitStore.prayerNames[i];
           final nameAr = HabitStore.prayerNamesAr[i];
           final count = _prayerCounts[name] ?? 0;
+          final totalAllTime = _prayerTotals[name] ?? 0;
           final prayed = count > 0;
           final isExtra = count >= 2;
           return Padding(
@@ -354,13 +373,26 @@ class _HabitsPageState extends State<HabitsPage> {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      _arabic ? nameAr : name,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: prayed ? _ink : _muted,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _arabic ? nameAr : name,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: prayed ? _ink : _muted,
+                          ),
+                        ),
+                        Text(
+                          '${_t("Total", "الإجمالي")}: $totalAllTime',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: _muted,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   // Extra badge when prayed more than once
@@ -446,6 +478,104 @@ class _HabitsPageState extends State<HabitsPage> {
           ),
           style: const TextStyle(fontSize: 10, color: _muted),
         ),
+        if (_prayerHistory.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          InkWell(
+            onTap: () => setState(() => _showPrayerHistory = !_showPrayerHistory),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.calendar_view_week_rounded, size: 15, color: _teal),
+                  const SizedBox(width: 6),
+                  Text(
+                    _t('Last 7 days history', 'سجل آخر ٧ أيام'),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: _teal,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    _showPrayerHistory ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+                    size: 18,
+                    color: _teal,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_showPrayerHistory) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const SizedBox(width: 52),
+                for (var i = 0; i < 5; i++)
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        (_arabic ? HabitStore.prayerNamesAr[i] : HabitStore.prayerNames[i])
+                            .substring(0, _arabic ? 3 : 1),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: _muted,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            for (final day in _prayerHistory.reversed)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 52,
+                      child: Text(
+                        '${day.key.month}/${day.key.day}',
+                        style: const TextStyle(fontSize: 10, color: _muted, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    for (final p in HabitStore.prayerNames)
+                      Expanded(
+                        child: Center(
+                          child: Container(
+                            width: 22,
+                            height: 20,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: (day.value[p] ?? 0) >= 2
+                                  ? const Color(0xFFFFF4EC)
+                                  : (day.value[p] ?? 0) == 1
+                                      ? const Color(0xFFE8F5F2)
+                                      : _paper,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '${day.value[p] ?? 0}',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: (day.value[p] ?? 0) >= 2
+                                    ? const Color(0xFFE07A30)
+                                    : (day.value[p] ?? 0) == 1
+                                        ? _teal
+                                        : _muted,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+          ],
+        ],
       ],
     ),
   );

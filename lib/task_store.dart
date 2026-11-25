@@ -41,4 +41,20 @@ class TaskStore {
         .map((item) => Task.fromJson(item as Map<String, dynamic>))
         .toList();
   }
+
+  static int countFailed(List<Task> tasks) =>
+      tasks.where((t) => t.failed).length;
+
+  static int countFailedToday(List<Task> tasks) {
+    final now = DateTime.now();
+    return tasks
+        .where(
+          (t) =>
+              t.failed &&
+              t.remindAt.year == now.year &&
+              t.remindAt.month == now.month &&
+              t.remindAt.day == now.day,
+        )
+        .length;
+  }
 }

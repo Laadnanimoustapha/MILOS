@@ -62,7 +62,7 @@ class ArchivePage extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    _t('No completed tasks yet.', 'لا توجد مهام مكتملة بعد.'),
+                    _t('No archived tasks yet.', 'لا توجد مهام مؤرشفة بعد.'),
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       color: _ink,
@@ -71,8 +71,8 @@ class ArchivePage extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     _t(
-                      'Completed tasks will appear here.',
-                      'ستظهر المهام المكتملة هنا.',
+                      'Completed and failed tasks will appear here.',
+                      'ستظهر المهام المكتملة والفاشلة هنا.',
                     ),
                     style: const TextStyle(fontSize: 12, color: _muted),
                   ),
