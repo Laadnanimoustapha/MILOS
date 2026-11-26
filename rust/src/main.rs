@@ -158,15 +158,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .build();
         users.create_index(email_index).await?;
 
-        // Optional startup seed for personal single-user login (no public signup endpoint).
-        if let (Ok(email), Ok(password)) = (
-            std::env::var("ADMIN_EMAIL"),
-            std::env::var("ADMIN_PASSWORD"),
-        ) {
-            let clean_email = email.trim().to_lowercase();
-            if !clean_email.is_empty() && !password.is_empty() {
-                seed_user(&users, &clean_email, &password).await?;
-            }
+        // Seed the personal account on startup. Environment variables override
+        // these defaults for deployments that use different credentials.
+        let email = std::env::var("ADMIN_EMAIL")
+            .unwrap_or_else(|_| " [removed-email]".to_string());
+        let password = std::env::var("ADMIN_PASSWORD")
+            .unwrap_or_else(|_| " [removed-password]".to_string());
+        let clean_email = email.trim().to_lowercase();
+        if !clean_email.is_empty() && !password.is_empty() {
+            seed_user(&users, &clean_email, &password).await?;
         }
         Some(db)
     };

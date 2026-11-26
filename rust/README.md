@@ -28,3 +28,16 @@ See `.env.example`.
 ```bash
 cargo run --release
 ```
+
+## Create a user
+
+Install the small Python admin dependencies:
+
+```bash
+python -m pip install pymongo argon2-cffi
+python scripts/create_user.py user@example.com
+```
+
+The script reads `MONGODB_URI` and optionally `MONGODB_DB` from `rust/.env`,
+prompts for the password without echoing it, normalizes the email to lowercase,
+stores an Argon2 hash, and rejects duplicate emails.

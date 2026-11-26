@@ -52,3 +52,4 @@ app.*.map.json
 
 # Local-only admin HTML
 admin_create_user.html
+generate_secrets.py
