@@ -13,7 +13,8 @@ class AuthStore {
 
   static const defaultServerUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8080',
+    defaultValue:
+        'https://milos-kni0edj7r-mustapha-laadnanis-projects.vercel.app',
   );
 
   static Future<({String? token, String? email})> loadSession() async {
@@ -98,11 +99,18 @@ class ApiClient {
   static Future<String> aiChat({
     required String model,
     required List<Map<String, String>> messages,
+    String? currentDatetime,
+    List<String> memories = const [],
   }) async {
     final res = await _request(
       'POST',
       '/api/ai/chat',
-      body: {'model': model, 'messages': messages},
+      body: {
+        'model': model,
+        'messages': messages,
+        'current_datetime': ?currentDatetime,
+        if (memories.isNotEmpty) 'memories': memories,
+      },
       timeoutSeconds: 30,
     );
     return (res['content'] as String? ?? '').trim();

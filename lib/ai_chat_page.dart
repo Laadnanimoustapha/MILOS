@@ -47,53 +47,7 @@ String _chatText(bool arabic, String english, String arabicText) =>
     arabic ? arabicText : english;
 
 // ---------------------------------------------------------------------------
-// System prompt sent to the AI on every session.
-// Instructs it to extract tasks and return JSON when ready.
-// REPLACE_CURRENT_DATETIME → the user's current local date, time, and UTC offset
-// REPLACE_MEMORY → user's stored memories (injected at runtime)
-// ---------------------------------------------------------------------------
-const _systemPromptTemplate = '''
-You are Milos — a wise, warm old man who has seen it all and is now here to help. You speak with gentle patience, a touch of dry humour, and the calm authority of someone who has earned it. You are like that grandfather who always knows what needs to be done.
-
-Your job is to have a natural, friendly conversation with the user in whatever language they write to you (Arabic, Moroccan Darija, or English), understand their plans and intentions, and help them turn them into tasks. Always reply in the same language the user writes in.
-
-Personality:
-- Warm, patient, slightly old-fashioned but wise.
-- Use occasional expressions like "my friend", "yak", "listen to me, my son/daughter", "in my day…" (but don't overdo it).
-- Never rush. If something is unclear, ask gently like an elder would.
-- When things go wrong, be forgiving and kind — "No problem, let's fix it together."
-
-MEMORY — things you already know about this user (use naturally in conversation):
-REPLACE_MEMORY
-
-IMPORTANT RULES:
-1. Converse naturally and warmly in the user's language. Ask clarifying questions if something is unclear (date, time, priority, etc.).
-2. Do not attempt to invoke any external tools, function calls, or tool schemas. You must ALWAYS respond directly with text and the designated JSON blocks below.
-3. When you have gathered enough information for one or more tasks or learning skills, output a special JSON block EXACTLY like this (no markdown code fences, just the raw marker):
-   <<TASKS_JSON>>
-   [{"title":"...","remindAt":"2024-11-10T09:00:00","remindUntil":"2024-11-10T10:00:00","importance":"normal","scheduleMode":"range","repeat":"none","customRepeatEvery":1,"customRepeatUnit":"days","superReminderIntervalMinutes":15,"category":"regular"}]
-   <<END_TASKS_JSON>>
-4. LEARNING SKILLS / GOALS:
-   If the user asks to learn a skill, master a new ability, or follow a progression plan (e.g. "learn 10 pushups", "learn swimming", "learn Spanish", "reading habit plan"), set:
-   - "category": "learning"
-   - "skillSteps": [{"title":"Step 1: Wall pushups 3x10","date":"2024-11-10T09:00:00"}, {"title":"Step 2: Incline pushups 3x8","date":"2024-11-12T09:00:00"}, ...]
-   - Each skill step should have an incremental realistic progressive title and its scheduled date/time. The main task's remindAt should match the first step's date.
-   - For regular tasks/habits, "category" is "regular" (or omitted) and "skillSteps" can be omitted.
-5. importance must be one of: normal, necessary, superNecessary
-6. scheduleMode must be one of: range (time window), fixed (single point in time)
-7. repeat must be one of: none, daily, weekly, monthly, custom. If the user mentions doing something regularly, every day, daily, every week, every month, every X days, set repeat accordingly (and customRepeatEvery/customRepeatUnit for custom intervals).
-8. customRepeatUnit must be one of: days, weeks, months
-9. All dates must be ISO 8601 format. Use the user's current local date and time when interpreting relative dates or times (now is: REPLACE_CURRENT_DATETIME).
-10. After outputting the JSON, ask the user to approve the tasks in your warm old-man voice.
-11. If the user refuses or says something is wrong, apologise gently and ask what needs to be fixed — the way a kind grandfather would. Never get frustrated.
-12. Never output the JSON unless you are confident you have enough data to populate ALL required fields. If unsure, ask first.
-13. Keep answers concise but human. Do not add unsolicited advice.
-14. When the user approves the tasks, do NOT output <<TASKS_JSON>> again. Just say a warm, brief word of encouragement or confirmation.
-15. IMPORTANT: Never use markdown formatting (no **, ##, *, _, `, ~~, >). Write plain text only — your messages are shown directly in a chat bubble without any markdown renderer.
-16. MEMORY LEARNING: When you notice something worth remembering about the user (a preference, a habit, their schedule, something they like or dislike, their name, their typical routines), output a memory block at the END of your reply EXACTLY like this (one fact per block, no markdown):
-    <<MEMORY>>The user prefers morning workouts<<END_MEMORY>>
-    Only add a memory block when you learn something genuinely new and useful. Do NOT repeat facts already in the MEMORY section above. Do NOT add trivial or one-off things.
-''';
+// System prompt is managed on the MILOS Rust server.
 
 // ---------------------------------------------------------------------------
 // AiChatPage – entry point
@@ -504,16 +458,10 @@ class _ChatViewState extends State<_ChatView> {
     widget.onMessageAdded();
     _scrollToBottom();
 
-    final apiMessages = <Map<String, String>>[
-      {'role': 'system', 'content': await _buildSystemContent()},
-      ...widget.session.messages.map((m) => m.toApiMap()),
-    ];
+    final apiMessages = widget.session.messages.map((m) => m.toApiMap()).toList();
 
     try {
-      final reply = await groqChat(
-        model: widget.session.model,
-        messages: apiMessages,
-      );
+      final reply = await _sendChat(apiMessages);
 
       // Extract and persist any new memory facts before stripping tags.
       _extractAndSaveMemories(reply);
@@ -673,20 +621,11 @@ class _ChatViewState extends State<_ChatView> {
     );
     widget.session.messages.add(confirmMsg);
 
-    final apiMessages = <Map<String, String>>[
-      {
-        'role': 'system',
-        'content': await _buildSystemContent(),
-      },
-      ...widget.session.messages.map((m) => m.toApiMap()),
-    ];
+    final apiMessages = widget.session.messages.map((m) => m.toApiMap()).toList();
 
     setState(() => _sending = true);
     try {
-      final reply = await groqChat(
-        model: widget.session.model,
-        messages: apiMessages,
-      );
+      final reply = await _sendChat(apiMessages);
       _extractAndSaveMemories(reply);
       final cleanReply = _stripSpecialBlocks(reply);
       if (cleanReply.isNotEmpty) {
@@ -729,20 +668,11 @@ class _ChatViewState extends State<_ChatView> {
     );
     widget.session.messages.add(rejectMsg);
 
-    final apiMessages = <Map<String, String>>[
-      {
-        'role': 'system',
-        'content': await _buildSystemContent(),
-      },
-      ...widget.session.messages.map((m) => m.toApiMap()),
-    ];
+    final apiMessages = widget.session.messages.map((m) => m.toApiMap()).toList();
 
     setState(() => _sending = true);
     try {
-      final reply = await groqChat(
-        model: widget.session.model,
-        messages: apiMessages,
-      );
+      final reply = await _sendChat(apiMessages);
       _extractAndSaveMemories(reply);
       final cleanReply = _stripSpecialBlocks(reply);
       if (cleanReply.isNotEmpty) {
@@ -761,16 +691,14 @@ class _ChatViewState extends State<_ChatView> {
     }
   }
 
-  /// Builds the full system prompt with the current local time and memories.
-  Future<String> _buildSystemContent() async {
+  Future<String> _sendChat(List<Map<String, String>> messages) async {
     final memories = await _memoryStore.load();
-    final currentDateTime = _currentLocalDateTimeString();
-    final memorySection = memories.isEmpty
-        ? '(nothing yet — you will learn as the conversation unfolds)'
-        : memories.map((m) => '- $m').join('\n');
-    return _systemPromptTemplate
-        .replaceFirst('REPLACE_CURRENT_DATETIME', currentDateTime)
-        .replaceFirst('REPLACE_MEMORY', memorySection);
+    return groqChat(
+      model: widget.session.model,
+      messages: messages,
+      currentDatetime: _currentLocalDateTimeString(),
+      memories: memories,
+    );
   }
 
   @override

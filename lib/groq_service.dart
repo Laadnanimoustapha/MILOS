@@ -18,9 +18,16 @@ const defaultGroqModel = 'openai/gpt-oss-20b';
 Future<String> groqChat({
   required String model,
   required List<Map<String, String>> messages,
+  String? currentDatetime,
+  List<String> memories = const [],
 }) async {
   try {
-    return await ApiClient.aiChat(model: model, messages: messages);
+    return await ApiClient.aiChat(
+      model: model,
+      messages: messages,
+      currentDatetime: currentDatetime,
+      memories: memories,
+    );
   } on ApiException catch (e) {
     throw GroqException(e.message);
   }
