@@ -31,11 +31,20 @@ use tower_http::cors::CorsLayer;
 
 #[derive(Clone)]
 struct AppState {
-    db: Database,
+    db: Option<Database>,
     jwt_secret: String,
     groq_keys: Vec<String>,
     groq_index: Arc<AtomicUsize>,
     http: reqwest::Client,
+}
+
+fn require_db(state: &AppState) -> Result<&Database, ApiError> {
+    state.db.as_ref().ok_or_else(|| {
+        ApiError(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "Database not configured (MONGODB_URI missing)".into(),
+        )
+    })
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -115,8 +124,7 @@ impl FromRequestParts<AppState> for AuthUser {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenvy::dotenv().ok();
 
-    let mongo_uri = std::env::var("MONGODB_URI")
-        .expect("MONGODB_URI must be set in environment or .env");
+    let mongo_uri = std::env::var("MONGODB_URI").unwrap_or_default();
     let db_name = std::env::var("MONGODB_DB").unwrap_or_else(|_| "milos".into());
     let jwt_secret = std::env::var("JWT_SECRET")
         .unwrap_or_else(|_| "change-this-jwt-secret-in-production".into());
@@ -125,6 +133,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .and_then(|p| p.parse().ok())
         .unwrap_or(8080);
 
+    if mongo_uri.is_empty() {
+        eprintln!("⚠️  WARNING: MONGODB_URI is not set — DB endpoints will return 503");
+    }
+
     let groq_keys: Vec<String> = std::env::var("GROQ_API_KEYS")
         .unwrap_or_default()
         .split(',')
@@ -132,27 +144,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .filter(|s| !s.is_empty())
         .collect();
 
-    let client = Client::with_uri_str(&mongo_uri).await?;
-    let db = client.database(&db_name);
+    let db = if mongo_uri.is_empty() {
+        None
+    } else {
+        let client = Client::with_uri_str(&mongo_uri).await?;
+        let db = client.database(&db_name);
 
-    // Ensure unique email index on users collection.
-    let users: Collection<UserDoc> = db.collection("users");
-    let email_index = IndexModel::builder()
-        .keys(doc! { "email": 1 })
-        .options(IndexOptions::builder().unique(true).build())
-        .build();
-    users.create_index(email_index).await?;
+        // Ensure unique email index on users collection.
+        let users: Collection<UserDoc> = db.collection("users");
+        let email_index = IndexModel::builder()
+            .keys(doc! { "email": 1 })
+            .options(IndexOptions::builder().unique(true).build())
+            .build();
+        users.create_index(email_index).await?;
 
-    // Optional startup seed for personal single-user login (no public signup endpoint).
-    if let (Ok(email), Ok(password)) = (
-        std::env::var("ADMIN_EMAIL"),
-        std::env::var("ADMIN_PASSWORD"),
-    ) {
-        let clean_email = email.trim().to_lowercase();
-        if !clean_email.is_empty() && !password.is_empty() {
-            seed_user(&users, &clean_email, &password).await?;
+        // Optional startup seed for personal single-user login (no public signup endpoint).
+        if let (Ok(email), Ok(password)) = (
+            std::env::var("ADMIN_EMAIL"),
+            std::env::var("ADMIN_PASSWORD"),
+        ) {
+            let clean_email = email.trim().to_lowercase();
+            if !clean_email.is_empty() && !password.is_empty() {
+                seed_user(&users, &clean_email, &password).await?;
+            }
         }
-    }
+        Some(db)
+    };
 
     let state = AppState {
         db,
@@ -165,6 +182,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let app = Router::new()
+        .route("/", get(health))
         .route("/health", get(health))
         .route("/api/auth/login", post(login))
         .route("/api/auth/me", get(me))
@@ -230,7 +248,7 @@ async fn login(
         ));
     }
 
-    let users: Collection<UserDoc> = state.db.collection("users");
+    let users: Collection<UserDoc> = require_db(&state)?.collection("users");
     let user = users
         .find_one(doc! { "email": &email })
         .await
@@ -282,7 +300,7 @@ async fn sync_backup(
     auth: AuthUser,
     Json(payload): Json<SyncRequest>,
 ) -> Result<Json<Value>, ApiError> {
-    let backups: Collection<BackupDoc> = state.db.collection("user_backups");
+    let backups: Collection<BackupDoc> = require_db(&state)?.collection("user_backups");
     let tasks_bson = mongodb::bson::to_bson(&payload.tasks)
         .map_err(|e| ApiError(StatusCode::BAD_REQUEST, e.to_string()))?;
     let progress_bson = mongodb::bson::to_bson(&payload.progress)
@@ -310,7 +328,7 @@ async fn restore_backup(
     State(state): State<AppState>,
     auth: AuthUser,
 ) -> Result<Json<Value>, ApiError> {
-    let backups: Collection<BackupDoc> = state.db.collection("user_backups");
+    let backups: Collection<BackupDoc> = require_db(&state)?.collection("user_backups");
     let found = backups
         .find_one(doc! { "_id": &auth.user_id })
         .await
@@ -332,7 +350,7 @@ async fn clear_backup(
     State(state): State<AppState>,
     auth: AuthUser,
 ) -> Result<Json<Value>, ApiError> {
-    let backups: Collection<BackupDoc> = state.db.collection("user_backups");
+    let backups: Collection<BackupDoc> = require_db(&state)?.collection("user_backups");
     backups
         .delete_one(doc! { "_id": &auth.user_id })
         .await

@@ -7,19 +7,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy Cargo manifest from rust/ subfolder for dep-caching layer
-COPY rust/Cargo.toml ./Cargo.toml
-# Dummy binary so cargo can resolve + download deps
+# Cache deps layer
+COPY Cargo.toml ./Cargo.toml
 RUN mkdir src && echo 'fn main(){}' > src/main.rs
 RUN cargo fetch
 RUN cargo build --release --bin milos-server 2>/dev/null; true
 RUN rm -rf src
 
 # Build the real binary
-COPY rust/src ./src
+COPY src ./src
 RUN touch src/main.rs && cargo build --release --bin milos-server
 
-# ── Stage 2: minimal runtime (~80 MB) ─────────────────────────────────────────
+# ── Stage 2: minimal runtime ──────────────────────────────────────────────────
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -28,7 +27,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=builder /app/target/release/milos-server /usr/local/bin/milos-server
 
-# Vercel injects PORT at runtime (usually 3000 or 8080)
 ENV PORT=8080
 EXPOSE 8080
 
