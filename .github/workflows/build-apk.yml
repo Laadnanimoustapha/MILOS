@@ -3,6 +3,14 @@ name: Build Android APK
 on:
   push:
     branches: [main, master]
+    paths:
+      - 'lib/**'
+      - 'assets/**'
+      - 'android/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - 'analysis_options.yaml'
+      - '.github/workflows/build-apk.yml'
   workflow_dispatch:
 
 permissions:
