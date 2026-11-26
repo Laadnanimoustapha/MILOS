@@ -186,6 +186,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/health", get(health))
         .route("/api/auth/login", post(login))
         .route("/api/auth/me", get(me))
+        .route("/api/admin/users", post(create_user))
         .route("/api/backup/sync", post(sync_backup))
         .route("/api/backup/restore", get(restore_backup))
         .route("/api/backup/clear", delete(clear_backup))
@@ -287,6 +288,57 @@ async fn login(
 
 async fn me(auth: AuthUser) -> Json<Value> {
     Json(json!({ "email": auth.email }))
+}
+
+async fn create_user(
+    State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Json(payload): Json<LoginRequest>,
+) -> Result<Json<Value>, ApiError> {
+    let expected_secret = std::env::var("ADMIN_SECRET").unwrap_or_else(|_| state.jwt_secret.clone());
+    let provided_secret = headers
+        .get("x-admin-secret")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    if provided_secret.is_empty() || provided_secret != expected_secret {
+        return Err(ApiError(StatusCode::UNAUTHORIZED, "Invalid admin secret".into()));
+    }
+
+    let email = payload.email.trim().to_lowercase();
+    if email.is_empty() || payload.password.is_empty() {
+        return Err(ApiError(
+            StatusCode::BAD_REQUEST,
+            "Email and password are required".into(),
+        ));
+    }
+
+    let users: Collection<UserDoc> = require_db(&state)?.collection("users");
+    if users
+        .find_one(doc! { "email": &email })
+        .await
+        .map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .is_some()
+    {
+        return Err(ApiError(StatusCode::CONFLICT, "User already exists".into()));
+    }
+
+    let salt = SaltString::generate(&mut OsRng);
+    let password_hash = Argon2::default()
+        .hash_password(payload.password.as_bytes(), &salt)
+        .map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, format!("Hash error: {e}")))?
+        .to_string();
+
+    users
+        .insert_one(UserDoc {
+            id: ObjectId::new(),
+            email: email.clone(),
+            password_hash,
+            created_at: BsonDateTime::now(),
+        })
+        .await
+        .map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(json!({ "created": true, "email": email })))
 }
 
 #[derive(Deserialize)]

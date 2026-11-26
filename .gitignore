@@ -49,3 +49,6 @@ app.*.map.json
 
 # env
 .env*
+
+# Local-only admin HTML
+admin_create_user.html
