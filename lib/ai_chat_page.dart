@@ -132,6 +132,20 @@ class _AiChatPageState extends State<AiChatPage> {
   Future<void> _syncModelsFromServer() async {
     final latest = await AiModelStore.syncModels();
     if (!mounted) return;
+    final syncErr = AiModelStore.lastSyncError;
+    if (syncErr != null && syncErr.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _chatText(
+              widget.arabic,
+              'Model sync failed: $syncErr',
+              'فشلت مزامنة النماذج: $syncErr',
+            ),
+          ),
+        ),
+      );
+    }
     final validIds = latest.models.map((m) => m.id).toSet();
     bool sessionUpdated = false;
     for (final s in _sessions) {
@@ -500,6 +514,16 @@ class _ChatViewState extends State<_ChatView> {
       // Strip both JSON and memory blocks from stored/displayed reply.
       final cleanReply = _stripSpecialBlocks(reply);
       final extracted = _extractTasks(reply);
+
+      if (cleanReply.isEmpty && extracted == null) {
+        throw GroqException(
+          _chatText(
+            widget.arabic,
+            'Empty response from AI model.',
+            'لم يرجع النموذج أي رد.',
+          ),
+        );
+      }
 
       final assistantMsg = ChatMessage(
         role: 'assistant',

@@ -76,6 +76,7 @@ typedef AiModelCatalog = ({
 
 class AiModelStore {
   static const _cacheKey = 'milos.ai.models.v1';
+  static String? lastSyncError;
 
   static List<AiModelInfo> get fallbackModels => groqModels.entries
       .map((e) => AiModelInfo(id: e.key, name: e.value))
@@ -123,6 +124,7 @@ class AiModelStore {
   /// Only downloads & writes to local storage when the server version changed.
   static Future<AiModelCatalog> syncModels() async {
     final cached = await loadCached();
+    lastSyncError = null;
     try {
       final res = await ApiClient.fetchAiModels(currentVersion: cached.version);
       if (res['unchanged'] == true) return cached;
@@ -147,7 +149,8 @@ class AiModelStore {
         }),
       );
       return (version: version, defaultModel: def, models: models);
-    } catch (_) {
+    } catch (e) {
+      lastSyncError = '$e';
       return cached;
     }
   }

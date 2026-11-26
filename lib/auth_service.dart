@@ -10,11 +10,16 @@ class AuthStore {
   static const _keyToken = 'milos.auth.token';
   static const _keyEmail = 'milos.auth.email';
   static const _keyServerUrl = 'milos.server.url';
+  static const _keyModelsCache = 'milos.ai.models.v1';
 
   static const defaultServerUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue:
-        'https://milos-kni0edj7r-mustapha-laadnanis-projects.vercel.app',
+    defaultValue: 'https://milos-mustapha-laadnanis-projects.vercel.app',
+  );
+
+  static final _stalePreviewRe = RegExp(
+    r'^https://milos-[a-z0-9]+-mustapha-laadnanis-projects\.vercel\.app$',
+    caseSensitive: false,
   );
 
   static Future<({String? token, String? email})> loadSession() async {
@@ -40,17 +45,30 @@ class AuthStore {
   static Future<String> loadServerUrl() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString(_keyServerUrl)?.trim();
-    if (saved != null && saved.isNotEmpty) return _stripTrailingSlash(saved);
+    if (saved != null && saved.isNotEmpty) {
+      final clean = _stripTrailingSlash(saved);
+      if (_stalePreviewRe.hasMatch(clean)) {
+        final prod = _stripTrailingSlash(defaultServerUrl);
+        await prefs.setString(_keyServerUrl, prod);
+        await prefs.remove(_keyModelsCache);
+        return prod;
+      }
+      return clean;
+    }
     return _stripTrailingSlash(defaultServerUrl);
   }
 
   static Future<void> saveServerUrl(String url) async {
     final prefs = await SharedPreferences.getInstance();
+    final prev = prefs.getString(_keyServerUrl);
     final clean = _stripTrailingSlash(url.trim());
     if (clean.isEmpty) {
       await prefs.remove(_keyServerUrl);
     } else {
       await prefs.setString(_keyServerUrl, clean);
+    }
+    if (prev != clean) {
+      await prefs.remove(_keyModelsCache);
     }
   }
 
@@ -118,7 +136,7 @@ class ApiClient {
         'current_datetime': ?currentDatetime,
         if (memories.isNotEmpty) 'memories': memories,
       },
-      timeoutSeconds: 30,
+      timeoutSeconds: 65,
     );
     return (res['content'] as String? ?? '').trim();
   }

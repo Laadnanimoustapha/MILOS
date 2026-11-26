@@ -41,11 +41,14 @@ struct AppState {
     http: reqwest::Client,
 }
 
-fn parse_keys_env(name: &str) -> Vec<String> {
-    std::env::var(name)
-        .unwrap_or_default()
-        .split(',')
-        .map(|s| s.trim().to_string())
+fn parse_keys_env(primary: &str, fallback: &str) -> Vec<String> {
+    let raw = std::env::var(primary)
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| std::env::var(fallback).ok())
+        .unwrap_or_default();
+    raw.split(',')
+        .map(|s| s.trim().trim_matches(|c| c == '"' || c == '\'').trim().to_string())
         .filter(|s| !s.is_empty())
         .collect()
 }
@@ -218,8 +221,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         eprintln!("⚠️  WARNING: MONGODB_URI is not set — DB endpoints will return 503");
     }
 
-    let groq_keys = parse_keys_env("GROQ_API_KEYS");
-    let nvidia_keys = parse_keys_env("NVIDIA_API_KEYS");
+    let groq_keys = parse_keys_env("GROQ_API_KEYS", "GROQ_API_KEY");
+    let nvidia_keys = parse_keys_env("NVIDIA_API_KEYS", "NVIDIA_API_KEY");
 
     let db = if mongo_uri.is_empty() {
         None
@@ -971,7 +974,7 @@ async fn ai_chat(
             "model": payload.model,
             "messages": &full_messages,
             "temperature": 0.4,
-            "max_tokens": 2048,
+            "max_tokens": 4096,
         });
 
         let resp = match state
@@ -1010,6 +1013,12 @@ async fn ai_chat(
             .unwrap_or("")
             .trim()
             .to_string();
+        if content.is_empty() {
+            return Err(ApiError(
+                StatusCode::BAD_GATEWAY,
+                format!("{provider} returned an empty response for model '{}'", payload.model),
+            ));
+        }
 
         let prompt_tokens = parsed["usage"]["prompt_tokens"].as_u64().unwrap_or(0);
         let completion_tokens = parsed["usage"]["completion_tokens"].as_u64().unwrap_or(0);
