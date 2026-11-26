@@ -73,6 +73,8 @@ class AiChatPage extends StatefulWidget {
 class _AiChatPageState extends State<AiChatPage> {
   final _store = ChatStore();
   final List<ChatSession> _sessions = [];
+  List<AiModelInfo> _models = AiModelStore.fallbackModels;
+  String _defaultModel = defaultGroqModel;
   ChatSession? _active;
   bool _loading = true;
 
@@ -83,14 +85,19 @@ class _AiChatPageState extends State<AiChatPage> {
   }
 
   Future<void> _load() async {
+    final cached = await AiModelStore.loadCached();
+    _models = cached.models;
+    _defaultModel = cached.defaultModel;
+
     List<ChatSession> sessions = [];
     try {
       sessions = await _store
           .loadSessions()
           .timeout(const Duration(seconds: 5));
+      final validIds = _models.map((m) => m.id).toSet();
       for (final session in sessions) {
-        if (!groqModels.containsKey(session.model)) {
-          session.model = defaultGroqModel;
+        if (!validIds.contains(session.model)) {
+          session.model = _defaultModel;
         }
       }
     } catch (_) {
@@ -100,7 +107,7 @@ class _AiChatPageState extends State<AiChatPage> {
       final session = ChatSession(
         id: _store.nextId(sessions),
         title: widget.arabic ? 'تحليل التقدم' : 'Progress Analysis',
-        model: defaultGroqModel,
+        model: _defaultModel,
         createdAt: DateTime.now(),
         messages: [],
       );
@@ -117,13 +124,36 @@ class _AiChatPageState extends State<AiChatPage> {
         ..addAll(sessions);
       _loading = false;
     });
+
+    // Check server in background; only writes to storage if version changed.
+    unawaited(_syncModelsFromServer());
+  }
+
+  Future<void> _syncModelsFromServer() async {
+    final latest = await AiModelStore.syncModels();
+    if (!mounted) return;
+    final validIds = latest.models.map((m) => m.id).toSet();
+    bool sessionUpdated = false;
+    for (final s in _sessions) {
+      if (!validIds.contains(s.model)) {
+        s.model = latest.defaultModel;
+        sessionUpdated = true;
+      }
+    }
+    if (sessionUpdated) {
+      unawaited(_store.saveSessions(_sessions));
+    }
+    setState(() {
+      _models = latest.models;
+      _defaultModel = latest.defaultModel;
+    });
   }
 
   Future<void> _newChat() async {
     final session = ChatSession(
       id: _store.nextId(_sessions),
       title: 'New chat',
-      model: defaultGroqModel,
+      model: _defaultModel,
       createdAt: DateTime.now(),
       messages: [],
     );
@@ -215,6 +245,7 @@ class _AiChatPageState extends State<AiChatPage> {
           if (_active != null)
             _ModelSelector(
               selected: _active!.model,
+              models: _models,
               arabic: widget.arabic,
               onChanged: (m) {
                 setState(() => _active!.model = m);
@@ -1273,31 +1304,64 @@ class _SuggestionChip extends StatelessWidget {
 // Model selector dropdown in AppBar
 // ---------------------------------------------------------------------------
 class _ModelSelector extends StatelessWidget {
-  const _ModelSelector({required this.selected, required this.onChanged, required this.arabic});
+  const _ModelSelector({
+    required this.selected,
+    required this.models,
+    required this.onChanged,
+    required this.arabic,
+  });
   final String selected;
+  final List<AiModelInfo> models;
   final ValueChanged<String> onChanged;
   final bool arabic;
 
+  Widget _buildModelIcon(AiModelInfo? model) {
+    final bytes = model?.iconBytes;
+    if (bytes != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: Image.memory(bytes, width: 18, height: 18, fit: BoxFit.cover),
+      );
+    }
+    return const Icon(Icons.smart_toy_outlined, size: 18, color: _muted);
+  }
+
   @override
-  Widget build(BuildContext context) => PopupMenuButton<String>(
-    tooltip: _chatText(arabic, 'AI Model', 'نموذج الذكاء الاصطناعي'),
-    icon: const Icon(Icons.tune_rounded, size: 20, color: _muted),
-    onSelected: onChanged,
-    itemBuilder: (_) => groqModels.entries.map((e) => PopupMenuItem(
-      value: e.key,
-      child: Row(
-        children: [
-          Icon(
-            Icons.radio_button_checked,
-            size: 14,
-            color: selected == e.key ? _teal : Colors.transparent,
-          ),
-          const SizedBox(width: 8),
-          Text(e.value, style: const TextStyle(fontSize: 13)),
-        ],
-      ),
-    )).toList(),
-  );
+  Widget build(BuildContext context) {
+    final current = models.cast<AiModelInfo?>().firstWhere(
+      (m) => m?.id == selected,
+      orElse: () => null,
+    );
+    return PopupMenuButton<String>(
+      tooltip: _chatText(arabic, 'AI Model', 'نموذج الذكاء الاصطناعي'),
+      icon: current?.iconBytes != null
+          ? _buildModelIcon(current)
+          : const Icon(Icons.tune_rounded, size: 20, color: _muted),
+      onSelected: onChanged,
+      itemBuilder: (_) => models.map((m) => PopupMenuItem(
+        value: m.id,
+        child: Row(
+          children: [
+            Icon(
+              Icons.radio_button_checked,
+              size: 14,
+              color: selected == m.id ? _teal : Colors.transparent,
+            ),
+            const SizedBox(width: 8),
+            _buildModelIcon(m),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                m.name,
+                style: const TextStyle(fontSize: 13),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      )).toList(),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

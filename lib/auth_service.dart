@@ -96,6 +96,13 @@ class ApiClient {
     await _request('DELETE', '/api/backup/clear');
   }
 
+  static Future<Map<String, dynamic>> fetchAiModels({String? currentVersion}) {
+    final query = (currentVersion != null && currentVersion.isNotEmpty)
+        ? '?version=${Uri.encodeQueryComponent(currentVersion)}'
+        : '';
+    return _request('GET', '/api/ai/models$query');
+  }
+
   static Future<String> aiChat({
     required String model,
     required List<Map<String, String>> messages,
