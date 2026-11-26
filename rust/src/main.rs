@@ -36,7 +36,18 @@ struct AppState {
     jwt_secret: String,
     groq_keys: Vec<String>,
     groq_index: Arc<AtomicUsize>,
+    nvidia_keys: Vec<String>,
+    nvidia_index: Arc<AtomicUsize>,
     http: reqwest::Client,
+}
+
+fn parse_keys_env(name: &str) -> Vec<String> {
+    std::env::var(name)
+        .unwrap_or_default()
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
 }
 
 fn require_db(state: &AppState) -> Result<&Database, ApiError> {
@@ -79,10 +90,16 @@ fn default_true() -> bool {
     true
 }
 
+fn default_provider() -> String {
+    "groq".into()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct AiModelEntry {
     id: String,
     name: String,
+    #[serde(default = "default_provider")]
+    provider: String,
     #[serde(default = "default_true")]
     enabled: bool,
     #[serde(default)]
@@ -103,6 +120,8 @@ struct AiConfigDoc {
 struct UsageLogDoc {
     user_email: String,
     model: String,
+    #[serde(default = "default_provider")]
+    provider: String,
     prompt_tokens: u64,
     completion_tokens: u64,
     total_tokens: u64,
@@ -115,10 +134,10 @@ fn default_ai_config() -> AiConfigDoc {
         version: "v1-default".into(),
         default_model: "openai/gpt-oss-20b".into(),
         models: vec![
-            AiModelEntry { id: "openai/gpt-oss-20b".into(), name: "GPT-OSS 20B (fast)".into(), enabled: true, icon: String::new() },
-            AiModelEntry { id: "openai/gpt-oss-120b".into(), name: "GPT-OSS 120B".into(), enabled: true, icon: String::new() },
-            AiModelEntry { id: "qwen/qwen3.8-27b".into(), name: "Qwen 3.8 27B".into(), enabled: true, icon: String::new() },
-            AiModelEntry { id: "allam-2-7b".into(), name: "ALLaM 2 7B (Arabic)".into(), enabled: true, icon: String::new() },
+            AiModelEntry { id: "openai/gpt-oss-20b".into(), name: "GPT-OSS 20B (fast)".into(), provider: "groq".into(), enabled: true, icon: String::new() },
+            AiModelEntry { id: "openai/gpt-oss-120b".into(), name: "GPT-OSS 120B".into(), provider: "groq".into(), enabled: true, icon: String::new() },
+            AiModelEntry { id: "qwen/qwen3.8-27b".into(), name: "Qwen 3.8 27B".into(), provider: "groq".into(), enabled: true, icon: String::new() },
+            AiModelEntry { id: "allam-2-7b".into(), name: "ALLaM 2 7B (Arabic)".into(), provider: "groq".into(), enabled: true, icon: String::new() },
         ],
         updated_at: None,
     }
@@ -199,12 +218,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         eprintln!("⚠️  WARNING: MONGODB_URI is not set — DB endpoints will return 503");
     }
 
-    let groq_keys: Vec<String> = std::env::var("GROQ_API_KEYS")
-        .unwrap_or_default()
-        .split(',')
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .collect();
+    let groq_keys = parse_keys_env("GROQ_API_KEYS");
+    let nvidia_keys = parse_keys_env("NVIDIA_API_KEYS");
 
     let db = if mongo_uri.is_empty() {
         None
@@ -238,8 +253,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         jwt_secret,
         groq_keys,
         groq_index: Arc::new(AtomicUsize::new(0)),
+        nvidia_keys,
+        nvidia_index: Arc::new(AtomicUsize::new(0)),
         http: reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(30))
+            .timeout(std::time::Duration::from_secs(60))
             .build()?,
     };
 
@@ -254,6 +271,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/admin/usage", get(admin_usage))
         .route("/api/admin/models", get(admin_get_models).put(admin_save_models))
         .route("/api/admin/groq-models", get(admin_groq_models))
+        .route("/api/admin/nvidia-models", get(admin_nvidia_models))
         .route("/api/backup/sync", post(sync_backup))
         .route("/api/backup/restore", get(restore_backup))
         .route("/api/backup/clear", delete(clear_backup))
@@ -539,6 +557,7 @@ async fn admin_usage(
             all_logs.push(json!({
                 "user_email": log.user_email,
                 "model": log.model,
+                "provider": log.provider,
                 "prompt_tokens": log.prompt_tokens,
                 "completion_tokens": log.completion_tokens,
                 "total_tokens": log.total_tokens,
@@ -658,36 +677,72 @@ async fn admin_save_models(
     })))
 }
 
-async fn admin_groq_models(
-    State(state): State<AppState>,
-    headers: axum::http::HeaderMap,
+async fn fetch_provider_models(
+    state: &AppState,
+    headers: &axum::http::HeaderMap,
+    url: &str,
+    keys: &[String],
+    provider_label: &str,
+    env_name: &str,
 ) -> Result<Json<Value>, ApiError> {
-    require_admin(&state, &headers)?;
-    let key = state
-        .groq_keys
-        .first()
-        .ok_or_else(|| ApiError(StatusCode::SERVICE_UNAVAILABLE, "No GROQ_API_KEYS configured".into()))?;
+    require_admin(state, headers)?;
+    let key = keys.first().ok_or_else(|| {
+        ApiError(
+            StatusCode::SERVICE_UNAVAILABLE,
+            format!("No {env_name} configured"),
+        )
+    })?;
 
     let resp = state
         .http
-        .get("https://api.groq.com/openai/v1/models")
+        .get(url)
         .bearer_auth(key)
         .send()
         .await
-        .map_err(|e| ApiError(StatusCode::BAD_GATEWAY, format!("Groq error: {e}")))?;
+        .map_err(|e| ApiError(StatusCode::BAD_GATEWAY, format!("{provider_label} error: {e}")))?;
 
     let status = resp.status();
     let text = resp.text().await.unwrap_or_default();
     if !status.is_success() {
         return Err(ApiError(
             StatusCode::BAD_GATEWAY,
-            format!("Groq error {}: {}", status.as_u16(), extract_groq_error(&text)),
+            format!("{provider_label} error {}: {}", status.as_u16(), extract_groq_error(&text)),
         ));
     }
 
     let parsed: Value = serde_json::from_str(&text)
         .map_err(|e| ApiError(StatusCode::BAD_GATEWAY, e.to_string()))?;
-    Ok(Json(json!({ "models": parsed["data"] })))
+    Ok(Json(json!({ "provider": provider_label, "models": parsed["data"] })))
+}
+
+async fn admin_groq_models(
+    State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
+) -> Result<Json<Value>, ApiError> {
+    fetch_provider_models(
+        &state,
+        &headers,
+        "https://api.groq.com/openai/v1/models",
+        &state.groq_keys,
+        "groq",
+        "GROQ_API_KEYS",
+    )
+    .await
+}
+
+async fn admin_nvidia_models(
+    State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
+) -> Result<Json<Value>, ApiError> {
+    fetch_provider_models(
+        &state,
+        &headers,
+        "https://integrate.api.nvidia.com/v1/models",
+        &state.nvidia_keys,
+        "nvidia",
+        "NVIDIA_API_KEYS",
+    )
+    .await
 }
 
 #[derive(Deserialize)]
@@ -848,21 +903,38 @@ async fn ai_chat(
     auth: AuthUser,
     Json(payload): Json<AiChatRequest>,
 ) -> Result<Json<Value>, ApiError> {
-    if state.groq_keys.is_empty() {
-        return Err(ApiError(
-            StatusCode::SERVICE_UNAVAILABLE,
-            "No GROQ_API_KEYS configured on server".into(),
-        ));
-    }
-
-    // Enforce admin-configured model availability if configured.
+    // Enforce admin-configured model availability and resolve provider ("groq" or "nvidia").
     let cfg = load_ai_config(&state).await;
-    if !cfg.models.is_empty()
-        && !cfg.models.iter().any(|m| m.id == payload.model && m.enabled)
-    {
+    let matched_model = cfg.models.iter().find(|m| m.id == payload.model);
+    if !cfg.models.is_empty() && !matched_model.is_some_and(|m| m.enabled) {
         return Err(ApiError(
             StatusCode::BAD_REQUEST,
             format!("Model '{}' is not enabled on the server", payload.model),
+        ));
+    }
+
+    let provider = matched_model
+        .map(|m| m.provider.as_str())
+        .unwrap_or("groq");
+    let (endpoint, keys, index, env_name) = match provider {
+        "nvidia" => (
+            "https://integrate.api.nvidia.com/v1/chat/completions",
+            &state.nvidia_keys,
+            &state.nvidia_index,
+            "NVIDIA_API_KEYS",
+        ),
+        _ => (
+            "https://api.groq.com/openai/v1/chat/completions",
+            &state.groq_keys,
+            &state.groq_index,
+            "GROQ_API_KEYS",
+        ),
+    };
+
+    if keys.is_empty() {
+        return Err(ApiError(
+            StatusCode::SERVICE_UNAVAILABLE,
+            format!("No {env_name} configured on server"),
         ));
     }
 
@@ -889,12 +961,12 @@ async fn ai_chat(
     full_messages.push(json!({ "role": "system", "content": system_prompt }));
     full_messages.extend(payload.messages);
 
-    let total = state.groq_keys.len();
-    let start = state.groq_index.fetch_add(1, Ordering::Relaxed) % total;
+    let total = keys.len();
+    let start = index.fetch_add(1, Ordering::Relaxed) % total;
     let mut last_err = String::from("AI request failed");
 
     for offset in 0..total {
-        let key = &state.groq_keys[(start + offset) % total];
+        let key = &keys[(start + offset) % total];
         let body = json!({
             "model": payload.model,
             "messages": &full_messages,
@@ -904,7 +976,7 @@ async fn ai_chat(
 
         let resp = match state
             .http
-            .post("https://api.groq.com/openai/v1/chat/completions")
+            .post(endpoint)
             .bearer_auth(key)
             .json(&body)
             .send()
@@ -921,13 +993,13 @@ async fn ai_chat(
         let text = resp.text().await.unwrap_or_default();
 
         if status.as_u16() == 429 {
-            last_err = format!("Groq rate-limited (429): {text}");
+            last_err = format!("{provider} rate-limited (429): {text}");
             continue;
         }
         if !status.is_success() {
             return Err(ApiError(
                 StatusCode::BAD_GATEWAY,
-                format!("Groq error {}: {}", status.as_u16(), extract_groq_error(&text)),
+                format!("{provider} error {}: {}", status.as_u16(), extract_groq_error(&text)),
             ));
         }
 
@@ -951,6 +1023,7 @@ async fn ai_chat(
                 .insert_one(UsageLogDoc {
                     user_email: auth.email.clone(),
                     model: payload.model.clone(),
+                    provider: provider.to_string(),
                     prompt_tokens,
                     completion_tokens,
                     total_tokens,

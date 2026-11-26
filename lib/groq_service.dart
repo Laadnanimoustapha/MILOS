@@ -21,10 +21,16 @@ const groqModels = <String, String>{
 const defaultGroqModel = 'openai/gpt-oss-20b';
 
 class AiModelInfo {
-  AiModelInfo({required this.id, required this.name, this.icon = ''});
+  AiModelInfo({
+    required this.id,
+    required this.name,
+    this.provider = 'groq',
+    this.icon = '',
+  });
 
   final String id;
   final String name;
+  final String provider;
   final String icon;
   Uint8List? _cachedBytes;
   bool _decoded = false;
@@ -47,11 +53,17 @@ class AiModelInfo {
     return _cachedBytes;
   }
 
-  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'icon': icon};
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'provider': provider,
+    'icon': icon,
+  };
 
   factory AiModelInfo.fromJson(Map<String, dynamic> j) => AiModelInfo(
     id: j['id'] as String? ?? '',
     name: j['name'] as String? ?? (j['id'] as String? ?? ''),
+    provider: j['provider'] as String? ?? 'groq',
     icon: j['icon'] as String? ?? '',
   );
 }
