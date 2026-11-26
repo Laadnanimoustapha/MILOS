@@ -7,16 +7,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy Cargo manifest first for layer-cache
-COPY rust/Cargo.toml ./Cargo.toml
-# Dummy src so cargo can fetch deps
+# Cache deps layer: copy manifest, build a dummy binary first
+COPY Cargo.toml ./Cargo.toml
 RUN mkdir src && echo 'fn main(){}' > src/main.rs
 RUN cargo fetch
 RUN cargo build --release --bin milos-server 2>/dev/null; true
 RUN rm -rf src
 
-# Copy real source
-COPY rust/src ./src
+# Build the real binary
+COPY src ./src
 RUN touch src/main.rs && cargo build --release --bin milos-server
 
 # ── Stage 2: minimal runtime ──────────────────────────────────────────────────
@@ -28,7 +27,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=builder /app/target/release/milos-server /usr/local/bin/milos-server
 
-ENV PORT=8080
-EXPOSE 8080
+# Vercel injects PORT; default to 80 to match its routing
+ENV PORT=80
+EXPOSE 80
 
 CMD ["/usr/local/bin/milos-server"]
