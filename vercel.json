@@ -1,11 +1,3 @@
 {
-  "services": {
-    "api": {
-      "root": "rust/",
-      "entrypoint": "Dockerfile"
-    }
-  },
-  "rewrites": [
-    { "source": "/(.*)", "destination": { "service": "api" } }
-  ]
+  "framework": "container"
 }
