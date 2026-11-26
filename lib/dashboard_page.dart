@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'add_skill_sheet.dart';
@@ -5,6 +7,7 @@ import 'ai_chat_page.dart';
 import 'habit_store.dart';
 import 'reminder_service.dart';
 import 'streak_store.dart';
+import 'sync_service.dart';
 import 'task.dart';
 import 'task_store.dart';
 
@@ -115,6 +118,7 @@ class _DashboardPageState extends State<DashboardPage> {
     );
     _tasks.add(toAdd);
     await _taskStore.save(_tasks);
+    unawaited(SyncService.syncNow());
     await _loadData();
     try {
       await ReminderService.instance.refresh(_tasks);

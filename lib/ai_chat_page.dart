@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'chat_store.dart';
-import 'groq_keys_page.dart';
 import 'groq_service.dart';
 import 'memory_page.dart';
 import 'memory_store.dart';
+import 'sync_service.dart';
 import 'task.dart';
 import 'task_store.dart';
 
@@ -178,10 +178,6 @@ class _AiChatPageState extends State<AiChatPage> {
     if (mounted) setState(() => _active = session);
   }
 
-  Future<void> _openApiKeys() => Navigator.of(context).push(
-    MaterialPageRoute<void>(builder: (_) => GroqKeysPage(arabic: widget.arabic)),
-  );
-
   Future<void> _openMemory() => Navigator.of(context).push(
     MaterialPageRoute<void>(builder: (_) => MemoryPage(arabic: widget.arabic)),
   );
@@ -255,11 +251,6 @@ class _AiChatPageState extends State<AiChatPage> {
             icon: const Icon(Icons.psychology_outlined, color: _muted),
             tooltip: _chatText(widget.arabic, 'Memory', 'الذاكرة'),
             onPressed: _openMemory,
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, color: _muted),
-            tooltip: _chatText(widget.arabic, 'API keys', 'مفاتيح API'),
-            onPressed: _openApiKeys,
           ),
           if (_active == null)
             IconButton(
@@ -589,7 +580,7 @@ class _ChatViewState extends State<_ChatView> {
     for (final match in pattern.allMatches(reply)) {
       final fact = match.group(1)?.trim();
       if (fact != null && fact.isNotEmpty) {
-        _memoryStore.add(fact); // fire-and-forget; no await needed
+        _memoryStore.add(fact).then((_) => SyncService.syncNow());
       }
     }
   }

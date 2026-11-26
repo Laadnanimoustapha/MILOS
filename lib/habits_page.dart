@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'habit_store.dart';
+import 'sync_service.dart';
 
 const _teal = Color(0xFF4CAF9E);
 const _ink = Color(0xFF253533);
@@ -78,11 +81,13 @@ class _HabitsPageState extends State<HabitsPage> {
   Future<void> _incrementPrayer(String prayer) async {
     await HabitStore.incrementPrayer(prayer);
     await _refreshPrayers();
+    unawaited(SyncService.syncNow());
   }
 
   Future<void> _decrementPrayer(String prayer) async {
     await HabitStore.decrementPrayer(prayer);
     await _refreshPrayers();
+    unawaited(SyncService.syncNow());
   }
 
   Future<void> _addStreakDialog() async {
@@ -115,6 +120,7 @@ class _HabitsPageState extends State<HabitsPage> {
       await HabitStore.addCustomStreak(result, result);
       final fresh = await HabitStore.loadCustomStreaks();
       if (mounted) setState(() => _customStreaks = fresh);
+      unawaited(SyncService.syncNow());
     }
   }
 
@@ -147,6 +153,7 @@ class _HabitsPageState extends State<HabitsPage> {
       await HabitStore.resetCustomStreak(streak.id);
       final fresh = await HabitStore.loadCustomStreaks();
       if (mounted) setState(() => _customStreaks = fresh);
+      unawaited(SyncService.syncNow());
     }
   }
 
@@ -154,12 +161,14 @@ class _HabitsPageState extends State<HabitsPage> {
     await HabitStore.deleteCustomStreak(id);
     final fresh = await HabitStore.loadCustomStreaks();
     if (mounted) setState(() => _customStreaks = fresh);
+    unawaited(SyncService.syncNow());
   }
 
   Future<void> _toggleHabit(String id) async {
     await HabitStore.toggleHabitDone(id);
     final habits = await HabitStore.loadCustomHabits();
     if (mounted) setState(() => _habits = habits);
+    unawaited(SyncService.syncNow());
   }
 
   Future<void> _addCustomHabitDialog() async {
@@ -192,6 +201,7 @@ class _HabitsPageState extends State<HabitsPage> {
       await HabitStore.addCustomHabit(result, result);
       final habits = await HabitStore.loadCustomHabits();
       if (mounted) setState(() => _habits = habits);
+      unawaited(SyncService.syncNow());
     }
   }
 
@@ -199,6 +209,7 @@ class _HabitsPageState extends State<HabitsPage> {
     await HabitStore.deleteCustomHabit(id);
     final habits = await HabitStore.loadCustomHabits();
     if (mounted) setState(() => _habits = habits);
+    unawaited(SyncService.syncNow());
   }
 
   Future<void> _addNote() async {
@@ -209,12 +220,14 @@ class _HabitsPageState extends State<HabitsPage> {
     await HabitStore.addNote(text);
     final notes = await HabitStore.loadNotes();
     if (mounted) setState(() => _notes = notes);
+    unawaited(SyncService.syncNow());
   }
 
   Future<void> _deleteNote(String id) async {
     await HabitStore.deleteNote(id);
     final notes = await HabitStore.loadNotes();
     if (mounted) setState(() => _notes = notes);
+    unawaited(SyncService.syncNow());
   }
 
   int get _prayersCompleted => _prayerCounts.values.where((v) => v > 0).length;

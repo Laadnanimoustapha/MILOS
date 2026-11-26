@@ -6,10 +6,13 @@ import 'add_skill_sheet.dart';
 import 'ai_chat_page.dart';
 import 'app_language.dart';
 import 'archive_page.dart';
+import 'auth_service.dart';
 import 'dashboard_page.dart';
 import 'habits_page.dart';
+import 'login_page.dart';
 import 'reminder_service.dart';
 import 'streak_store.dart';
+import 'sync_service.dart';
 import 'task.dart';
 import 'task_store.dart';
 import 'update_service.dart';
@@ -74,18 +77,23 @@ class MilosApp extends StatefulWidget {
 
 class _MilosAppState extends State<MilosApp> {
   AppLanguage? _language;
-  bool _loadingLanguage = true;
+  bool _loggedIn = false;
+  bool _loadingStartup = true;
 
   @override
   void initState() {
     super.initState();
-    AppLanguageStore.load().then((language) {
-      if (mounted) {
-        setState(() {
-          _language = language;
-          _loadingLanguage = false;
-        });
-      }
+    _initApp();
+  }
+
+  Future<void> _initApp() async {
+    final language = await AppLanguageStore.load();
+    final session = await AuthStore.loadSession();
+    if (!mounted) return;
+    setState(() {
+      _language = language;
+      _loggedIn = session.token != null;
+      _loadingStartup = false;
     });
   }
 
@@ -110,13 +118,22 @@ class _MilosAppState extends State<MilosApp> {
           : TextDirection.ltr,
       child: child!,
     ),
-    home: _loadingLanguage
+    home: _loadingStartup
         ? const Scaffold(
             body: Center(child: CircularProgressIndicator(color: _teal)),
           )
         : _language == null
         ? LanguageChoicePage(onSelected: _setLanguage)
-        : TodayPage(language: _language!, onLanguageChanged: _setLanguage),
+        : !_loggedIn
+        ? LoginPage(
+            arabic: _language == AppLanguage.arabic,
+            onLoggedIn: () => setState(() => _loggedIn = true),
+          )
+        : TodayPage(
+            language: _language!,
+            onLanguageChanged: _setLanguage,
+            onLoggedOut: () => setState(() => _loggedIn = false),
+          ),
   );
 }
 
@@ -125,9 +142,11 @@ class TodayPage extends StatefulWidget {
     super.key,
     required this.language,
     required this.onLanguageChanged,
+    this.onLoggedOut,
   });
   final AppLanguage language;
   final ValueChanged<AppLanguage> onLanguageChanged;
+  final VoidCallback? onLoggedOut;
 
   @override
   State<TodayPage> createState() => _TodayPageState();
@@ -177,7 +196,16 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
 
   Future<void> _loadTasks() async {
     try {
-      final fresh = await _store.load();
+      var fresh = await _store.load();
+      // Only restore from server backup when local task storage is empty
+      // (e.g., fresh install or new device after login).
+      if (fresh.isEmpty) {
+        final restored = await SyncService.restoreIfLocalEmpty();
+        if (restored) {
+          fresh = await _store.load();
+          unawaited(_loadStreak());
+        }
+      }
       if (!mounted) return;
       setState(() {
         _tasks
@@ -202,6 +230,7 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
           ..clear()
           ..addAll(fresh);
       });
+      unawaited(SyncService.syncNow());
     } catch (_) {}
     await _refreshReminders();
   }
@@ -233,12 +262,14 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
       final count = await StreakStore.creditToday();
       final dots = await StreakStore.currentWeekDots();
       if (mounted) setState(() { _streakCount = count; _weekDots = dots; });
+      unawaited(SyncService.syncNow());
     }
   }
 
   Future<void> _saveTasks() async {
     try {
       await _store.save(_tasks);
+      unawaited(SyncService.syncNow());
     } catch (_) {}
   }
 
@@ -343,6 +374,15 @@ class _TodayPageState extends State<TodayPage> with WidgetsBindingObserver {
             widget.onLanguageChanged(language);
             Navigator.of(context).pop();
           },
+          onDataCleared: () {
+            if (!mounted) return;
+            setState(() {
+              _tasks.clear();
+              _streakCount = 0;
+              _weekDots = List.filled(7, false);
+            });
+          },
+          onLoggedOut: widget.onLoggedOut,
         ),
       ),
     );

@@ -13,6 +13,7 @@ import 'package:shared_preferences_platform_interface/shared_preferences_async_p
 
 import 'package:milos/habit_store.dart';
 import 'package:milos/main.dart';
+import 'package:milos/sync_service.dart';
 import 'package:milos/task.dart';
 import 'package:milos/task_store.dart';
 
@@ -23,7 +24,23 @@ void main() {
         InMemorySharedPreferencesAsync.empty();
   });
 
+  testWidgets('shows login screen with email & password and no create account screen', (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({'milos.language.v1': 'en'});
+    await tester.pumpWidget(const MilosApp());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sign in'), findsOneWidget);
+    expect(find.text('Email'), findsOneWidget);
+    expect(find.text('Password'), findsOneWidget);
+    expect(find.textContaining('Create account'), findsNothing);
+    expect(find.textContaining('Sign up'), findsNothing);
+  });
+
   testWidgets('selects Arabic on first launch and can change it in settings', (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({
+      'milos.auth.token': 'test-jwt',
+      'milos.auth.email': 'me@example.com',
+    });
     await tester.pumpWidget(const MilosApp());
     await tester.pumpAndSettle();
 
@@ -94,5 +111,18 @@ void main() {
     final totals = await HabitStore.loadPrayerTotals();
     expect(totals['Fajr'], 3);
     expect(totals['Asr'], 0);
+  });
+
+  test('SyncService.restoreIfLocalEmpty does not overwrite non-empty local tasks', () async {
+    SharedPreferences.setMockInitialValues({
+      'milos.auth.token': 'test-jwt',
+      'milos.auth.email': 'me@example.com',
+    });
+    final now = DateTime(2026, 11, 26, 9, 0);
+    await TaskStore().save([
+      Task(id: 1, title: 'Local task', remindAt: now, remindUntil: now.add(const Duration(hours: 1))),
+    ]);
+    final restored = await SyncService.restoreIfLocalEmpty();
+    expect(restored, isFalse);
   });
 }
