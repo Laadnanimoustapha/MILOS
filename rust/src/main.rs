@@ -42,8 +42,6 @@ struct AppState {
     gemini_index: Arc<AtomicUsize>,
     openrouter_keys: Vec<String>,
     openrouter_index: Arc<AtomicUsize>,
-    mistral_keys: Vec<String>,
-    mistral_index: Arc<AtomicUsize>,
     http: reqwest::Client,
 }
 
@@ -84,15 +82,6 @@ fn provider_spec<'a>(state: &'a AppState, provider: &str) -> ProviderSpec<'a> {
             env_name: "OPENROUTER_API_KEYS",
             keys: &state.openrouter_keys,
             index: &state.openrouter_index,
-            stream: false,
-        },
-        "mistral" => ProviderSpec {
-            id: "mistral",
-            chat_url: "https://api.mistral.ai/v1/chat/completions",
-            models_url: "https://api.mistral.ai/v1/models",
-            env_name: "MISTRAL_API_KEYS",
-            keys: &state.mistral_keys,
-            index: &state.mistral_index,
             stream: false,
         },
         _ => ProviderSpec {
@@ -309,7 +298,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let nvidia_keys = parse_keys_env("NVIDIA_API_KEYS", "NVIDIA_API_KEY");
     let gemini_keys = parse_keys_env("GEMINI_API_KEYS", "GEMINI_API_KEY");
     let openrouter_keys = parse_keys_env("OPENROUTER_API_KEYS", "OPENROUTER_API_KEY");
-    let mistral_keys = parse_keys_env("MISTRAL_API_KEYS", "MISTRAL_API_KEY");
 
     let db = if mongo_uri.is_empty() {
         None
@@ -349,8 +337,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         gemini_index: Arc::new(AtomicUsize::new(0)),
         openrouter_keys,
         openrouter_index: Arc::new(AtomicUsize::new(0)),
-        mistral_keys,
-        mistral_index: Arc::new(AtomicUsize::new(0)),
         http: reqwest::Client::builder()
             .connect_timeout(std::time::Duration::from_secs(12))
             .timeout(std::time::Duration::from_secs(55))
@@ -373,7 +359,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/admin/nvidia-models", get(admin_nvidia_models))
         .route("/api/admin/gemini-models", get(admin_gemini_models))
         .route("/api/admin/openrouter-models", get(admin_openrouter_models))
-        .route("/api/admin/mistral-models", get(admin_mistral_models))
         .route("/api/admin/provider-models/:provider", get(admin_provider_models))
         .route("/api/admin/test-model", post(admin_test_model))
         .route("/api/backup/sync", post(sync_backup))
@@ -831,6 +816,15 @@ async fn fetch_provider_models(
                 }
             }
         }
+    } else if spec.id == "openrouter" {
+        if let Some(arr) = parsed.get_mut("data").and_then(|d| d.as_array_mut()) {
+            arr.retain(|item| {
+                let is_free_id = item["id"].as_str().is_some_and(|s| s.ends_with(":free"));
+                let is_zero_price = item["pricing"]["prompt"].as_str() == Some("0")
+                    && item["pricing"]["completion"].as_str() == Some("0");
+                is_free_id || is_zero_price
+            });
+        }
     }
 
     Ok(Json(json!({ "provider": spec.id, "models": parsed["data"] })))
@@ -862,13 +856,6 @@ async fn admin_openrouter_models(
     headers: axum::http::HeaderMap,
 ) -> Result<Json<Value>, ApiError> {
     fetch_provider_models(&state, &headers, "openrouter").await
-}
-
-async fn admin_mistral_models(
-    State(state): State<AppState>,
-    headers: axum::http::HeaderMap,
-) -> Result<Json<Value>, ApiError> {
-    fetch_provider_models(&state, &headers, "mistral").await
 }
 
 async fn admin_provider_models(
