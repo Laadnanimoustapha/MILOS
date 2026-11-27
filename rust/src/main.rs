@@ -259,7 +259,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         nvidia_keys,
         nvidia_index: Arc::new(AtomicUsize::new(0)),
         http: reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(60))
+            .connect_timeout(std::time::Duration::from_secs(12))
+            .timeout(std::time::Duration::from_secs(55))
+            .pool_max_idle_per_host(0)
+            .http1_only()
             .build()?,
     };
 
@@ -275,6 +278,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/admin/models", get(admin_get_models).put(admin_save_models))
         .route("/api/admin/groq-models", get(admin_groq_models))
         .route("/api/admin/nvidia-models", get(admin_nvidia_models))
+        .route("/api/admin/test-model", post(admin_test_model))
         .route("/api/backup/sync", post(sync_backup))
         .route("/api/backup/restore", get(restore_backup))
         .route("/api/backup/clear", delete(clear_backup))
@@ -967,15 +971,20 @@ async fn ai_chat(
     let total = keys.len();
     let start = index.fetch_add(1, Ordering::Relaxed) % total;
     let mut last_err = String::from("AI request failed");
+    let mut last_status = StatusCode::TOO_MANY_REQUESTS;
+    let use_stream = provider == "nvidia";
 
     for offset in 0..total {
         let key = &keys[(start + offset) % total];
-        let body = json!({
+        let mut body = json!({
             "model": payload.model,
             "messages": &full_messages,
             "temperature": 0.4,
-            "max_tokens": 4096,
+            "max_tokens": 1536,
         });
+        if use_stream {
+            body["stream"] = json!(true);
+        }
 
         let resp = match state
             .http
@@ -987,44 +996,45 @@ async fn ai_chat(
         {
             Ok(r) => r,
             Err(e) => {
-                last_err = format!("Upstream network error: {e}");
+                if e.is_timeout() {
+                    return Err(ApiError(
+                        StatusCode::GATEWAY_TIMEOUT,
+                        format!(
+                            "{provider} model '{}' timed out. Try a faster model (e.g. nvidia/nemotron-3.5-bolt-e4b or nvidia/nemotron-3.5-lightning-30b-a3b).",
+                            payload.model
+                        ),
+                    ));
+                }
+                last_status = StatusCode::BAD_GATEWAY;
+                last_err = format!("{provider} network error: {}", format_error_chain(&e));
                 continue;
             }
         };
 
         let status = resp.status();
-        let text = resp.text().await.unwrap_or_default();
-
         if status.as_u16() == 429 {
+            let text = resp.text().await.unwrap_or_default();
+            last_status = StatusCode::TOO_MANY_REQUESTS;
             last_err = format!("{provider} rate-limited (429): {text}");
             continue;
         }
         if !status.is_success() {
+            let text = resp.text().await.unwrap_or_default();
             return Err(ApiError(
                 StatusCode::BAD_GATEWAY,
                 format!("{provider} error {}: {}", status.as_u16(), extract_groq_error(&text)),
             ));
         }
 
-        let parsed: Value = serde_json::from_str(&text)
-            .map_err(|e| ApiError(StatusCode::BAD_GATEWAY, e.to_string()))?;
-        let content = parsed["choices"][0]["message"]["content"]
-            .as_str()
-            .unwrap_or("")
-            .trim()
-            .to_string();
-        if content.is_empty() {
-            return Err(ApiError(
-                StatusCode::BAD_GATEWAY,
-                format!("{provider} returned an empty response for model '{}'", payload.model),
-            ));
-        }
-
-        let prompt_tokens = parsed["usage"]["prompt_tokens"].as_u64().unwrap_or(0);
-        let completion_tokens = parsed["usage"]["completion_tokens"].as_u64().unwrap_or(0);
-        let total_tokens = parsed["usage"]["total_tokens"]
-            .as_u64()
-            .unwrap_or(prompt_tokens + completion_tokens);
+        let (content, prompt_tokens, completion_tokens, total_tokens) = if use_stream {
+            read_sse_chat_response(resp, provider, &payload.model).await?
+        } else {
+            let text = resp
+                .text()
+                .await
+                .map_err(|e| ApiError(StatusCode::BAD_GATEWAY, format_error_chain(&e)))?;
+            parse_json_chat_response(&text, provider, &payload.model)?
+        };
 
         if let Some(db) = &state.db {
             let logs: Collection<UsageLogDoc> = db.collection("usage_logs");
@@ -1044,7 +1054,231 @@ async fn ai_chat(
         return Ok(Json(json!({ "content": content })));
     }
 
-    Err(ApiError(StatusCode::TOO_MANY_REQUESTS, last_err))
+    Err(ApiError(last_status, last_err))
+}
+
+fn format_error_chain(err: &dyn std::error::Error) -> String {
+    let mut parts = vec![err.to_string()];
+    let mut cur = err.source();
+    while let Some(s) = cur {
+        parts.push(s.to_string());
+        cur = s.source();
+    }
+    parts.join(" -> ")
+}
+
+fn parse_json_chat_response(
+    text: &str,
+    provider: &str,
+    model: &str,
+) -> Result<(String, u64, u64, u64), ApiError> {
+    let parsed: Value =
+        serde_json::from_str(text).map_err(|e| ApiError(StatusCode::BAD_GATEWAY, e.to_string()))?;
+    let content = parsed["choices"][0]["message"]["content"]
+        .as_str()
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    if content.is_empty() {
+        return Err(ApiError(
+            StatusCode::BAD_GATEWAY,
+            format!("{provider} returned an empty response for model '{model}'"),
+        ));
+    }
+    let prompt_tokens = parsed["usage"]["prompt_tokens"].as_u64().unwrap_or(0);
+    let completion_tokens = parsed["usage"]["completion_tokens"].as_u64().unwrap_or(0);
+    let total_tokens = parsed["usage"]["total_tokens"]
+        .as_u64()
+        .unwrap_or(prompt_tokens + completion_tokens);
+    Ok((content, prompt_tokens, completion_tokens, total_tokens))
+}
+
+fn apply_sse_line(
+    line: &str,
+    content: &mut String,
+    prompt_tokens: &mut u64,
+    completion_tokens: &mut u64,
+    total_tokens: &mut u64,
+) {
+    let trimmed = line.trim();
+    if let Some(data) = trimmed.strip_prefix("data:") {
+        let data = data.trim();
+        if data.is_empty() || data == "[DONE]" {
+            return;
+        }
+        if let Ok(v) = serde_json::from_str::<Value>(data) {
+            if let Some(piece) = v["choices"][0]["delta"]["content"].as_str() {
+                content.push_str(piece);
+            } else if let Some(full) = v["choices"][0]["message"]["content"].as_str() {
+                content.push_str(full);
+            }
+            if v["usage"].is_object() {
+                *prompt_tokens = v["usage"]["prompt_tokens"].as_u64().unwrap_or(*prompt_tokens);
+                *completion_tokens = v["usage"]["completion_tokens"]
+                    .as_u64()
+                    .unwrap_or(*completion_tokens);
+                *total_tokens = v["usage"]["total_tokens"]
+                    .as_u64()
+                    .unwrap_or(*prompt_tokens + *completion_tokens);
+            }
+        }
+    }
+}
+
+async fn read_sse_chat_response(
+    mut resp: reqwest::Response,
+    provider: &str,
+    model: &str,
+) -> Result<(String, u64, u64, u64), ApiError> {
+    let mut buf: Vec<u8> = Vec::new();
+    let mut content = String::new();
+    let mut prompt_tokens: u64 = 0;
+    let mut completion_tokens: u64 = 0;
+    let mut total_tokens: u64 = 0;
+
+    while let Some(chunk) = resp.chunk().await.map_err(|e| {
+        if e.is_timeout() {
+            ApiError(
+                StatusCode::GATEWAY_TIMEOUT,
+                format!("{provider} model '{model}' timed out while streaming"),
+            )
+        } else {
+            ApiError(
+                StatusCode::BAD_GATEWAY,
+                format!("{provider} stream error: {}", format_error_chain(&e)),
+            )
+        }
+    })? {
+        buf.extend_from_slice(&chunk);
+        while let Some(pos) = buf.iter().position(|&b| b == b'\n') {
+            let line_bytes: Vec<u8> = buf.drain(..=pos).collect();
+            let line = String::from_utf8_lossy(&line_bytes);
+            apply_sse_line(
+                &line,
+                &mut content,
+                &mut prompt_tokens,
+                &mut completion_tokens,
+                &mut total_tokens,
+            );
+        }
+    }
+
+    if !buf.is_empty() {
+        let tail = String::from_utf8_lossy(&buf);
+        if tail.trim_start().starts_with("data:") {
+            apply_sse_line(
+                &tail,
+                &mut content,
+                &mut prompt_tokens,
+                &mut completion_tokens,
+                &mut total_tokens,
+            );
+        } else if content.is_empty() {
+            return parse_json_chat_response(&tail, provider, model);
+        }
+    }
+
+    let trimmed = content.trim().to_string();
+    if trimmed.is_empty() {
+        return Err(ApiError(
+            StatusCode::BAD_GATEWAY,
+            format!("{provider} returned an empty response for model '{model}'"),
+        ));
+    }
+    Ok((trimmed, prompt_tokens, completion_tokens, total_tokens))
+}
+
+#[derive(Deserialize)]
+struct TestModelRequest {
+    model: String,
+    #[serde(default = "default_provider")]
+    provider: String,
+}
+
+async fn admin_test_model(
+    State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Json(payload): Json<TestModelRequest>,
+) -> Result<Json<Value>, ApiError> {
+    require_admin(&state, &headers)?;
+    let is_nvidia = payload.provider == "nvidia";
+    let (endpoint, keys, env_name) = if is_nvidia {
+        (
+            "https://integrate.api.nvidia.com/v1/chat/completions",
+            &state.nvidia_keys,
+            "NVIDIA_API_KEYS",
+        )
+    } else {
+        (
+            "https://api.groq.com/openai/v1/chat/completions",
+            &state.groq_keys,
+            "GROQ_API_KEYS",
+        )
+    };
+    let key = keys.first().ok_or_else(|| {
+        ApiError(
+            StatusCode::SERVICE_UNAVAILABLE,
+            format!("No {env_name} configured"),
+        )
+    })?;
+
+    let started = std::time::Instant::now();
+    let mut body = json!({
+        "model": payload.model,
+        "messages": [{ "role": "user", "content": "Say hi in 3 words." }],
+        "temperature": 0.4,
+        "max_tokens": 512,
+    });
+    if is_nvidia {
+        body["stream"] = json!(true);
+    }
+
+    let resp = tokio::time::timeout(
+        std::time::Duration::from_secs(20),
+        state.http.post(endpoint).bearer_auth(key).json(&body).send(),
+    )
+    .await
+    .map_err(|_| {
+        ApiError(
+            StatusCode::GATEWAY_TIMEOUT,
+            format!("Model '{}' timed out (>20s) — too slow for mobile", payload.model),
+        )
+    })?
+    .map_err(|e| ApiError(StatusCode::BAD_GATEWAY, format_error_chain(&e)))?;
+
+    let status = resp.status();
+    if !status.is_success() {
+        let text = resp.text().await.unwrap_or_default();
+        return Err(ApiError(
+            StatusCode::BAD_GATEWAY,
+            format!("HTTP {}: {}", status.as_u16(), extract_groq_error(&text)),
+        ));
+    }
+
+    let (content, _, _, _) = tokio::time::timeout(std::time::Duration::from_secs(20), async {
+        if is_nvidia {
+            read_sse_chat_response(resp, "nvidia", &payload.model).await
+        } else {
+            let text = resp
+                .text()
+                .await
+                .map_err(|e| ApiError(StatusCode::BAD_GATEWAY, format_error_chain(&e)))?;
+            parse_json_chat_response(&text, "groq", &payload.model)
+        }
+    })
+    .await
+    .map_err(|_| {
+        ApiError(
+            StatusCode::GATEWAY_TIMEOUT,
+            format!("Model '{}' timed out (>20s) — too slow for mobile", payload.model),
+        )
+    })??;
+
+    Ok(Json(json!({
+        "ok": true,
+        "latency_ms": started.elapsed().as_millis() as u64,
+        "preview": content,
+    })))
 }
 
 fn extract_groq_error(body: &str) -> String {
