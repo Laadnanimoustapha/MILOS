@@ -38,7 +38,80 @@ struct AppState {
     groq_index: Arc<AtomicUsize>,
     nvidia_keys: Vec<String>,
     nvidia_index: Arc<AtomicUsize>,
+    gemini_keys: Vec<String>,
+    gemini_index: Arc<AtomicUsize>,
+    openrouter_keys: Vec<String>,
+    openrouter_index: Arc<AtomicUsize>,
     http: reqwest::Client,
+}
+
+struct ProviderSpec<'a> {
+    id: &'a str,
+    chat_url: &'a str,
+    models_url: &'a str,
+    env_name: &'a str,
+    keys: &'a [String],
+    index: &'a AtomicUsize,
+    stream: bool,
+}
+
+fn provider_spec<'a>(state: &'a AppState, provider: &str) -> ProviderSpec<'a> {
+    match provider.trim().to_lowercase().as_str() {
+        "nvidia" => ProviderSpec {
+            id: "nvidia",
+            chat_url: "https://integrate.api.nvidia.com/v1/chat/completions",
+            models_url: "https://integrate.api.nvidia.com/v1/models",
+            env_name: "NVIDIA_API_KEYS",
+            keys: &state.nvidia_keys,
+            index: &state.nvidia_index,
+            stream: true,
+        },
+        "gemini" => ProviderSpec {
+            id: "gemini",
+            chat_url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+            models_url: "https://generativelanguage.googleapis.com/v1beta/openai/models",
+            env_name: "GEMINI_API_KEYS",
+            keys: &state.gemini_keys,
+            index: &state.gemini_index,
+            stream: false,
+        },
+        "openrouter" => ProviderSpec {
+            id: "openrouter",
+            chat_url: "https://openrouter.ai/api/v1/chat/completions",
+            models_url: "https://openrouter.ai/api/v1/models",
+            env_name: "OPENROUTER_API_KEYS",
+            keys: &state.openrouter_keys,
+            index: &state.openrouter_index,
+            stream: false,
+        },
+        _ => ProviderSpec {
+            id: "groq",
+            chat_url: "https://api.groq.com/openai/v1/chat/completions",
+            models_url: "https://api.groq.com/openai/v1/models",
+            env_name: "GROQ_API_KEYS",
+            keys: &state.groq_keys,
+            index: &state.groq_index,
+            stream: false,
+        },
+    }
+}
+
+fn build_provider_post(
+    state: &AppState,
+    spec: &ProviderSpec<'_>,
+    key: &str,
+    body: &Value,
+) -> reqwest::RequestBuilder {
+    let req = state.http.post(spec.chat_url).bearer_auth(key).json(body);
+    if spec.id == "openrouter" {
+        req.header(
+            "HTTP-Referer",
+            "https://milos-mustapha-laadnanis-projects.vercel.app",
+        )
+        .header("X-Title", "MILOS")
+    } else {
+        req
+    }
 }
 
 fn parse_keys_env(primary: &str, fallback: &str) -> Vec<String> {
@@ -223,6 +296,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let groq_keys = parse_keys_env("GROQ_API_KEYS", "GROQ_API_KEY");
     let nvidia_keys = parse_keys_env("NVIDIA_API_KEYS", "NVIDIA_API_KEY");
+    let gemini_keys = parse_keys_env("GEMINI_API_KEYS", "GEMINI_API_KEY");
+    let openrouter_keys = parse_keys_env("OPENROUTER_API_KEYS", "OPENROUTER_API_KEY");
 
     let db = if mongo_uri.is_empty() {
         None
@@ -258,6 +333,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         groq_index: Arc::new(AtomicUsize::new(0)),
         nvidia_keys,
         nvidia_index: Arc::new(AtomicUsize::new(0)),
+        gemini_keys,
+        gemini_index: Arc::new(AtomicUsize::new(0)),
+        openrouter_keys,
+        openrouter_index: Arc::new(AtomicUsize::new(0)),
         http: reqwest::Client::builder()
             .connect_timeout(std::time::Duration::from_secs(12))
             .timeout(std::time::Duration::from_secs(55))
@@ -278,6 +357,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/admin/models", get(admin_get_models).put(admin_save_models))
         .route("/api/admin/groq-models", get(admin_groq_models))
         .route("/api/admin/nvidia-models", get(admin_nvidia_models))
+        .route("/api/admin/gemini-models", get(admin_gemini_models))
+        .route("/api/admin/openrouter-models", get(admin_openrouter_models))
+        .route("/api/admin/provider-models/:provider", get(admin_provider_models))
         .route("/api/admin/test-model", post(admin_test_model))
         .route("/api/backup/sync", post(sync_backup))
         .route("/api/backup/restore", get(restore_backup))
@@ -687,69 +769,92 @@ async fn admin_save_models(
 async fn fetch_provider_models(
     state: &AppState,
     headers: &axum::http::HeaderMap,
-    url: &str,
-    keys: &[String],
-    provider_label: &str,
-    env_name: &str,
+    provider: &str,
 ) -> Result<Json<Value>, ApiError> {
     require_admin(state, headers)?;
-    let key = keys.first().ok_or_else(|| {
+    let spec = provider_spec(state, provider);
+    let key = spec.keys.first().ok_or_else(|| {
         ApiError(
             StatusCode::SERVICE_UNAVAILABLE,
-            format!("No {env_name} configured"),
+            format!("No {} configured", spec.env_name),
         )
     })?;
 
     let resp = state
         .http
-        .get(url)
+        .get(spec.models_url)
         .bearer_auth(key)
         .send()
         .await
-        .map_err(|e| ApiError(StatusCode::BAD_GATEWAY, format!("{provider_label} error: {e}")))?;
+        .map_err(|e| {
+            ApiError(
+                StatusCode::BAD_GATEWAY,
+                format!("{} error: {}", spec.id, format_error_chain(&e)),
+            )
+        })?;
 
     let status = resp.status();
     let text = resp.text().await.unwrap_or_default();
     if !status.is_success() {
         return Err(ApiError(
             StatusCode::BAD_GATEWAY,
-            format!("{provider_label} error {}: {}", status.as_u16(), extract_groq_error(&text)),
+            format!("{} error {}: {}", spec.id, status.as_u16(), extract_groq_error(&text)),
         ));
     }
 
-    let parsed: Value = serde_json::from_str(&text)
+    let mut parsed: Value = serde_json::from_str(&text)
         .map_err(|e| ApiError(StatusCode::BAD_GATEWAY, e.to_string()))?;
-    Ok(Json(json!({ "provider": provider_label, "models": parsed["data"] })))
+
+    // Google's OpenAI-compatible /models endpoint prefixes IDs with "models/".
+    if spec.id == "gemini" {
+        if let Some(arr) = parsed.get_mut("data").and_then(|d| d.as_array_mut()) {
+            for item in arr {
+                if let Some(id_val) = item.get_mut("id") {
+                    if let Some(raw) = id_val.as_str() {
+                        *id_val = Value::String(raw.strip_prefix("models/").unwrap_or(raw).to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(Json(json!({ "provider": spec.id, "models": parsed["data"] })))
 }
 
 async fn admin_groq_models(
     State(state): State<AppState>,
     headers: axum::http::HeaderMap,
 ) -> Result<Json<Value>, ApiError> {
-    fetch_provider_models(
-        &state,
-        &headers,
-        "https://api.groq.com/openai/v1/models",
-        &state.groq_keys,
-        "groq",
-        "GROQ_API_KEYS",
-    )
-    .await
+    fetch_provider_models(&state, &headers, "groq").await
 }
 
 async fn admin_nvidia_models(
     State(state): State<AppState>,
     headers: axum::http::HeaderMap,
 ) -> Result<Json<Value>, ApiError> {
-    fetch_provider_models(
-        &state,
-        &headers,
-        "https://integrate.api.nvidia.com/v1/models",
-        &state.nvidia_keys,
-        "nvidia",
-        "NVIDIA_API_KEYS",
-    )
-    .await
+    fetch_provider_models(&state, &headers, "nvidia").await
+}
+
+async fn admin_gemini_models(
+    State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
+) -> Result<Json<Value>, ApiError> {
+    fetch_provider_models(&state, &headers, "gemini").await
+}
+
+async fn admin_openrouter_models(
+    State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
+) -> Result<Json<Value>, ApiError> {
+    fetch_provider_models(&state, &headers, "openrouter").await
+}
+
+async fn admin_provider_models(
+    State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Path(provider): Path<String>,
+) -> Result<Json<Value>, ApiError> {
+    fetch_provider_models(&state, &headers, &provider).await
 }
 
 #[derive(Deserialize)]
@@ -923,25 +1028,12 @@ async fn ai_chat(
     let provider = matched_model
         .map(|m| m.provider.as_str())
         .unwrap_or("groq");
-    let (endpoint, keys, index, env_name) = match provider {
-        "nvidia" => (
-            "https://integrate.api.nvidia.com/v1/chat/completions",
-            &state.nvidia_keys,
-            &state.nvidia_index,
-            "NVIDIA_API_KEYS",
-        ),
-        _ => (
-            "https://api.groq.com/openai/v1/chat/completions",
-            &state.groq_keys,
-            &state.groq_index,
-            "GROQ_API_KEYS",
-        ),
-    };
+    let spec = provider_spec(&state, provider);
 
-    if keys.is_empty() {
+    if spec.keys.is_empty() {
         return Err(ApiError(
             StatusCode::SERVICE_UNAVAILABLE,
-            format!("No {env_name} configured on server"),
+            format!("No {} configured on server", spec.env_name),
         ));
     }
 
@@ -968,45 +1060,37 @@ async fn ai_chat(
     full_messages.push(json!({ "role": "system", "content": system_prompt }));
     full_messages.extend(payload.messages);
 
-    let total = keys.len();
-    let start = index.fetch_add(1, Ordering::Relaxed) % total;
+    let total = spec.keys.len();
+    let start = spec.index.fetch_add(1, Ordering::Relaxed) % total;
     let mut last_err = String::from("AI request failed");
     let mut last_status = StatusCode::TOO_MANY_REQUESTS;
-    let use_stream = provider == "nvidia";
 
     for offset in 0..total {
-        let key = &keys[(start + offset) % total];
+        let key = &spec.keys[(start + offset) % total];
         let mut body = json!({
             "model": payload.model,
             "messages": &full_messages,
             "temperature": 0.4,
             "max_tokens": 1536,
         });
-        if use_stream {
+        if spec.stream {
             body["stream"] = json!(true);
         }
 
-        let resp = match state
-            .http
-            .post(endpoint)
-            .bearer_auth(key)
-            .json(&body)
-            .send()
-            .await
-        {
+        let resp = match build_provider_post(&state, &spec, key, &body).send().await {
             Ok(r) => r,
             Err(e) => {
                 if e.is_timeout() {
                     return Err(ApiError(
                         StatusCode::GATEWAY_TIMEOUT,
                         format!(
-                            "{provider} model '{}' timed out. Try a faster model (e.g. nvidia/nemotron-3.5-bolt-e4b or nvidia/nemotron-3.5-lightning-30b-a3b).",
-                            payload.model
+                            "{} model '{}' timed out. Try a faster model.",
+                            spec.id, payload.model
                         ),
                     ));
                 }
                 last_status = StatusCode::BAD_GATEWAY;
-                last_err = format!("{provider} network error: {}", format_error_chain(&e));
+                last_err = format!("{} network error: {}", spec.id, format_error_chain(&e));
                 continue;
             }
         };
@@ -1015,25 +1099,25 @@ async fn ai_chat(
         if status.as_u16() == 429 {
             let text = resp.text().await.unwrap_or_default();
             last_status = StatusCode::TOO_MANY_REQUESTS;
-            last_err = format!("{provider} rate-limited (429): {text}");
+            last_err = format!("{} rate-limited (429): {text}", spec.id);
             continue;
         }
         if !status.is_success() {
             let text = resp.text().await.unwrap_or_default();
             return Err(ApiError(
                 StatusCode::BAD_GATEWAY,
-                format!("{provider} error {}: {}", status.as_u16(), extract_groq_error(&text)),
+                format!("{} error {}: {}", spec.id, status.as_u16(), extract_groq_error(&text)),
             ));
         }
 
-        let (content, prompt_tokens, completion_tokens, total_tokens) = if use_stream {
-            read_sse_chat_response(resp, provider, &payload.model).await?
+        let (content, prompt_tokens, completion_tokens, total_tokens) = if spec.stream {
+            read_sse_chat_response(resp, spec.id, &payload.model).await?
         } else {
             let text = resp
                 .text()
                 .await
                 .map_err(|e| ApiError(StatusCode::BAD_GATEWAY, format_error_chain(&e)))?;
-            parse_json_chat_response(&text, provider, &payload.model)?
+            parse_json_chat_response(&text, spec.id, &payload.model)?
         };
 
         if let Some(db) = &state.db {
@@ -1042,7 +1126,7 @@ async fn ai_chat(
                 .insert_one(UsageLogDoc {
                     user_email: auth.email.clone(),
                     model: payload.model.clone(),
-                    provider: provider.to_string(),
+                    provider: spec.id.to_string(),
                     prompt_tokens,
                     completion_tokens,
                     total_tokens,
@@ -1201,24 +1285,11 @@ async fn admin_test_model(
     Json(payload): Json<TestModelRequest>,
 ) -> Result<Json<Value>, ApiError> {
     require_admin(&state, &headers)?;
-    let is_nvidia = payload.provider == "nvidia";
-    let (endpoint, keys, env_name) = if is_nvidia {
-        (
-            "https://integrate.api.nvidia.com/v1/chat/completions",
-            &state.nvidia_keys,
-            "NVIDIA_API_KEYS",
-        )
-    } else {
-        (
-            "https://api.groq.com/openai/v1/chat/completions",
-            &state.groq_keys,
-            "GROQ_API_KEYS",
-        )
-    };
-    let key = keys.first().ok_or_else(|| {
+    let spec = provider_spec(&state, &payload.provider);
+    let key = spec.keys.first().ok_or_else(|| {
         ApiError(
             StatusCode::SERVICE_UNAVAILABLE,
-            format!("No {env_name} configured"),
+            format!("No {} configured", spec.env_name),
         )
     })?;
 
@@ -1229,13 +1300,13 @@ async fn admin_test_model(
         "temperature": 0.4,
         "max_tokens": 512,
     });
-    if is_nvidia {
+    if spec.stream {
         body["stream"] = json!(true);
     }
 
     let resp = tokio::time::timeout(
         std::time::Duration::from_secs(20),
-        state.http.post(endpoint).bearer_auth(key).json(&body).send(),
+        build_provider_post(&state, &spec, key, &body).send(),
     )
     .await
     .map_err(|_| {
@@ -1256,14 +1327,14 @@ async fn admin_test_model(
     }
 
     let (content, _, _, _) = tokio::time::timeout(std::time::Duration::from_secs(20), async {
-        if is_nvidia {
-            read_sse_chat_response(resp, "nvidia", &payload.model).await
+        if spec.stream {
+            read_sse_chat_response(resp, spec.id, &payload.model).await
         } else {
             let text = resp
                 .text()
                 .await
                 .map_err(|e| ApiError(StatusCode::BAD_GATEWAY, format_error_chain(&e)))?;
-            parse_json_chat_response(&text, "groq", &payload.model)
+            parse_json_chat_response(&text, spec.id, &payload.model)
         }
     })
     .await
@@ -1284,6 +1355,9 @@ async fn admin_test_model(
 fn extract_groq_error(body: &str) -> String {
     if let Ok(v) = serde_json::from_str::<Value>(body) {
         if let Some(msg) = v["error"]["message"].as_str() {
+            return msg.to_string();
+        }
+        if let Some(msg) = v[0]["error"]["message"].as_str() {
             return msg.to_string();
         }
     }
