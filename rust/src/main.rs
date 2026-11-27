@@ -805,16 +805,30 @@ async fn fetch_provider_models(
     let mut parsed: Value = serde_json::from_str(&text)
         .map_err(|e| ApiError(StatusCode::BAD_GATEWAY, e.to_string()))?;
 
-    // Google's OpenAI-compatible /models endpoint prefixes IDs with "models/".
+    // Google's OpenAI-compatible /models endpoint prefixes IDs with "models/" and has no pricing field.
+    // Keep only free-tier chat models (Flash & Gemma) and exclude Pro/embedding/media models.
     if spec.id == "gemini" {
         if let Some(arr) = parsed.get_mut("data").and_then(|d| d.as_array_mut()) {
-            for item in arr {
+            for item in arr.iter_mut() {
                 if let Some(id_val) = item.get_mut("id") {
                     if let Some(raw) = id_val.as_str() {
                         *id_val = Value::String(raw.strip_prefix("models/").unwrap_or(raw).to_string());
                     }
                 }
             }
+            arr.retain(|item| {
+                let id = item["id"].as_str().unwrap_or("").to_lowercase();
+                let is_free_family = id.contains("flash") || id.starts_with("gemma-");
+                let is_non_chat = id.contains("embedding")
+                    || id.contains("imagen")
+                    || id.contains("veo")
+                    || id.contains("tts")
+                    || id.contains("image")
+                    || id.contains("audio")
+                    || id.contains("robotics")
+                    || id.contains("computer-use");
+                is_free_family && !is_non_chat
+            });
         }
     } else if spec.id == "openrouter" {
         if let Some(arr) = parsed.get_mut("data").and_then(|d| d.as_array_mut()) {
